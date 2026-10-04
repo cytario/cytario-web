@@ -227,7 +227,8 @@ To stop: `podman kube down devenv/local-deployment.yaml`
 
 The cluster runs a stock [Keycloak](https://www.keycloak.org/) with the
 `organization` feature enabled. First boot gives you an empty `master` realm —
-set it up once through the admin console (`http://localhost:8080`, admin/admin):
+provision it **either** with the one-shot OpenTofu bootstrap below (recommended)
+**or** by hand through the admin console (`http://localhost:8080`, admin/admin):
 
 1. Create a realm (e.g. `cytario`) and toggle **Organizations** on (Realm
    settings → General).
@@ -239,6 +240,37 @@ set it up once through the admin console (`http://localhost:8080`, admin/admin):
    `manage-users`, `view-realm` from the `realm-management` client.
 4. Create a user, an organization, assign the user to it, and add them to
    groups as needed (see [Keycloak Organizations](#keycloak-organizations)).
+
+##### OpenTofu bootstrap (recommended)
+
+`devenv/terraform/` creates everything the app needs in one `apply`: the
+realm with Organizations enabled, the `cytario-web` client (secret `1234567`,
+matching `.env.template`) with the built-in `organization` client scope (the
+nested org claim the app reads) and a top-level `groups` claim, a `demo`
+organization, the `Lab`/`TeamX` org groups plus the `admins` group that grants
+the `*` admin scope, and two users (`admin@demo.dev` / `demo-admin`,
+`viewer@demo.dev` / `demo-viewer`):
+
+```sh
+cd devenv/terraform
+tofu init
+tofu apply          # ~10s against the running Keycloak
+
+# Org-group membership goes through the org-scoped admin API, which the
+# terraform provider cannot express — the companion script does it:
+./org-membership.sh cytario "$(tofu output -raw organization_id)"   admin@demo.dev:admins admin@demo.dev:Lab   viewer@demo.dev:Lab
+```
+
+Then set in `.env`:
+
+```sh
+BASE_URL=http://localhost:8080/realms/cytario
+CLIENT_ID=cytario-web
+CLIENT_SECRET=1234567
+```
+
+`tofu destroy` removes the realm; re-running `apply` after a
+`podman kube down` (data dirs kept) converges the state.
 
 > **Why stock Keycloak?** Cytario's production identity stack carries custom
 > protocol mappers (for the RustFS `groups` claim) in a private image. For the

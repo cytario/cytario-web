@@ -1,46 +1,43 @@
-# resource "keycloak_realm" "keycloak_realm" {
-#   realm   =  var.keycloak_realm_name
-#   enabled = true
-# }
+# One-shot Keycloak realm bootstrap for the devenv cluster: the realm, the
+# app's OIDC clients, an Organization with groups and users, and the group
+# claim wiring. Apply it against the running Keycloak (README "OpenTofu
+# bootstrap") after `podman kube play local-deployment.yaml`.
 #
+# What lives here vs the admin console: everything the app needs at boot.
+# What does NOT: the RustFS-side provisioning (see rustfs.tf) — storage
+# policies/groups are created in the RustFS console or by script.
+
+resource "keycloak_realm" "cytario" {
+  realm   = var.keycloak_realm_name
+  enabled = true
+
+  # Organizations must be on for the tenant model.
+  organizations_enabled = true
+}
+
 resource "keycloak_openid_client" "cytario_web" {
-  realm_id                     = var.keycloak_realm_name
+  realm_id                     = keycloak_realm.cytario.id
   client_id                    = "cytario-web"
   enabled                      = true
   direct_access_grants_enabled = true
   standard_flow_enabled        = true
   access_type                  = "CONFIDENTIAL"
   client_secret                = var.keycloak_client_secret
-  valid_redirect_uris = [
-    "http://localhost:3000/*"
-  ]
+  valid_redirect_uris          = ["http://localhost:3000/*"]
   web_origins = [
     "http://localhost:3000"
   ]
 }
 
-resource "keycloak_openid_client_scope" "group_membership_scope" {
-  realm_id               = var.keycloak_realm_name
-  name                   = "groups"
-  description            = "Group membership"
-  include_in_token_scope = true
-  gui_order              = 1
-}
-
-resource "keycloak_openid_group_membership_protocol_mapper" "group_membership_mapper" {
-  realm_id  = var.keycloak_realm_name
-  client_id = keycloak_openid_client.cytario_web.id
-  name      = "group-membership"
-
-  claim_name = "groups"
-}
-
-resource "keycloak_openid_client_default_scopes" "cytario_web_client_default_scopes" {
-  realm_id  = var.keycloak_realm_name
+# The nested `organization` claim the app reads
+# (`{ "<alias>": { groups: [...] } }`): the built-in organization scope
+# carries it, including the org-scoped group paths.
+resource "keycloak_openid_client_default_scopes" "cytario_web" {
+  realm_id  = keycloak_realm.cytario.id
   client_id = keycloak_openid_client.cytario_web.id
 
   default_scopes = [
-    keycloak_openid_client_scope.group_membership_scope.name,
+    "organization",
     "profile",
     "email",
     "roles",
@@ -49,153 +46,88 @@ resource "keycloak_openid_client_default_scopes" "cytario_web_client_default_sco
   ]
 }
 
-###############################################################################
-# Groups:
-###############################################################################
-
-
-resource "keycloak_group" "vericura" {
-  realm_id = var.keycloak_realm_name
-  name     = "VeriCura"
+# The top-level `groups` claim (realm groups) — carried for parity with the
+# legacy fixtures; the app prefers the org-nested groups when present.
+resource "keycloak_openid_client_scope" "groups" {
+  realm_id               = keycloak_realm.cytario.id
+  name                   = "groups"
+  description            = "Group membership"
+  include_in_token_scope = true
+  gui_order              = 1
 }
 
-resource "keycloak_group" "vericura_employees" {
-  realm_id = var.keycloak_realm_name
-  name     = "Employees"
-  parent_id = keycloak_group.vericura.id
+resource "keycloak_openid_group_membership_protocol_mapper" "groups" {
+  realm_id  = keycloak_realm.cytario.id
+  client_id = keycloak_openid_client.cytario_web.id
+  name      = "group-membership"
+
+  claim_name = "groups"
 }
 
-resource "keycloak_group" "vericura_admins" {
-  realm_id = var.keycloak_realm_name
-  name     = "Admins"
-  parent_id = keycloak_group.vericura.id
-}
+resource "keycloak_openid_client_default_scopes" "groups" {
+  realm_id  = keycloak_realm.cytario.id
+  client_id = keycloak_openid_client.cytario_web.id
 
-resource "keycloak_group" "vericura_lab" {
-  realm_id = var.keycloak_realm_name
-  name     = "Lab"
-  parent_id = keycloak_group.vericura.id
-}
-
-
-resource "keycloak_group" "vericura_ia" {
-  realm_id = var.keycloak_realm_name
-  name     = "ImageAnalysis"
-  parent_id = keycloak_group.vericura.id
-}
-
-
-resource "keycloak_group" "neurovance" {
-  realm_id = var.keycloak_realm_name
-  name     = "NeurovanceTherapeutics"
-}
-
-resource "keycloak_group" "neurovance_employees" {
-  realm_id = var.keycloak_realm_name
-  name     = "Employees"
-  parent_id = keycloak_group.neurovance.id
-}
-
-
-resource "keycloak_group" "zenthera" {
-  realm_id = var.keycloak_realm_name
-  name     = "ZentheraPharma"
-}
-
-
-resource "keycloak_group" "zenthera_employees" {
-  realm_id = var.keycloak_realm_name
-  name     = "Employees"
-  parent_id = keycloak_group.zenthera.id
-}
-
-
-###############################################################################
-# Users:
-###############################################################################
-
-resource "keycloak_user" "marcus" {
-  realm_id       = var.keycloak_realm_name
-  username       = "marcus.deleon@neurovance.com"
-  email          = "marcus.deleon@neurovance.com"
-  first_name     = "Marcus"
-  last_name      = "Deleon"
-  email_verified = true
-  initial_password {
-    value     = "marcus"
-    temporary = false
-  }
-}
-
-resource "keycloak_user_groups" "marcus" {
-  realm_id  = var.keycloak_realm_name
-  user_id   = keycloak_user.marcus.id
-  group_ids = [keycloak_group.neurovance.id]
-}
-
-resource "keycloak_user" "anika" {
-  realm_id       = var.keycloak_realm_name
-  username       = "anika.rothstein@zenthera.com"
-  email          = "anika.rothstein@zenthera.com"
-  first_name     = "Anika"
-  last_name      = "Rothstein"
-  email_verified = true
-  initial_password {
-    value     = "anika"
-    temporary = false
-  }
-}
-
-resource "keycloak_user_groups" "anika" {
-  realm_id  = var.keycloak_realm_name
-  user_id   = keycloak_user.anika.id
-  group_ids = [keycloak_group.zenthera.id]
-}
-
-resource "keycloak_user" "elara" {
-  realm_id       = var.keycloak_realm_name
-  username       = "elara.voss@vericura.com"
-  email          = "elara.voss@vericura.com"
-  first_name     = "Elara"
-  last_name      = "Voss"
-  email_verified = true
-  initial_password {
-    value     = "elara"
-    temporary = false
-  }
-}
-
-resource "keycloak_user_groups" "elara" {
-  realm_id = var.keycloak_realm_name
-  user_id  = keycloak_user.elara.id
-  group_ids = [
-    keycloak_group.vericura_admins.id,
-    keycloak_group.vericura_employees.id,
-    keycloak_group.vericura_lab.id,
-    keycloak_group.zenthera.id,
+  default_scopes = [
+    keycloak_openid_client_scope.groups.name,
   ]
 }
 
+# The organization every dev user belongs to. Its alias is the tenant key
+# the app (and the RustFS marker scheme) derives everything from.
+resource "keycloak_organization" "demo" {
+  realm        = keycloak_realm.cytario.realm
+  name         = "Demo Org"
+  alias        = "demo"
+  enabled      = true
+  redirect_url = "http://localhost:3000/*"
+}
 
-resource "keycloak_user" "priya" {
-  realm_id       = var.keycloak_realm_name
-  username       = "priya.chandrasekar@vericura.com"
-  email          = "priya.chandrasekar@vericura.com"
-  first_name     = "Priya"
-  last_name      = "Chandrasekar"
+# Org-scoped groups (created under the organization, not the realm). The
+# `admins` subgroup is what grants the `*` admin scope in the app.
+resource "keycloak_group" "lab" {
+  realm_id        = keycloak_realm.cytario.id
+  organization_id = keycloak_organization.demo.id
+  name            = "Lab"
+}
+
+resource "keycloak_group" "admins" {
+  realm_id        = keycloak_realm.cytario.id
+  organization_id = keycloak_organization.demo.id
+  name            = "admins"
+}
+
+resource "keycloak_group" "lab_teamx" {
+  realm_id        = keycloak_realm.cytario.id
+  organization_id = keycloak_organization.demo.id
+  parent_id       = keycloak_group.lab.id
+  name            = "TeamX"
+}
+
+resource "keycloak_user" "admin" {
+  realm_id       = keycloak_realm.cytario.id
+  username       = "admin@demo.dev"
+  email          = "admin@demo.dev"
+  first_name     = "Dana"
+  last_name      = "Admin"
   email_verified = true
+  enabled        = true
   initial_password {
-    value     = "priya"
+    value     = "demo-admin"
     temporary = false
   }
 }
 
-resource "keycloak_user_groups" "priya" {
-  realm_id = var.keycloak_realm_name
-  user_id  = keycloak_user.priya.id
-  group_ids = [
-    keycloak_group.vericura_employees.id,
-    keycloak_group.vericura_ia.id,
-    keycloak_group.neurovance.id,
-  ]
+resource "keycloak_user" "viewer" {
+  realm_id       = keycloak_realm.cytario.id
+  username       = "viewer@demo.dev"
+  email          = "viewer@demo.dev"
+  first_name     = "Vera"
+  last_name      = "Viewer"
+  email_verified = true
+  enabled        = true
+  initial_password {
+    value     = "demo-viewer"
+    temporary = false
+  }
 }

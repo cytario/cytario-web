@@ -1,12 +1,11 @@
 terraform {
-  required_version = "~> 1.6"
+  required_version = ">= 1.6"
   required_providers {
     keycloak = {
       source  = "keycloak/keycloak"
-      version = "5.5.0"
+      version = "5.9.0"
     }
   }
-
 }
 
 provider "keycloak" {
@@ -15,5 +14,3 @@ provider "keycloak" {
   password  = "admin"
   url       = "http://localhost:8080"
 }
-
-
