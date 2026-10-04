@@ -3,19 +3,19 @@
 #   enabled = true
 # }
 #
-resource "keycloak_openid_client" "minio" {
+resource "keycloak_openid_client" "cytario_web" {
   realm_id                     = var.keycloak_realm_name
-  client_id                    = "minio"
+  client_id                    = "cytario-web"
   enabled                      = true
   direct_access_grants_enabled = true
   standard_flow_enabled        = true
   access_type                  = "CONFIDENTIAL"
   client_secret                = var.keycloak_client_secret
   valid_redirect_uris = [
-    "http://localhost:5173/*"
+    "http://localhost:3000/*"
   ]
   web_origins = [
-    "http://localhost:5173"
+    "http://localhost:3000"
   ]
 }
 
@@ -29,27 +29,15 @@ resource "keycloak_openid_client_scope" "group_membership_scope" {
 
 resource "keycloak_openid_group_membership_protocol_mapper" "group_membership_mapper" {
   realm_id  = var.keycloak_realm_name
-  client_id = keycloak_openid_client.minio.id
+  client_id = keycloak_openid_client.cytario_web.id
   name      = "group-membership"
 
   claim_name = "groups"
 }
 
-resource "keycloak_openid_hardcoded_claim_protocol_mapper" "policy_mapper" {
+resource "keycloak_openid_client_default_scopes" "cytario_web_client_default_scopes" {
   realm_id  = var.keycloak_realm_name
-  client_id = keycloak_openid_client.minio.id
-  name      = "policy-claim"
-
-  claim_name       = "policy"
-  claim_value      = "vericura_policy"
-  claim_value_type = "String"
-  add_to_id_token  = true
-  add_to_access_token = true
-}
-
-resource "keycloak_openid_client_default_scopes" "minio_client_default_scopes" {
-  realm_id  = var.keycloak_realm_name
-  client_id = keycloak_openid_client.minio.id
+  client_id = keycloak_openid_client.cytario_web.id
 
   default_scopes = [
     keycloak_openid_client_scope.group_membership_scope.name,

@@ -24,7 +24,7 @@ For the hosted product, see [cytario.com](https://www.cytario.com).
 | Styling       | Tailwind CSS v4, [@cytario/design](https://github.com/cytario/cytario-design) |
 | Auth          | OAuth 2.0 via Keycloak, STS for S3 credentials                                |
 | Database      | PostgreSQL (Prisma ORM), Redis/Valkey (sessions)                              |
-| Cloud         | AWS SDK v3 (S3, STS)                                                          |
+| Cloud         | AWS SDK v3 (S3, STS); RustFS and other S3-compatible endpoints                |
 | CI/CD         | GitHub Actions, semantic-release, GHCR                                        |
 
 ## Plugin model
@@ -214,14 +214,70 @@ cd devenv
 podman kube play local-deployment.yaml
 ```
 
-| Service    | Port       | Description                      |
-| ---------- | ---------- | -------------------------------- |
-| Keycloak   | 8080       | Identity provider (admin/admin)  |
-| MinIO      | 9000, 9001 | S3-compatible object storage     |
-| PostgreSQL | 5433       | Application database             |
-| Valkey     | 6379       | Session cache (Redis-compatible) |
+| Service    | Port       | Description                                    |
+| ---------- | ---------- | ---------------------------------------------- |
+| Keycloak   | 8080       | Identity provider (admin/admin)                |
+| RustFS     | 9000, 9001 | S3-compatible object storage (console on 9001) |
+| PostgreSQL | 5433       | Application database                           |
+| Valkey     | 6379       | Session cache (Redis-compatible)               |
 
 To stop: `podman kube down devenv/local-deployment.yaml`
+
+#### Keycloak
+
+The cluster runs a stock [Keycloak](https://www.keycloak.org/) with the
+`organizations` feature enabled. First boot gives you an empty `master` realm —
+set it up once through the admin console (`http://localhost:8080`, admin/admin):
+
+1. Create a realm (e.g. `cytario`) and toggle **Organizations** on (Realm
+   settings → General).
+2. Create a confidential client `cytario-web` with a secret, valid redirect
+   URIs for `http://localhost:3000/*`, and web origins `http://localhost:3000`.
+   Point `BASE_URL`/`CLIENT_ID`/`CLIENT_SECRET` in `.env` at it.
+3. Create a service-account client for the Keycloak Admin API (see
+   `KC_ADMIN_CLIENT_ID` in `.env.template`) with `manage-realm`,
+   `manage-users`, `view-realm` from the `realm-management` client.
+4. Create a user, an organization, assign the user to it, and add them to
+   groups as needed (see [Keycloak Organizations](#keycloak-organizations)).
+
+> **Why stock Keycloak?** Cytario's production identity stack carries custom
+> protocol mappers (for the RustFS `groups` claim) in a private image. For the
+> open-source local setup, a stock Keycloak covers authentication and tenant
+> routing; the storage mappers are only needed when connecting a RustFS
+> provider for bucket-policy sharing (see below).
+
+#### RustFS (S3-compatible storage)
+
+The cluster runs [RustFS](https://rustfs.com) — the S3-compatible object
+storage the platform targets for self-hosted deployments. It boots with
+web-identity federation against the local Keycloak realm (client
+`cytario-web`, claim `groups`).
+
+- **Console** — `http://localhost:9001` (rustfsadmin/rustfsadmin). Create
+  buckets, IAM policies, and groups here.
+- **Connecting from the app** — a RustFS provider connection needs an
+  `endpoint` (`http://localhost:9000` for the local cluster) and the
+  operator-side provisioning described in the user guide's _RustFS storage
+  onboarding_ runbook: per-organization IAM policies and the claim-named
+  groups they attach to. In an OSS deployment (no admin portal), the
+  connection selectors read from a deploy-time catalog file — see
+  `devenv/providers.example.yaml` for both an AWS and a RustFS entry.
+
+#### Object storage in .env
+
+The browser talks to object storage directly (SigV4-signed fetches), and the
+app's Content-Security-Policy only allows `connect-src` hosts from the
+`CYTARIO_ALLOWED_S3_HOSTS` allowlist. The defaults cover `https://*.amazonaws.com`
+and `https://*.cytario.com`; **any other host — including the local RustFS —
+must be added explicitly**:
+
+```sh
+# .env — allow the local RustFS (and any other S3-compatible endpoint)
+CYTARIO_ALLOWED_S3_HOSTS=http://localhost:9000,https://*.amazonaws.com,https://*.cytario.com
+```
+
+Note the allowlist **replaces** the defaults entirely — include the AWS hosts
+when you still use AWS connections alongside.
 
 ### Getting Started
 
@@ -233,12 +289,12 @@ npm run dev
 
 ### Keycloak Organizations
 
-The app uses [Keycloak 26.6 Organizations](https://www.keycloak.org/docs/latest/server_admin/index.html#_managing_organizations) as the tenant boundary. Every session must carry an active organization — sessions without one are redirected to `/onboarding` and cannot reach any tenant-scoped route.
+The app uses [Keycloak Organizations](https://www.keycloak.org/docs/latest/server_admin/index.html#_managing_organizations) as the tenant boundary. Every session must carry an active organization — sessions without one are redirected to `/onboarding` and cannot reach any tenant-scoped route.
 
-The local Podman cluster boots Keycloak with `KC_FEATURES=organizations` enabled and ships a `cytario` realm with the Organizations feature toggled on and a sample organization assigned to every seed user. To run against a custom Keycloak deployment:
+The local Podman cluster boots a stock Keycloak with `KC_FEATURES=organizations` enabled but an empty realm — follow the setup steps under [Keycloak](#keycloak) above to create the realm, client, and organization. To run against a custom Keycloak deployment:
 
 1. Enable the Organizations realm feature (`KC_FEATURES=organizations` on the Keycloak server **and** the per-realm toggle in the admin UI).
-2. Grant the `cytario-web-admin` service account `view-realm` + `manage-realm` on the `realm-management` client. No dedicated `view-organizations` role exists in KC 26.6 — the broader realm roles are required.
+2. Grant the `cytario-web-admin` service account `view-realm` + `manage-realm` on the `realm-management` client. No dedicated `view-organizations` role exists — the broader realm roles are required.
 3. Assign every login-eligible user to at least one organization. Users without an organization land on `/onboarding`.
 
 Group membership inside an organization (subgroups under `/admin/users`) drives in-tenant authorization. A `/admins` subgroup at a given scope confers admin rights over that scope; the `*` sentinel scope covers the entire organization.
@@ -256,7 +312,7 @@ Sessions hold OAuth access/refresh/ID tokens and short-lived STS credentials. **
 
 The local Podman cluster runs Valkey without TLS, which is allowed because `NODE_ENV=development`. Managed Valkey deployments (helm chart, AWS ElastiCache, etc.) should set `REDIS_TLS=true`. Valkey reuses the standard `6379` port for TLS when `tls.enabled` is set — it does not move the listener to `6380` and refuses plaintext on the same port — so leave `REDIS_PORT` at `6379` unless your provider explicitly publishes a separate TLS endpoint.
 
-In the production cluster (see `cytario-infrastructure`, C-212) the Valkey leaf cert is signed by a cluster-internal CA managed by cert-manager. The CA's public cert is distributed to every namespace as a `cytario-internal-ca` ConfigMap by trust-manager, and the `cytario-web` helm chart's `redis.caCertConfigMap.{name,key}` wires it into the pod as `REDIS_CA_CERT` via `valueFrom.configMapKeyRef`. The app sees the PEM through the normal env var path — no code-side knowledge of the trust source is required.
+In a production cluster, a common pattern is a cluster-internal CA (e.g. cert-manager + trust-manager distributing the CA's public cert as a ConfigMap) whose PEM is then fed to the app through the normal `REDIS_CA_CERT` env var path — the app has no knowledge of the trust source. The CA's public cert is distributed to every namespace as a `cytario-internal-ca` ConfigMap by trust-manager, and the `cytario-web` helm chart's `redis.caCertConfigMap.{name,key}` wires it into the pod as `REDIS_CA_CERT` via `valueFrom.configMapKeyRef`. The app sees the PEM through the normal env var path — no code-side knowledge of the trust source is required.
 
 ### Database
 
