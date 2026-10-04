@@ -223,6 +223,17 @@ podman kube play local-deployment.yaml
 
 To stop: `podman kube down devenv/local-deployment.yaml`
 
+> **Postgres 18 data layout**: the `postgres:18` image stores data in a
+> major-version subdirectory and mounts at `/var/lib/postgresql` (not
+> `/var/lib/postgresql/data` — see
+> [docker-library/postgres#37](https://github.com/docker-library/postgres/issues/37)).
+> If you previously ran this cluster with the older 16/17-based file, your
+> `devenv/*-data` Postgres dirs hold the old flat layout and the 18 container
+> will refuse to start over them. The devenv data dirs are disposable —
+> `rm -rf devenv/keycloak-db-data devenv/cytario-db-data` and replay the
+> cluster (then re-run the OpenTofu bootstrap). Postgres 17 and 16 also
+> mount fine under the parent path, so nothing is version-locked.
+
 #### Keycloak
 
 The cluster runs a stock [Keycloak](https://www.keycloak.org/) with the

@@ -18,7 +18,7 @@ spec:
           hostPort: 5433
       volumeMounts:
         - name: cytario-db-data
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql
   volumes:
     - name: cytario-db-data
       hostPath:
