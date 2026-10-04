@@ -68,7 +68,7 @@ spec:
         - name: KC_HTTP_ENABLED
           value: "true"
         - name: KC_FEATURES
-          value: "organizations"
+          value: "organization"
       ports:
         - containerPort: 8080
           hostPort: 8080

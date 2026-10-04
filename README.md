@@ -226,7 +226,7 @@ To stop: `podman kube down devenv/local-deployment.yaml`
 #### Keycloak
 
 The cluster runs a stock [Keycloak](https://www.keycloak.org/) with the
-`organizations` feature enabled. First boot gives you an empty `master` realm —
+`organization` feature enabled. First boot gives you an empty `master` realm —
 set it up once through the admin console (`http://localhost:8080`, admin/admin):
 
 1. Create a realm (e.g. `cytario`) and toggle **Organizations** on (Realm
@@ -291,9 +291,9 @@ npm run dev
 
 The app uses [Keycloak Organizations](https://www.keycloak.org/docs/latest/server_admin/index.html#_managing_organizations) as the tenant boundary. Every session must carry an active organization — sessions without one are redirected to `/onboarding` and cannot reach any tenant-scoped route.
 
-The local Podman cluster boots a stock Keycloak with `KC_FEATURES=organizations` enabled but an empty realm — follow the setup steps under [Keycloak](#keycloak) above to create the realm, client, and organization. To run against a custom Keycloak deployment:
+The local Podman cluster boots a stock Keycloak with `KC_FEATURES=organization` enabled but an empty realm — follow the setup steps under [Keycloak](#keycloak) above to create the realm, client, and organization. To run against a custom Keycloak deployment:
 
-1. Enable the Organizations realm feature (`KC_FEATURES=organizations` on the Keycloak server **and** the per-realm toggle in the admin UI).
+1. Enable the Organizations realm feature (`KC_FEATURES=organization` on the Keycloak server **and** the per-realm toggle in the admin UI).
 2. Grant the `cytario-web-admin` service account `view-realm` + `manage-realm` on the `realm-management` client. No dedicated `view-organizations` role exists — the broader realm roles are required.
 3. Assign every login-eligible user to at least one organization. Users without an organization land on `/onboarding`.
 
