@@ -57,7 +57,7 @@
 
 import {
   type AccessLevel,
-  BUCKET_METADATA_ACTIONS,
+  RUSTFS_BUCKET_METADATA_ACTIONS,
   BUCKET_POLICY_MAX_BYTES,
   type BucketPolicyDocument,
   type PolicyStatement,
@@ -206,7 +206,7 @@ export const compileGrantStatements = (grant: RustfsBucketPolicyGrant): PolicySt
     Sid: `${sidStem}BucketMeta`,
     Effect: "Allow",
     Principal: principal,
-    Action: [...BUCKET_METADATA_ACTIONS],
+    Action: [...RUSTFS_BUCKET_METADATA_ACTIONS],
     Resource: bucketArn,
     Condition: { ...condition },
   };

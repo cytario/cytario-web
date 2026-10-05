@@ -30,6 +30,17 @@ export const BUCKET_METADATA_ACTIONS = [
   "s3:GetBucketOwnershipControls",
 ] as const;
 /**
+ * The RustFS-compatible subset: its policy parser validates actions against a
+ * fixed registry (crates/policy/src/policy/action.rs) and the Object Ownership
+ * API is not implemented there — one unknown action fails the whole bucket
+ * policy with "parse policy failed: invalid action". The region and multipart
+ * enumeration reads ARE in the registry.
+ */
+export const RUSTFS_BUCKET_METADATA_ACTIONS = [
+  "s3:GetBucketLocation",
+  "s3:ListBucketMultipartUploads",
+] as const;
+/**
  * Additional write + multipart actions granted for read-write / admin access.
  * Completing a multipart upload is authorized by `s3:PutObject` (already in the
  * list) — `s3:CompleteMultipartUpload` is an API operation, not an IAM action

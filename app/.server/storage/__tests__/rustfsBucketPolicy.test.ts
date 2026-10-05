@@ -121,6 +121,17 @@ describe("rustfsBucketPolicy generator", () => {
       expect(actions).toContain("s3:ListBucketMultipartUploads");
     });
 
+    // RustFS's policy parser validates actions against a fixed registry and
+    // does not implement the Object Ownership API — one unknown action fails
+    // the whole bucket policy with "parse policy failed: invalid action".
+    test("never emits s3:GetBucketOwnershipControls (absent from RustFS's action registry)", () => {
+      const statements = compileGrantStatements(grant());
+      for (const statement of statements) {
+        const actions = Array.isArray(statement.Action) ? statement.Action : [statement.Action];
+        expect(actions).not.toContain("s3:GetBucketOwnershipControls");
+      }
+    });
+
     test("rejects wildcard prefixes", () => {
       expect(() => compileGrantStatements(grant({ prefix: "a*b" }))).toThrow(/wildcard/i);
     });
