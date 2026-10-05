@@ -544,10 +544,19 @@ describe("getAllSessionCredentials", () => {
     const policyJson = call?.Policy;
     expect(policyJson).toBeDefined();
     const policy = JSON.parse(policyJson as string) as {
-      Statement: Array<{ Sid: string }>;
+      Statement: Array<{ Sid: string; Action: string; Resource: string | string[] }>;
     };
     expect(policy.Statement.some((s) => s.Sid === "ListBucketScopedToPrefix")).toBe(true);
     expect(policy.Statement.some((s) => s.Sid === "GetObjectScopedToPrefix")).toBe(true);
+    // The RustFS variant of the session policy: no KMS statements (RustFS has
+    // none), and every resource is an S3 ARN — RustFS's parser fails the
+    // whole mint on the AWS variant's `Resource: "*"`.
+    expect(policy.Statement.some((s) => s.Action.startsWith("kms:"))).toBe(false);
+    for (const statement of policy.Statement) {
+      for (const resource of [statement.Resource].flat()) {
+        expect(resource).toMatch(/^arn:aws:s3:::/);
+      }
+    }
   });
 
   test("FAIL CLOSED: an AWS connection whose grant resolves a null roleArn never mints", async () => {

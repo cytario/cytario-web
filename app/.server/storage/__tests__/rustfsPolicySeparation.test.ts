@@ -18,6 +18,7 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const RUSTFS_BUCKET_POLICY = resolve(here, "../rustfsBucketPolicy.ts");
 const RUSTFS_WRITE_SESSION_POLICY = resolve(here, "../rustfsWriteSessionPolicy.ts");
+const RUSTFS_SESSION_POLICY = resolve(here, "../../auth/rustfsSessionPolicy.ts");
 
 const importSpecifiers = (source: string): string[] => {
   const specifiers: string[] = [];
@@ -42,6 +43,9 @@ describe("rustfs policy-generator architectural separation", () => {
       /(^|\/)sessionPolicy$/.test(specifier);
     expect(importSpecifiers(bucketSource).some(mentionsOther)).toBe(false);
     expect(importSpecifiers(writeSessionSource).some(mentionsOther)).toBe(false);
+    expect(importSpecifiers(readFileSync(RUSTFS_SESSION_POLICY, "utf8")).some(mentionsOther)).toBe(
+      false,
+    );
   });
 
   test("every Allow the RustFS generator emits carries the org-marker jwt:groups condition", () => {

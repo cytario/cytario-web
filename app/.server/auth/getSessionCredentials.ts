@@ -1,5 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
+import { buildRustfsSessionPolicy } from "./rustfsSessionPolicy";
 import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
 import type { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
@@ -83,12 +84,17 @@ const fetchTemporaryCredentials = async ({
   // `kms:Decrypt` so the role's per-key grants survive the STS intersection
   // and `GetObject` works against SSE-KMS-encrypted objects (omitting
   // `kms:Decrypt` denies it for the session regardless of the role policy).
+  // The RustFS variant carries the same S3 statements but NO KMS ones —
+  // RustFS has no KMS, and its policy parser rejects the AWS-only
+  // `Resource: "*"` the KMS statements need, failing the whole mint.
   // The ORG tenant binding is enforced by the role's trust policy (AWS) or the
   // mapped per-org admission policy (RustFS), never repeated here. Providers
   // whose STS ignores or rejects the `Policy` parameter omit it — the assumed
   // identity's attached policy is then the only bound.
   const Policy = providerConfig.honorsInlineSessionPolicy
-    ? buildSessionPolicy({ bucketName, prefix, region, accessLevel })
+    ? providerType === "rustfs"
+      ? buildRustfsSessionPolicy({ bucketName, prefix, accessLevel })
+      : buildSessionPolicy({ bucketName, prefix, region, accessLevel })
     : undefined;
 
   console.info(`${label} Policy: ${Policy}`);
