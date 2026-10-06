@@ -23,3 +23,22 @@
  * {@code node_modules}.
  */
 @source "../node_modules/@cytario/design/dist/";
+/**
+ * Scan the compiled plugin packages for the same reason. Plugin utilities
+ * must be emitted by THIS build's own scan: the design stylesheet imported
+ * above also carries some of them inside its pre-built utilities layer, but
+ * those imported copies are ordered before everything Tailwind emits here —
+ * a base utility that both the app and the design library use (e.g.
+ * {@code grid-cols-1}) then overrides the imported responsive variant
+ * ({@code sm:grid-cols-2}) at equal specificity, silently breaking every
+ * plugin (and any other consumer) that pairs them. On an assembly without
+ * plugins installed the glob matches nothing and the directive is inert.
+ */
+@source "../node_modules/@cytario/compute-plugin/dist/";
+@source "../node_modules/@cytario/saas-plugin/dist/";
+@source "../node_modules/@cytario/czi-loader/dist/";
+@source "../node_modules/@cytario/ndpi-loader/dist/";
+@source "../node_modules/@cytario/qptiff-loader/dist/";
+@source "../node_modules/@cytario/mrxs-loader/dist/";
+@source "../node_modules/@cytario/svs-loader/dist/";
+@source "../node_modules/@cytario/vsi-loader/dist/";
