@@ -133,15 +133,13 @@ export const AnnotationThumb = ({
         variant="ghost"
         size="xs"
         {...menu.triggerProps}
-        // Desktop opens the actions via right-click and must never see the
-        // kebab: hover-revealing it re-enables pointer events over the thumb,
-        // which steals clicks from small geometries (the kebab overlays the
-        // thumb's center). Keyboard reveals it via focus, touch keeps it on.
+        // Desktop opens the actions via right-click; the kebab stays for
+        // keyboard (revealed by focus) and is always visible on touch, which
+        // has neither hover nor a secondary click.
         className={`
           absolute top-0 right-0
-          opacity-0 pointer-events-none transition-opacity
-          focus-within:opacity-100 focus-within:pointer-events-auto
-          [@media(pointer:coarse)]:opacity-100 [@media(pointer:coarse)]:pointer-events-auto
+          opacity-0 transition-opacity focus-within:opacity-100
+          [@media(pointer:coarse)]:opacity-100
         `}
       />
     </div>
