@@ -32,6 +32,7 @@ vi.mock("@hms-dbmi/viv", () => {
     MultiscaleImageLayer,
     ColorPaletteExtension,
     MAX_CHANNELS: 10,
+    SIGNAL_ABORTED: "__vivSignalAborted",
   };
 });
 
@@ -355,13 +356,14 @@ describe("useChannelsLayer selections stability", () => {
     expect(props.channelsVisible).toEqual([true, true, false]);
   });
 
-  test("a caller-aborted tile resolves to null instead of rejecting", async () => {
+  test("a caller-aborted tile rejects with viv's SIGNAL_ABORTED sentinel", async () => {
     // deck.gl aborts in-flight tiles on every viewport change and treats a
-    // getTile rejection as TERMINAL (content = null, _isLoaded = true, never
-    // re-requested) — the tile would stay parked at its parent (blurry)
-    // level after a rapid zoom. The wrapper must convert AbortError to a
-    // null return, matching viv's own SIGNAL_ABORTED protocol, so deck.gl
-    // marks the tile as cancelled and refinable.
+    // getTileData rejection as TERMINAL (never re-requested — the tile parks
+    // at its blurry parent level after a rapid zoom). The cancellable
+    // protocol is viv's SIGNAL_ABORTED sentinel: the wrapper rethrows it and
+    // the composite getTileData catches it and resolves null, which deck.gl
+    // marks as cancelled and refinable. A plain null return would not work —
+    // the composite dereferences it in tiles.map((d) => d.data).
     const abortingLoader = {
       ...loaderLevel,
       getTile: () => Promise.reject(new DOMException("aborted", "AbortError")),
@@ -377,9 +379,36 @@ describe("useChannelsLayer selections stability", () => {
       }
     ).props.loader[0];
 
-    await expect(
-      wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } }),
-    ).resolves.toBeNull();
+    await expect(wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } })).rejects.toBe(
+      "__vivSignalAborted",
+    );
+  });
+
+  test("a plain-Error abort also converts to the sentinel", async () => {
+    // Some loaders signal aborts with a non-DOMException Error carrying
+    // name "AbortError" (older plugin loaders); both shapes must convert.
+    const abortingLoader = {
+      ...loaderLevel,
+      getTile: () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        return Promise.reject(error);
+      },
+    };
+    act(() => {
+      store.setState({ loader: [abortingLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    await expect(wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } })).rejects.toBe(
+      "__vivSignalAborted",
+    );
   });
 
   test("a non-abort tile error still rejects", async () => {
