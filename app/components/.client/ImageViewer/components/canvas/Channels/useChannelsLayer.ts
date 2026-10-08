@@ -48,33 +48,34 @@ export const useChannelsLayer = (
   // fresh `selections` per edit would `reloadAll()` every visible tile. viv
   // applies contrast/colors/visibility as uniforms instead, so those columns
   // must stay fresh per edit while `selections` only changes when the set of
-  // renderable channels — or a channel's selection values — changes. The key
-  // uses the same isVisible||isInitialized predicate as
-  // mapChannelConfigsToState so the memo tracks exactly what feeds `selections`.
-  const selectionsKey = useMemo(
-    () =>
-      Object.entries(channelsState)
-        .filter(([, config]) => config.isVisible || config.isInitialized)
-        .map(([id, config]) => {
-          const { c, x, y, z, t } = config.selection;
-          return `${id}:${c}:${x}:${y}:${z}:${t}`;
-        })
-        .join("\0"),
-    [channelsState],
-  );
-
+  // admitted channels — or a channel's selection values — changes. The key
+  // serializes the columns' ids+selections, not every renderable channel:
+  // beyond MAX_CHANNELS the cap admits different channels as visibility
+  // toggles reshuffle the budget, and `selections` must follow that admission
+  // (its index pairs with colors/contrastLimits/channelsVisible by position).
   const columnsWithoutSelections = useMemo(
     () => mapChannelConfigsToState(channelsState),
     [channelsState],
   );
 
-  // The memo deliberately keys on the serialized selection state, not on the
-  // columns' array identity — depending on the array would defeat the memo
-  // (every store edit rebuilds it) and re-trigger deck.gl's reloadAll.
+  const admittedSelectionsKey = useMemo(
+    () =>
+      columnsWithoutSelections.ids
+        .map((id, index) => {
+          const { c, x, y, z, t } = columnsWithoutSelections.selections[index];
+          return `${id}:${c}:${x}:${y}:${z}:${t}`;
+        })
+        .join("\0"),
+    [columnsWithoutSelections],
+  );
+
+  // The memo deliberately keys on the serialized admitted-selection state, not
+  // on the columns' array identity — depending on the array would defeat the
+  // memo (every store edit rebuilds it) and re-trigger deck.gl's reloadAll.
   const stableSelections = useMemo(
     () => columnsWithoutSelections.selections,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectionsKey],
+    [admittedSelectionsKey],
   );
 
   const extensions = useMemo(() => [new ColorPaletteExtension()], []);
