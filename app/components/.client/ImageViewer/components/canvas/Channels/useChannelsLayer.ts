@@ -1,5 +1,5 @@
 import { PickingInfo } from "@deck.gl/core";
-import { MultiscaleImageLayer, ColorPaletteExtension } from "@hms-dbmi/viv";
+import { MultiscaleImageLayer, ColorPaletteExtension, SIGNAL_ABORTED } from "@hms-dbmi/viv";
 import { useCallback, useMemo } from "react";
 
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
@@ -120,19 +120,19 @@ export const useChannelsLayer = (
         } catch (error) {
           finishTile(tileId);
 
-          // deck.gl aborts in-flight tiles on every viewport change. Its Tile2DHeader
-          // treats a getTileData REJECTION as terminal (content = null, _isLoaded = true —
-          // never re-requested), so rethrowing the loader's AbortError permanently parks
-          // the tile at its parent (blurry) level after a rapid zoom. viv's own loaders
-          // convert their abort to a null return via the SIGNAL_ABORTED sentinel, which
-          // deck.gl marks as cancelled — non-terminal, refinable. Plugin loaders (qptiff
-          // et al.) throw DOMException AbortError, so do the same conversion here: a
-          // caller-aborted tile returns null instead of rejecting.
+          // deck.gl aborts in-flight tiles on every viewport change and treats a
+          // getTileData rejection as terminal (never re-requested — the tile parks
+          // at its blurry parent level). The cancellable protocol is viv's
+          // SIGNAL_ABORTED sentinel: the composite getTileData catches it and
+          // returns null, which deck.gl marks refinable. Plugin loaders (qptiff et
+          // al.) throw DOMException AbortError, so convert to the sentinel here —
+          // a plain null return would be dereferenced by the composite's
+          // tiles.map((d) => d.data) and reject anyway.
           if (error instanceof DOMException && error.name === "AbortError") {
-            return null;
+            throw SIGNAL_ABORTED;
           }
           if (error instanceof Error && error.name === "AbortError") {
-            return null;
+            throw SIGNAL_ABORTED;
           }
 
           throw error;
