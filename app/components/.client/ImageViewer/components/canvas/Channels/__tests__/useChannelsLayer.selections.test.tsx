@@ -97,6 +97,71 @@ const seedChannels = (hiddenFirst = false) => {
 const selectionsFromLayer = (layers: unknown[]): { props: { selections: unknown[] } } | undefined =>
   (layers[0] as { props: { selections: unknown[] } } | undefined) ?? undefined;
 
+/**
+ * Seeds `count` channels, all initialized, with `visibleIndexes` visible —
+ * the >MAX_CHANNELS regime where the admission cap reshuffles on toggles.
+ */
+const seedManyChannels = (count: number, visibleIndexes: number[]) => {
+  const ids = Array.from({ length: count }, (_, index) => `Ch${index}`);
+  const visibleSet = new Set(visibleIndexes);
+  store.setState({
+    loader: [loaderLevel],
+    metadata: { Pixels: { Type: "Uint8" } } as never,
+    channelIds: ids,
+    channels: Object.fromEntries(
+      ids.map((id, index) => [
+        id,
+        {
+          selection: { c: index, x: 0, y: 0, z: 0, t: 0 },
+          domain: [0, 255] as [number, number],
+          histogram: new Array(256).fill(0),
+          isInitialized: true,
+          isLoading: false,
+          isVisible: visibleSet.has(index),
+          contrastLimits: [0, 255] as [number, number],
+          color: [(index * 23) % 256, (index * 17) % 256, (index * 11) % 256] as [
+            number,
+            number,
+            number,
+          ],
+        },
+      ]),
+    ),
+    imagePanels: [0],
+    imagePanelIndex: 0,
+    layersStates: [
+      {
+        id: "view-1",
+        author: "",
+        shared: false,
+        channels: Object.fromEntries(
+          ids.map((id, index) => [
+            id,
+            {
+              isVisible: visibleSet.has(index),
+              contrastLimits: [0, 255] as [number, number],
+              color: [(index * 23) % 256, (index * 17) % 256, (index * 11) % 256] as [
+                number,
+                number,
+                number,
+              ],
+            },
+          ]),
+        ),
+        overlays: {},
+        channelsOpacity: 1,
+        overlaysFillOpacity: 0.8,
+        showCellOutline: true,
+        annotationsOpacity: 0.5,
+        showAnnotationOutline: true,
+        isChannelsLoading: 0,
+        isOverlaysLoading: 0,
+      },
+    ],
+  });
+  return ids;
+};
+
 describe("useChannelsLayer selections stability", () => {
   beforeEach(() => {
     store = createViewerStore("test-conn/images/stability.ome.tif", "");
@@ -197,6 +262,79 @@ describe("useChannelsLayer selections stability", () => {
     const after = selectionsFromLayer(result.current.layers)!.props.selections;
     expect(after).not.toBe(before);
     expect(after).toHaveLength(4);
+  });
+
+  test("selections follow the admission cap when a toggle ON evicts a hidden fill channel", () => {
+    // 12 initialized channels, 9 visible: before the toggle the cap admits the
+    // 9 visible plus one hidden fill (Ch9). Toggling Ch11 on makes 10 visible
+    // and drops the fill — the admitted set changes, so selections must be
+    // rebuilt to keep index pairing with the fresh colors/channelsVisible
+    // columns. With the old renderable-set key this transition kept the stale
+    // array and rendered Ch9's plane in Ch11's color.
+    seedManyChannels(12, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const { result, rerender } = renderHook(() => useChannelsLayer(0));
+    const layerProps = () => (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    expect(layerProps().selections).toHaveLength(10);
+    expect((layerProps().selections as { c: number }[])[9].c).toBe(9);
+
+    act(() => {
+      store.setState((state) => {
+        state.layersStates[0].channels.Ch11.isVisible = true;
+      });
+    });
+    rerender();
+
+    const selections = layerProps().selections as { c: number }[];
+    expect(selections).toHaveLength(10);
+    expect(selections[9].c).toBe(11);
+    expect(layerProps().channelsVisible).toEqual([...Array(9).fill(true), true]);
+  });
+
+  test("selections follow the admission cap when a toggle OFF admits an earlier hidden channel", () => {
+    // All 12 initialized, channels 2–11 visible (10 — cap full). Toggling Ch2
+    // off frees one hidden slot and the first hidden renderable in image
+    // order (Ch0) takes it, shifting the admitted set: selections[0] must now
+    // carry Ch0's plane paired with the fresh columns, not keep Ch2's.
+    seedManyChannels(12, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    const { result, rerender } = renderHook(() => useChannelsLayer(0));
+    const layerProps = () => (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    expect((layerProps().selections as { c: number }[])[0].c).toBe(2);
+
+    act(() => {
+      store.setState((state) => {
+        state.layersStates[0].channels.Ch2.isVisible = false;
+      });
+    });
+    rerender();
+
+    const selections = layerProps().selections as { c: number }[];
+    const channelsVisible = layerProps().channelsVisible as boolean[];
+    expect(selections).toHaveLength(10);
+    expect(selections[0].c).toBe(0);
+    expect(channelsVisible[0]).toBe(false);
+    expect(selections.map((selection) => selection.c)).toEqual([0, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+
+  test("selections stay identity-stable for contrast and color edits beyond the cap", () => {
+    // The perf win the memo exists for: with more renderable channels than the
+    // cap, an edit that does not change the admitted set must not rebuild the
+    // selections array (deck.gl would reloadAll every visible tile).
+    seedManyChannels(12, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const { result, rerender } = renderHook(() => useChannelsLayer(0));
+    const before = selectionsFromLayer(result.current.layers)!.props.selections;
+
+    act(() => {
+      store.setState((state) => {
+        state.layersStates[0].channels.Ch0.contrastLimits = [10, 200];
+        state.layersStates[0].channels.Ch1.color = [9, 9, 9];
+      });
+    });
+    rerender();
+
+    const after = selectionsFromLayer(result.current.layers)!.props.selections;
+    expect(after).toBe(before);
   });
 
   test("a channel turned on before its stats resolve still receives a selection", () => {
