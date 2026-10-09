@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
     - name: postgres
-      image: docker.io/postgres:17
+      image: docker.io/postgres:18
       env:
         - name: POSTGRES_DB
           value: "keycloak"
@@ -17,7 +17,7 @@ spec:
         - containerPort: 5432
       volumeMounts:
         - name: postgres-data
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql
   volumes:
     - name: postgres-data
       hostPath:
@@ -31,9 +31,21 @@ kind: Pod
 metadata:
   name: keycloak-pod
 spec:
+  initContainers:
+    - name: wait-for-postgres
+      image: docker.io/busybox:latest
+      command:
+        - "sh"
+        - "-c"
+        - >
+          until nc -z postgres-pod 5432; do
+            echo "Waiting for Postgres to be ready...";
+            sleep 2;
+          done;
+          echo "Postgres is ready."
   containers:
     - name: keycloak
-      image: ghcr.io/cytario/cytario-keycloak:1.4.3
+      image: quay.io/keycloak/keycloak:26.7.5
       env:
         - name: KC_DB
           value: "postgres"
@@ -55,6 +67,8 @@ spec:
           value: "false"
         - name: KC_HTTP_ENABLED
           value: "true"
+        - name: KC_FEATURES
+          value: "organization"
       ports:
         - containerPort: 8080
           hostPort: 8080
@@ -65,7 +79,7 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: minio-pod
+  name: rustfs-pod
 spec:
   initContainers:
     - name: wait-for-keycloak
@@ -78,49 +92,45 @@ spec:
             echo "Waiting for Keycloak to be ready...";
             sleep 5;
           done;
-          echo "Keycloak is ready.";
+          echo "Keycloak is ready."
   containers:
-    - name: minio
-      image: quay.io/minio/minio:latest
+    - name: rustfs
+      image: docker.io/rustfs/rustfs:1.0.1
       env:
-        - name: MINIO_ROOT_USER
-          value: "minioadmin"
-        - name: MINIO_ROOT_PASSWORD
-          value: "minioadmin"
-        - name: MINIO_IDENTITY_OPENID_CONFIG_URL
+        - name: RUSTFS_ACCESS_KEY
+          value: "rustfsadmin"
+        - name: RUSTFS_SECRET_KEY
+          value: "rustfsadmin"
+        - name: RUSTFS_VOLUMES
+          value: "/data"
+        # Web-identity federation against the local Keycloak realm. The
+        # cytario-web client is the one the app's ID token is issued for;
+        # claim-name `groups` is what the app's RustFS authorization model
+        # conditions bucket policies on (see the RustFS storage-onboarding
+        # guide). The bucket/policy provisioning runs out of band via the
+        # admin console on :9001 or the rustfs CLI.
+        - name: RUSTFS_IDENTITY_OPENID_CONFIG_URL
           value: "http://keycloak:8080/realms/master/.well-known/openid-configuration"
-        - name: MINIO_IDENTITY_OPENID_CLIENT_ID
-          value: "minio"
-        - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
+        - name: RUSTFS_IDENTITY_OPENID_CLIENT_ID
+          value: "cytario-web"
+        - name: RUSTFS_IDENTITY_OPENID_CLIENT_SECRET
           value: "1234567"
-        - name: MINIO_IDENTITY_OPENID_REDIRECT_URI
-          value: "http://localhost:9000"
-        - name: MINIO_IDENTITY_OPENID_SCOPES
+        - name: RUSTFS_IDENTITY_OPENID_SCOPES
+          value: "openid profile"
+        - name: RUSTFS_IDENTITY_OPENID_CLAIM_NAME
           value: "groups"
       ports:
         - containerPort: 9000
         - containerPort: 9001
         - hostPort: 9000
         - hostPort: 9001
-      args:
-        - server
-        - /data
-        - "--console-address=:9001"
-        - "--address=:9000"
-
       volumeMounts:
-        - name: minio-data
+        - name: rustfs-data
           mountPath: /data
-        - name: minio-config
-          mountPath: /root/.minio
   volumes:
-    - name: minio-data
+    - name: rustfs-data
       hostPath:
-        path: ./minio-data
-        type: DirectoryOrCreate
-    - name: minio-config
-      hostPath:
-        path: ./minio-config
+        path: ./rustfs-data
         type: DirectoryOrCreate
   network: cytario
 
@@ -132,7 +142,7 @@ metadata:
 spec:
   containers:
     - name: postgres
-      image: docker.io/postgres:16
+      image: docker.io/postgres:18
       env:
         - name: POSTGRES_DB
           value: "cytario"
@@ -145,7 +155,7 @@ spec:
           hostPort: 5433
       volumeMounts:
         - name: cytario-db-data
-          mountPath: /var/lib/postgresql/data
+          mountPath: /var/lib/postgresql
   volumes:
     - name: cytario-db-data
       hostPath:

@@ -10,7 +10,7 @@ import type { SessionData } from "../sessionStorage";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
-import type { AccessLevel } from "~/utils/providerCatalog.schema";
+import type { AccessLevel, ProviderConnection } from "~/utils/providerCatalog.schema";
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
@@ -18,15 +18,22 @@ vi.mock("@aws-sdk/client-sts", () => ({
 }));
 
 vi.mock("~/utils/s3Provider", () => ({
-  getS3ProviderConfig: vi.fn((endpoint?: string | null) => {
-    const isAwsS3 = !endpoint || endpoint.includes("amazonaws.com");
-    return {
-      isAwsS3,
-      usePathStyle: !isAwsS3,
-      stsEndpoint: isAwsS3 ? "https://sts.us-east-1.amazonaws.com" : endpoint,
-      s3Endpoint: isAwsS3 ? "https://s3.us-east-1.amazonaws.com" : endpoint,
-    };
-  }),
+  getS3ProviderConfig: vi.fn(
+    (endpoint?: string | null, _region?: string | null, providerType?: string | null) => {
+      const isAwsS3 =
+        providerType !== undefined
+          ? providerType === "aws"
+          : !endpoint || endpoint.includes("amazonaws.com");
+      return {
+        isAwsS3,
+        usePathStyle: !isAwsS3,
+        stsEndpoint: isAwsS3 ? "https://sts.us-east-1.amazonaws.com" : endpoint,
+        s3Endpoint: isAwsS3 ? "https://s3.us-east-1.amazonaws.com" : endpoint,
+        honorsInlineSessionPolicy: isAwsS3 || providerType === "rustfs",
+        sendsRoleArn: providerType !== "rustfs",
+      };
+    },
+  ),
 }));
 
 // Resolve provider attributes from a mocked catalog; keep the real resolver so the
@@ -138,6 +145,7 @@ describe("getAllSessionCredentials", () => {
       region?: string;
       roleArn?: string;
       accessLevel?: AccessLevel;
+      providerType?: ProviderConnection["providerType"];
     } = {},
   ) => {
     const pcId = overrides.providerConnectionId ?? "pc-mock";
@@ -147,6 +155,7 @@ describe("getAllSessionCredentials", () => {
           id: pcId,
           endpoint: overrides.endpoint ?? null,
           region: overrides.region ?? "us-east-1",
+          providerType: overrides.providerType ?? "aws",
         }),
       ],
       providerRoles: [
@@ -515,18 +524,72 @@ describe("getAllSessionCredentials", () => {
     expect(policy.Statement.some((s) => s.Sid === "PutOwnSidecars")).toBe(false);
   });
 
-  test("non-AWS (MinIO) connection: Policy field is absent", async () => {
+  test("RustFS connection: Policy field is present (STS on endpoint, inline policy honored)", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
-      catalogFor({ endpoint: "https://minio.internal:9000" }),
+      catalogFor({
+        endpoint: "https://rustfs-poc.cytar.io",
+        providerType: "rustfs",
+      }),
     );
 
     await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "minio-bucket", prefix: "some-prefix" }),
+      mock.connectionConfig({ bucketName: "tenants", prefix: "acme" }),
     ]);
 
     const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
     expect(call).toBeDefined();
-    expect(call).not.toHaveProperty("Policy");
+    // The RustFS mint carries no RoleArn — the mapped per-org policy set is
+    // the entitlement, and the ARWWI handler never reads the field.
+    expect(call?.RoleArn).toBeUndefined();
+    const policyJson = call?.Policy;
+    expect(policyJson).toBeDefined();
+    const policy = JSON.parse(policyJson as string) as {
+      Statement: Array<{ Sid: string; Action: string; Resource: string | string[] }>;
+    };
+    expect(policy.Statement.some((s) => s.Sid === "ListBucketScopedToPrefix")).toBe(true);
+    expect(policy.Statement.some((s) => s.Sid === "GetObjectScopedToPrefix")).toBe(true);
+    // The RustFS variant of the session policy: no KMS statements (RustFS has
+    // none), and every resource is an S3 ARN — RustFS's parser fails the
+    // whole mint on the AWS variant's `Resource: "*"`.
+    expect(policy.Statement.some((s) => s.Action.startsWith("kms:"))).toBe(false);
+    for (const statement of policy.Statement) {
+      for (const resource of [statement.Resource].flat()) {
+        expect(resource).toMatch(/^arn:aws:s3:::/);
+      }
+    }
+  });
+
+  test("FAIL CLOSED: an AWS connection whose grant resolves a null roleArn never mints", async () => {
+    // The portal contract: an ARN-less (rustfs) provider role carries roleArn
+    // null. If it leaks onto an AWS-path connection, the mint must fail closed
+    // rather than send a null RoleArn to STS.
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({
+            id: "pc-mock",
+            endpoint: null,
+            region: "us-east-1",
+            providerType: "aws",
+          }),
+        ],
+        providerRoles: [
+          mock.providerRole({
+            providerConnectionId: "pc-mock",
+            roleArn: null as unknown as string,
+            accessLevel: "read-write",
+            bucketIds: ["bucket-mock-id"],
+          }),
+        ],
+      }),
+    );
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({ bucketName: "tenants", prefix: "acme" }),
+    ]);
+
+    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
+    expect(Object.values(result.errors)[0]).toMatch(/role ARN/i);
   });
 
   test("returns empty credentials when no bucket configs provided", async () => {

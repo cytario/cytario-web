@@ -1,11 +1,11 @@
-variable "keycloak_client_secret" {
-  description = "Client secret for the Keycloak OIDC client"
+variable "keycloak_realm_name" {
+  description = "The realm the bootstrap creates"
   type        = string
-  default     = "1234567" # You can set a default or pass it via CLI, environment variables, or Terraform Cloud
+  default     = "cytario"
 }
 
-variable "keycloak_realm_name" {
-  description = "The name of the Keycloak realm"
+variable "keycloak_client_secret" {
+  description = "Client secret for the cytario-web OIDC client"
   type        = string
-  default     = "master"
+  default     = "1234567"
 }

@@ -13,7 +13,7 @@ import { z } from "zod";
  * ExternalId, or any management credential.
  */
 
-export const PROVIDER_TYPES = ["aws"] as const;
+export const PROVIDER_TYPES = ["aws", "rustfs"] as const;
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
 
 export const PROVIDER_CONNECTION_STATUSES = ["pending", "connected", "drifted", "error"] as const;
@@ -35,14 +35,27 @@ export function isAccessLevel(value: string): value is AccessLevel {
   return (ACCESS_LEVELS as readonly string[]).includes(value);
 }
 
-export const providerConnectionSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  providerType: z.enum(PROVIDER_TYPES),
-  endpoint: z.string().nullable(),
-  region: z.string().min(1),
-  status: z.enum(PROVIDER_CONNECTION_STATUSES),
-});
+export const providerConnectionSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    providerType: z.enum(PROVIDER_TYPES),
+    endpoint: z.string().nullable(),
+    region: z.string().min(1),
+    status: z.enum(PROVIDER_CONNECTION_STATUSES),
+  })
+  .superRefine((connection, ctx) => {
+    // A rustfs connection without an endpoint would silently mint against
+    // the AWS default — reject at the parse boundary, mirroring the apply
+    // path's fail-closed endpoint requirement.
+    if (connection.providerType === "rustfs" && !connection.endpoint) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endpoint"],
+        message: "A rustfs provider connection requires a non-null endpoint.",
+      });
+    }
+  });
 
 /**
  * A provisioned storage role. Identified by (provider connection, bucket,
@@ -51,10 +64,16 @@ export const providerConnectionSchema = z.object({
  * concrete role is resolved server-side. `bucketIds` names the portal bucket
  * row ids the role is scoped to (empty in an OSS catalog without a bucket
  * registry).
+ *
+ * `roleArn` is the AWS IAM role backing the level. A RustFS provider's roles
+ * have no ARN equivalent — the mapped per-org policies carry the entitlement
+ * — so the catalog carries `null` there. It is meaningful only on the AWS
+ * mint/write-session paths, which fail closed when it is absent.
  */
 export const providerRoleSchema = z.object({
   providerConnectionId: z.string().min(1),
-  roleArn: z.string().min(1),
+  /** Null on a RustFS provider — no ARN exists; AWS paths fail closed on it. */
+  roleArn: z.string().min(1).nullable(),
   allowedScopes: z.array(z.string()),
   accessLevel: z.enum(ACCESS_LEVELS).default("read-only"),
   bucketIds: z.array(z.string()).default([]),

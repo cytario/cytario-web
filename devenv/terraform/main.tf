@@ -1,16 +1,11 @@
 terraform {
-  required_version = "~> 1.6"
+  required_version = ">= 1.6"
   required_providers {
     keycloak = {
       source  = "keycloak/keycloak"
-      version = "5.5.0"
-    }
-    minio = {
-      version = "3.2.1"
-      source  = "aminueza/minio"
+      version = "5.9.0"
     }
   }
-
 }
 
 provider "keycloak" {
@@ -19,11 +14,3 @@ provider "keycloak" {
   password  = "admin"
   url       = "http://localhost:8080"
 }
-
-provider "minio" {
-  minio_server   = "localhost:9000"
-  minio_ssl      = false
-  minio_user     = "minioadmin"
-  minio_password = "minioadmin"
-}
-

@@ -177,14 +177,16 @@ export interface ConnectionProvider {
   providerType: ProviderConnection["providerType"];
   endpoint: string | null;
   region: string;
-  roleArn: string;
+  /** Null on a RustFS provider — no ARN exists; AWS paths fail closed on it. */
+  roleArn: string | null;
   allowedScopes: string[];
   accessLevel: AccessLevel;
 }
 
 export interface ResolvedConnectionGrant {
   scope: string;
-  roleArn: string;
+  /** Null on a RustFS provider — no ARN exists; AWS paths fail closed on it. */
+  roleArn: string | null;
   accessLevel: AccessLevel;
 }
 
