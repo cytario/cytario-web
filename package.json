@@ -93,8 +93,19 @@
     "@headless-tree/react": "^1.7.0",
     "@hms-dbmi/viv": "^0.22.0",
     "@hookform/resolvers": "^5.2.2",
-    "@loaders.gl/core": "^4.4.2",
-    "@loaders.gl/wkt": "^4.4.2",
+    "@loaders.gl/core": "4.5.3",
+    "@loaders.gl/3d-tiles": "4.5.3",
+    "@loaders.gl/wkt": "4.5.3",
+    "@loaders.gl/images": "4.5.3",
+    "@loaders.gl/gis": "4.5.3",
+    "@loaders.gl/loader-utils": "4.5.3",
+    "@loaders.gl/mvt": "4.5.3",
+    "@loaders.gl/schema": "4.5.3",
+    "@loaders.gl/terrain": "4.5.3",
+    "@loaders.gl/tiles": "4.5.3",
+    "@loaders.gl/wms": "4.5.3",
+    "@loaders.gl/gltf": "4.5.3",
+    "@loaders.gl/textures": "4.5.3",
     "@luma.gl/engine": "~9.3.6",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
@@ -200,7 +211,8 @@
     "qs": ">=6.15.2",
     "postcss": ">=8.5.10",
     "protocol-buffers-schema": ">=3.6.1",
-    "wgsl_reflect": "1.2.3"
+    "wgsl_reflect": "1.2.3",
+    "@loaders.gl/3d-tiles": "4.5.3"
   },
   "engines": {
     "node": ">=24.10.0"

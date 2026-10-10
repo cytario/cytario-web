@@ -30,8 +30,8 @@ interface AnnotationThumbProps {
 }
 
 /** A single annotation in the sidebar list: a selectable geometry thumbnail
- *  with its display name below. Click selects, double-click zooms to the
- *  feature; right-click (or the focus-revealed kebab) opens the actions
+ *  with a name strip below. Click selects, double-click zooms to the
+ *  feature; right-click (or the kebab in the name strip) opens the actions
  *  menu. */
 export const AnnotationThumb = ({
   feature,
@@ -102,48 +102,55 @@ export const AnnotationThumb = ({
         <GeometrySvg geometry={feature.geometry} color={color} selected={selected} />
       </button>
 
-      {editing ? (
-        <Input
-          size="sm"
-          aria-label={`Rename ${displayName}`}
-          value={draft}
-          onChange={setDraft}
-          // eslint-disable-next-line jsx-a11y/no-autofocus
-          autoFocus
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            else if (e.key === "Escape") cancel();
-          }}
-          className="mt-1 text-right font-mono tabular-nums"
+      {/* The strip is plain text — the kebab may overlay it, the thumb may not. */}
+      <div
+        className={
+          "relative mt-1 flex flex-row items-center " +
+          "transition-[padding] group-hover/thumb:pr-6 focus-within:pr-6 " +
+          "[@media(pointer:coarse)]:pr-6"
+        }
+      >
+        {editing ? (
+          <Input
+            size="sm"
+            aria-label={`Rename ${displayName}`}
+            value={draft}
+            onChange={setDraft}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              else if (e.key === "Escape") cancel();
+            }}
+            className="min-w-0 flex-1 text-left font-mono tabular-nums"
+          />
+        ) : (
+          // w-0 + min-w-full keeps the column exactly as wide as the geometry.
+          // Left-aligned so the hover-revealed kebab never shifts the text.
+          <p className="w-0 min-w-full text-left font-mono tabular-nums text-xs text-muted-foreground">
+            <TruncatedText>{displayName}</TruncatedText>
+          </p>
+        )}
+
+        <IconButton
+          icon="EllipsisVertical"
+          label={`Actions for ${label}`}
+          variant="ghost"
+          size="xs"
+          {...menu.triggerProps}
+          // No layout space at rest; the strip's hover padding makes room for it.
+          className={`
+            absolute right-0 top-1/2 -translate-y-1/2
+            opacity-0 transition-opacity
+            group-hover/thumb:opacity-100
+            focus-within:opacity-100
+            [@media(pointer:coarse)]:opacity-100
+          `}
         />
-      ) : (
-        // w-0 + min-w-full: the name never contributes to the flex-wrap item's
-        // intrinsic width, so the thumb stays exactly as wide as the geometry.
-        <p className="mt-1 w-0 min-w-full text-right font-mono tabular-nums text-xs text-muted-foreground">
-          <TruncatedText>{displayName}</TruncatedText>
-        </p>
-      )}
+      </div>
 
       {menu.menu}
-
-      <IconButton
-        icon="EllipsisVertical"
-        label={`Actions for ${label}`}
-        variant="ghost"
-        size="xs"
-        {...menu.triggerProps}
-        // Desktop opens the actions via right-click and must never see the
-        // kebab: hover-revealing it re-enables pointer events over the thumb,
-        // which steals clicks from small geometries (the kebab overlays the
-        // thumb's center). Keyboard reveals it via focus, touch keeps it on.
-        className={`
-          absolute top-0 right-0
-          opacity-0 pointer-events-none transition-opacity
-          focus-within:opacity-100 focus-within:pointer-events-auto
-          [@media(pointer:coarse)]:opacity-100 [@media(pointer:coarse)]:pointer-events-auto
-        `}
-      />
     </div>
   );
 };

@@ -188,4 +188,48 @@ describe("AnnotationThumb", () => {
 
     expect(onRename).not.toHaveBeenCalled();
   });
+
+  describe("kebab placement", () => {
+    const getThumbButton = () => screen.getByRole("button", { name: "Unclassified point" });
+    const getKebab = () => screen.getByRole("button", { name: "Actions for Unclassified point" });
+
+    test("kebab overlays the name strip's trailing edge, never the thumb button", () => {
+      render(<AnnotationThumb {...defaultProps} />);
+
+      const strip = getKebab().closest(".flex-row")!;
+      expect(strip).toHaveClass("relative");
+      expect(strip).toContainElement(getThumbButton().nextElementSibling as HTMLElement);
+      expect(getThumbButton()).not.toContainElement(getKebab());
+    });
+
+    test("kebab is absolute so it takes no layout space at rest", () => {
+      render(<AnnotationThumb {...defaultProps} />);
+
+      // A flex sibling would shrink the name column and truncate short names.
+      const classes = [...getKebab().classList];
+      expect(classes).toContain("absolute");
+      expect(classes).not.toContain("pointer-events-none");
+      expect(classes).not.toContain("pointer-events-auto");
+    });
+
+    test("kebab carries the group-hover, focus-within and coarse-pointer reveal classes", () => {
+      render(<AnnotationThumb {...defaultProps} />);
+
+      const kebab = getKebab();
+      expect(kebab).toHaveClass("opacity-0");
+      expect(kebab).toHaveClass("group-hover/thumb:opacity-100");
+      expect(kebab).toHaveClass("focus-within:opacity-100");
+      expect(kebab).toHaveClass("[@media(pointer:coarse)]:opacity-100");
+    });
+
+    test("kebab stays rendered while the rename input is open", () => {
+      render(<AnnotationThumb {...defaultProps} onRename={vi.fn()} />);
+
+      fireEvent.click(getKebab());
+      fireEvent.click(screen.getByRole("menuitem", { name: "Rename annotation" }));
+
+      expect(screen.getByLabelText("Rename ID: feat-1")).toBeInTheDocument();
+      expect(getKebab()).toBeInTheDocument();
+    });
+  });
 });
