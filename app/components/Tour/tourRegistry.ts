@@ -2,6 +2,7 @@ import { getFileCategory } from "~/utils/fileType";
 
 export const GETTING_STARTED_TOUR_ID = "getting-started";
 export const VIEWER_TOUR_ID = "viewer";
+export const USER_MANAGEMENT_TOUR_ID = "user-management";
 
 /** Context the registry gets to decide whether a tour should auto-start. */
 export interface TourContext {
@@ -12,6 +13,10 @@ export interface TourContext {
   /** Connection count from the protected-layout loader (SSR-safe; the
    *  connections zustand store fills in an effect and reads empty first paint). */
   connectionCount: number;
+  /** The user's admin scopes (empty for plain members); the first is the
+   *  user-management screen's default scope. Includes the `*` org-root
+   *  sentinel for org admins. */
+  adminScopes: readonly string[];
 }
 
 export interface TourDefinition {
