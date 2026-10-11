@@ -102,11 +102,18 @@ function buildAnchoredSelect(
   const geom = geomExpression(anchor, geomColumn);
   const [minX, minY, maxX, maxY] = getTileBoundingBox(tileIndex);
   const c = anchor.covering;
+  // Overlap prefilter (row-group pruning) + centroid ownership: a polygon
+  // straddling a tile boundary would match both tiles' overlap predicate and
+  // be drawn twice; the half-open centroid interval assigns it one owner tile.
+  const centroidX = `ST_X(ST_Centroid(${geom}))`;
+  const centroidY = `ST_Y(ST_Centroid(${geom}))`;
   const where = `
       ${escapeColumnPath(c.xmax)} >= ${minX}
       AND ${escapeColumnPath(c.xmin)} <= ${maxX}
       AND ${escapeColumnPath(c.ymax)} >= ${minY}
-      AND ${escapeColumnPath(c.ymin)} <= ${maxY}`;
+      AND ${escapeColumnPath(c.ymin)} <= ${maxY}
+      AND ${centroidX} >= ${minX} AND ${centroidX} < ${maxX}
+      AND ${centroidY} >= ${minY} AND ${centroidY} < ${maxY}`;
 
   if (isPointMode) {
     return /*sql*/ `

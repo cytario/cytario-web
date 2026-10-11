@@ -73,6 +73,25 @@ describe("getGeomQuery with a geometry anchor", () => {
     expect(sql).not.toContain(`as geom`);
   });
 
+  test("filters on centroid ownership so a straddling polygon belongs to one tile only", () => {
+    const sql = getGeomQuery(s3Uri, tileIndex, [], {
+      columns: { id: "object", geometry: "geometry", x: "", y: "" },
+      anchor: structAnchor,
+      classes: [coveringClass("marker_positive_cd8")],
+    });
+
+    expect(sql).toContain(
+      `ST_X(ST_Centroid(ST_GeomFromWKB("geometry"))) >= 0 AND ST_X(ST_Centroid(ST_GeomFromWKB("geometry"))) < 512`,
+    );
+    expect(sql).toContain(
+      `ST_Y(ST_Centroid(ST_GeomFromWKB("geometry"))) >= 0 AND ST_Y(ST_Centroid(ST_GeomFromWKB("geometry"))) < 512`,
+    );
+
+    // The overlap prefilter stays — it is what lets row-group statistics prune.
+    expect(sql).toContain(`"bbox"."xmax" >= 0`);
+    expect(sql).toContain(`"bbox"."xmin" <= 512`);
+  });
+
   test("ignores the anchor when x/y columns are present", () => {
     const sql = getGeomQuery(s3Uri, tileIndex, [], {
       columns: { id: "object", geometry: "geometry", x: "x", y: "y" },
