@@ -25,6 +25,7 @@ export const gettingStartedTour: TourDefinition = {
       target: "#navigation-sidebar",
       // Full-height element — a bottom/top anchor would push the tooltip off-screen.
       placement: "right",
+      title: "The navigation panel",
       content:
         "The navigation panel is your starting point. Your connections, favorites, " +
         "and recently viewed images live here.",
@@ -33,7 +34,7 @@ export const gettingStartedTour: TourDefinition = {
       target: 'button[data-expander][aria-controls="section-connections-content"]',
       title: "Connections",
       content:
-        "Connections link your cloud storage to cytario. Every image and folder you browse" +
+        "Connections link your cloud storage to cytario. Every image and folder you browse " +
         "comes from one of them.",
     },
     {
@@ -45,6 +46,9 @@ export const gettingStartedTour: TourDefinition = {
       // steps into the connection via its row link — that row stops being a
       // link once it is the current route, so it cannot be the target itself.
       target: '#navigation-sidebar [role="tree"]',
+      // The tree fills the sidebar's full height, so the tooltip anchors right
+      // — above it there is no room and the tooltip would clip at the viewport.
+      placement: "right",
       title: "Open a connection",
       content: "Click a connection to open it. Inside you'll find the folders and images it holds.",
       data: { enterConnectionVia: SIDEBAR_CONNECTION_LINK },
