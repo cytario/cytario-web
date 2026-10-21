@@ -62,6 +62,10 @@ vi.mock("~/components/HtmlViewer/HtmlViewer", () => ({
   HtmlViewer: () => <div data-testid="html-viewer"></div>,
 }));
 
+vi.mock("~/components/MarkdownViewer/MarkdownViewer", () => ({
+  MarkdownViewer: () => <div data-testid="markdown-viewer"></div>,
+}));
+
 vi.mock("~/components/TextEditor/TextEditor", () => ({
   TextEditor: () => <div data-testid="text-editor"></div>,
 }));
@@ -337,6 +341,16 @@ describe("Bucket Route", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("html-viewer")).toBeInTheDocument();
+    });
+  });
+
+  test("renders the MarkdownViewer for a .md file", async () => {
+    seedConnection("aws-test-bucket");
+    const StubMd = stubSingleFile("test/path/to/README.md");
+    render(<StubMd initialEntries={["/connections/aws-test-bucket/test/path/to/README.md"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-viewer")).toBeInTheDocument();
     });
   });
 

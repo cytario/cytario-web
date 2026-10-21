@@ -35,7 +35,12 @@ describe("getFileType", () => {
     expect(getFileType("photo.tiff")).toBe("Unknown");
     expect(getFileType("file.xyz")).toBe("Unknown");
     expect(getFileType("notes.doc")).toBe("Unknown");
-    expect(getFileType("readme.md")).toBe("Unknown");
+  });
+
+  test("identifies Markdown files", () => {
+    expect(getFileType("readme.md")).toBe("Markdown");
+    expect(getFileType("notes.markdown")).toBe("Markdown");
+    expect(getFileType("README.MD")).toBe("Markdown");
   });
 
   test("identifies PDF files", () => {
@@ -87,6 +92,12 @@ describe("getFileCategory", () => {
     expect(getFileCategory("report.html")).toBe("interactive-html");
     expect(getFileCategory("report.htm")).toBe("interactive-html");
     expect(getFileCategory("analysis.qmd")).toBe("text");
+  });
+
+  test("returns markdown for .md and .markdown", () => {
+    expect(getFileCategory("readme.md")).toBe("markdown");
+    expect(getFileCategory("notes.markdown")).toBe("markdown");
+    expect(getFileCategory("analysis.qmd")).not.toBe("markdown");
   });
 
   test("returns none for unknown / removed types", () => {

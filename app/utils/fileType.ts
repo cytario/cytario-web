@@ -16,7 +16,8 @@ export type FileType =
   | string;
 
 /** Broad rendering category — determines which viewer component handles a file. */
-export type FileCategory = "image" | "text" | "tabular" | "document" | "interactive-html" | "none";
+export type FileCategory =
+  "image" | "text" | "markdown" | "tabular" | "document" | "interactive-html" | "none";
 
 interface FileTypeEntry {
   pattern: RegExp;
@@ -116,6 +117,13 @@ const STATIC_FILE_TYPES: FileTypeEntry[] = [
     label: "Quarto Markdown",
     icon: "File",
     category: "text",
+  },
+  {
+    pattern: /\.(?:md|markdown)$/i,
+    type: "Markdown",
+    label: "Markdown",
+    icon: "File",
+    category: "markdown",
   },
   {
     pattern: /\.txt$/i,
