@@ -24,7 +24,6 @@ vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
   resolveConnectionProvider: resolveConnectionProviderMock,
   resolveConnectionProviderWithGrants: resolveConnectionProviderWithGrantsMock,
-  invalidateProviderCatalogCache: vi.fn(),
   clearProviderCatalogCache: vi.fn(),
   findProviderConnection: vi.fn(),
 }));

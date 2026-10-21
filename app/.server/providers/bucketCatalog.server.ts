@@ -1,4 +1,5 @@
 import { createLabel } from "~/.server/logging";
+import { createCatalogCache } from "~/.server/providers/catalogCache.server";
 import { cytarioConfig } from "~/config";
 import { type BucketCatalog, bucketCatalogSchema } from "~/utils/bucketCatalog.schema";
 
@@ -8,47 +9,22 @@ const BUCKETS_LOOKUP_PATH = "/org/buckets";
 const BUCKETS_LOOKUP_HEADER = "X-Providers-Lookup-Secret";
 const BUCKETS_LOOKUP_TIMEOUT_MS = 10_000;
 
-/** How long a resolved bucket catalog is served from memory before re-reading its source. */
-const CATALOG_CACHE_TTL_MS = cytarioConfig.providers.catalogCacheTtlMs;
-const CATALOG_CACHE_MAX_ENTRIES = 100;
-
-interface CatalogCacheEntry {
-  expiresAt: number;
-  promise: Promise<BucketCatalog>;
-}
-
-const bucketCache = new Map<string, CatalogCacheEntry>();
-
-/** Test hook: drop every cached bucket catalog. */
-export function clearBucketCatalogCache(): void {
-  bucketCache.clear();
-}
-
 // Present only in admin-portal builds (EE & SaaS); OSS builds have no portal
 // and the bucket is entered as free text — when the source is not `portal`
 // this throws. The lookup is advisory: on staleness or unavailability the
-// caller degrades to a clear error. Memoized per org with a short TTL; the
-// portal round-trip should not run per request. Failures are never cached.
+// caller degrades to a clear error. Fail-closed fetch-through, memoized per
+// organization, with failure backoff so an outage fails fast instead of
+// round-tripping the portal per request.
+export const bucketCatalogCache = createCatalogCache<BucketCatalog>(
+  fetchPortalBuckets,
+  (organization) => `portal:${organization}`,
+);
+
 export async function getBucketCatalog(
   organization: string,
   accessToken?: string,
 ): Promise<BucketCatalog> {
-  const cacheKey = `portal:${organization}`;
-
-  const cached = bucketCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.promise;
-
-  const promise = fetchPortalBuckets(organization, accessToken).catch((error: unknown) => {
-    bucketCache.delete(cacheKey);
-    throw error;
-  });
-
-  if (bucketCache.size >= CATALOG_CACHE_MAX_ENTRIES) {
-    const oldestKey = bucketCache.keys().next().value;
-    if (oldestKey !== undefined) bucketCache.delete(oldestKey);
-  }
-  bucketCache.set(cacheKey, { expiresAt: Date.now() + CATALOG_CACHE_TTL_MS, promise });
-  return promise;
+  return bucketCatalogCache.get(organization, accessToken);
 }
 
 async function fetchPortalBuckets(

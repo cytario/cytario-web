@@ -74,10 +74,11 @@ interface CytarioConfig {
      */
     ossConfigPath?: string;
     /**
-     * How long a resolved provider/bucket catalog is served from memory before
-     * re-reading its source. `0` disables the cache (every call re-reads).
+     * How long a failed provider/bucket catalog lookup is remembered before
+     * the next call retries the portal. Failure memoization only — successes
+     * are never served beyond the burst window.
      */
-    catalogCacheTtlMs: number;
+    catalogFailureBackoffMs: number;
   };
   /** Base64-encoded 32-byte AES-256-GCM key for secrets held in Postgres. */
   dbEncryptionKey?: string;
@@ -108,7 +109,7 @@ const {
   BROKER_PUBLIC_URL,
   PROVIDERS_LOOKUP_SECRET,
   PROVIDERS_OSS_CONFIG_PATH,
-  CATALOG_CACHE_TTL_MS,
+  CATALOG_FAILURE_BACKOFF_MS,
   DB_ENCRYPTION_KEY,
 } = process.env;
 
@@ -150,10 +151,10 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     portalInternalUrl: PORTAL_INTERNAL_URL,
     lookupSecret: PROVIDERS_LOOKUP_SECRET,
     ossConfigPath: PROVIDERS_OSS_CONFIG_PATH,
-    catalogCacheTtlMs:
-      CATALOG_CACHE_TTL_MS !== undefined && CATALOG_CACHE_TTL_MS !== ""
-        ? Number(CATALOG_CACHE_TTL_MS)
-        : 30_000,
+    catalogFailureBackoffMs:
+      CATALOG_FAILURE_BACKOFF_MS !== undefined && CATALOG_FAILURE_BACKOFF_MS !== ""
+        ? Number(CATALOG_FAILURE_BACKOFF_MS)
+        : 5_000,
   },
   dbEncryptionKey: DB_ENCRYPTION_KEY,
   cookie: {

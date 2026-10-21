@@ -25,7 +25,7 @@ vi.mock("~/config", () => ({
       scopes: ["openid", "profile"],
     },
     endpoints: { webapp: "https://cytario.example.com" },
-    providers: { catalogCacheTtlMs: 30_000 },
+    providers: { catalogFailureBackoffMs: 5_000 },
   },
 }));
 

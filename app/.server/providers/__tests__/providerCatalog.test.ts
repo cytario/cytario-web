@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { CATALOG_BURST_WINDOW_MS } from "../catalogCache.server";
 import {
-  clearProviderCatalogCache,
   findProviderConnection,
   findStorageRole,
   getProviderCatalog,
-  invalidateProviderCatalogCache,
+  providerCatalogCache,
   resolveConnectionProviderWithGrants,
 } from "../providerCatalog.server";
 import { cytarioConfig } from "~/config";
@@ -23,7 +24,7 @@ vi.mock("~/config", () => ({
       portalInternalUrl: undefined,
       lookupSecret: undefined,
       ossConfigPath: undefined,
-      catalogCacheTtlMs: 30_000,
+      catalogFailureBackoffMs: 5_000,
     },
   },
 }));
@@ -107,14 +108,22 @@ const CATALOG = {
   ],
 };
 
+const BACKOFF_MS = 5_000;
+
 beforeEach(() => {
+  vi.useFakeTimers();
   vi.restoreAllMocks();
   readFileMock.mockReset();
-  clearProviderCatalogCache();
+  providerCatalogCache.clear();
   providers.source = "oss";
   providers.portalInternalUrl = undefined;
   providers.lookupSecret = undefined;
   providers.ossConfigPath = "/etc/cytario/providers.yaml";
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("providerCatalogSchema", () => {
@@ -464,19 +473,49 @@ describe("getProviderCatalog (portal build)", () => {
     await expect(getProviderCatalog("acme")).rejects.toThrow(/PROVIDERS_LOOKUP_SECRET/);
   });
 
-  test("serves repeat lookups for the same org from the cache", async () => {
+  test("serves a catalog change on the very next request after the burst window", async () => {
+    const narrowed = {
+      ...CATALOG,
+      appCatalogs: [{ ...CATALOG.appCatalogs[0], allowedGroups: ["lab/team-a", "lab/team-b"] }],
+    };
+    const widened = {
+      ...CATALOG,
+      appCatalogs: [{ ...CATALOG.appCatalogs[0], allowedGroups: [] }],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(narrowed) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(widened) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = await getProviderCatalog("acme");
+    expect(first.appCatalogs[0].allowedGroups).toEqual(["lab/team-a", "lab/team-b"]);
+
+    await vi.advanceTimersByTimeAsync(CATALOG_BURST_WINDOW_MS);
+
+    const second = await getProviderCatalog("acme");
+    expect(second.appCatalogs[0].allowedGroups).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test("coalesces concurrent callers for the same org onto one portal round-trip", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(CATALOG),
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    await getProviderCatalog("acme");
-    await getProviderCatalog("acme");
+    const [a, b, c] = await Promise.all([
+      getProviderCatalog("acme"),
+      getProviderCatalog("acme"),
+      getProviderCatalog("acme"),
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+    expect(b).toBe(c);
   });
 
-  test("caches per organization, not globally", async () => {
+  test("per-org cache separation", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(CATALOG),
@@ -488,7 +527,31 @@ describe("getProviderCatalog (portal build)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  test("never caches a failed lookup", async () => {
+  test("serves a success from the burst cache within the window without refetching", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(CATALOG),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getProviderCatalog("acme");
+    await vi.advanceTimersByTimeAsync(CATALOG_BURST_WINDOW_MS - 1);
+    await getProviderCatalog("acme");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("fast-fails within the backoff window without another round-trip", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("retries the portal after the backoff window expires", async () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error("ECONNREFUSED"))
@@ -496,65 +559,60 @@ describe("getProviderCatalog (portal build)", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS);
+
     const catalog = await getProviderCatalog("acme");
     expect(catalog.providerConnections).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  test("serves a fresh allowedGroups set after cache invalidation on access-scope change", async () => {
-    const scopeRestricted = {
-      ...CATALOG,
-      appCatalogs: [
-        {
-          ...CATALOG.appCatalogs[0],
-          allowedGroups: ["lab/team-a", "lab/team-b"],
-        },
-      ],
-    };
-    const scopeWidened = {
-      ...CATALOG,
-      appCatalogs: [
-        {
-          ...CATALOG.appCatalogs[0],
-          allowedGroups: [],
-        },
-      ],
-    };
+  test("never serves a stale success during an outage that starts after it", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(scopeRestricted) })
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(scopeWidened) });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const first = await getProviderCatalog("acme");
-    expect(first.appCatalogs[0].allowedGroups).toEqual(["lab/team-a", "lab/team-b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-
-    invalidateProviderCatalogCache("acme", "ac-1");
-
-    const second = await getProviderCatalog("acme");
-    expect(second.appCatalogs[0].allowedGroups).toEqual([]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  test("invalidateProviderCatalogCache is a no-op when the cache is already empty", () => {
-    expect(() => invalidateProviderCatalogCache("acme", "ac-1")).not.toThrow();
-  });
-
-  test("invalidateProviderCatalogCache does not evict another organization's cache", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(CATALOG),
-    });
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(CATALOG) })
+      .mockRejectedValue(new Error("ECONNREFUSED"));
     vi.stubGlobal("fetch", fetchMock);
 
     await getProviderCatalog("acme");
-    await getProviderCatalog("globex");
+    await vi.advanceTimersByTimeAsync(CATALOG_BURST_WINDOW_MS);
+
+    await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 
-    invalidateProviderCatalogCache("acme", "ac-1");
+  test("an in-flight failure still fast-fails callers that arrive while it resolves", async () => {
+    let rejectFetch: (error: unknown) => void = () => {};
+    const fetchMock = vi.fn().mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectFetch = reject;
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
-    await getProviderCatalog("globex");
+    const first = getProviderCatalog("acme");
+    const second = getProviderCatalog("acme");
+    rejectFetch(new Error("ECONNREFUSED"));
+    await expect(first).rejects.toThrow(/unavailable/i);
+    await expect(second).rejects.toThrow(/unavailable/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("a failure for one org does not back off another org", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNREFUSED"))
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve(CATALOG) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
+
+    const catalog = await getProviderCatalog("globex");
+    expect(catalog.providerConnections).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
