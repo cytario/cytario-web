@@ -14,6 +14,7 @@ vi.mock("../../TextEditor/TextEditor", () => ({
   TextEditor: () => <div data-testid="text-editor-mock" />,
 }));
 
+import { MAX_MARKDOWN_BYTES } from "../loadMarkdown";
 import { MarkdownViewer } from "../MarkdownViewer";
 import type { SignedFetch } from "~/utils/signedFetch";
 
@@ -105,7 +106,7 @@ describe("MarkdownViewer", () => {
     const bigFetch = (async () =>
       new Response("x".repeat(1024), {
         status: 200,
-        headers: { "content-length": String(51 * 1024 * 1024) },
+        headers: { "content-length": String(MAX_MARKDOWN_BYTES + 1) },
       })) as SignedFetch;
     renderViewer(bigFetch);
 
@@ -114,7 +115,7 @@ describe("MarkdownViewer", () => {
     });
   });
 
-  test("Edit switches to the Text Editor", async () => {
+  test("Edit switches to the Text Editor and back to the rendered document", async () => {
     renderViewer();
 
     const editButton = await waitFor(() => {
@@ -125,6 +126,10 @@ describe("MarkdownViewer", () => {
     await userEvent.click(editButton);
 
     expect(screen.getByTestId("text-editor-mock")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Preview" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Batch README" })).toBeVisible();
+    expect(screen.queryByTestId("text-editor-mock")).toBeNull();
   });
 
   test("a later unmount cancels the in-flight load", async () => {
@@ -139,5 +144,14 @@ describe("MarkdownViewer", () => {
 
     unmount();
     resolveLoad?.();
+
+    // The cancelled load's result must not leak into a fresh mount: the
+    // second viewer re-fetches and renders, never the stale promise.
+    const second = renderViewer(okFetch);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1, name: "Batch README" })).toBeVisible();
+    });
+    expect(screen.queryByText(/loading markdown/i)).toBeNull();
+    second.unmount();
   });
 });
