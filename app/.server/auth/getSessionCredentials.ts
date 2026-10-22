@@ -186,7 +186,10 @@ export const getAllSessionCredentials = async (
   try {
     catalog = await getProviderCatalog(organization, sessionData.authTokens.accessToken);
   } catch (error) {
-    catalogError = error instanceof Error ? error.message : "Provider catalog is unavailable.";
+    catalogError =
+      error instanceof Error
+        ? error.message
+        : "The connection to the admin portal is unavailable right now.";
     console.warn(`${label} Provider catalog lookup failed: ${catalogError}`);
   }
 
@@ -250,7 +253,9 @@ export const getAllSessionCredentials = async (
   const credentialResults = await Promise.allSettled(
     connectionsNeedingRefresh.map(async (connectionConfig) => {
       if (!catalog) {
-        throw new Error(catalogError ?? "Provider catalog is unavailable.");
+        throw new Error(
+          catalogError ?? "The connection to the admin portal is unavailable right now.",
+        );
       }
       const connectionProvider = resolveConnectionProviderWithGrants(
         catalog,

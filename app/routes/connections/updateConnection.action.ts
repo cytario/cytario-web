@@ -132,7 +132,9 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   } catch (error) {
     return {
       formError:
-        error instanceof Error ? error.message : "Provider catalog is currently unavailable.",
+        error instanceof Error
+          ? error.message
+          : "The connection to the admin portal is unavailable right now.",
       status: "error" as const,
     };
   }

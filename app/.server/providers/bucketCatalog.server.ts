@@ -56,12 +56,16 @@ async function fetchPortalBuckets(
     });
   } catch (error) {
     console.error(`${label} Bucket lookup request failed:`, error);
-    throw new Error("Bucket lookup is currently unavailable. Try again shortly.");
+    throw new Error(
+      "The connection to the admin portal is unavailable right now. Try again shortly.",
+    );
   }
 
   if (!response.ok) {
     console.error(`${label} Bucket lookup returned ${response.status}`);
-    throw new Error("Bucket lookup is currently unavailable. Try again shortly.");
+    throw new Error(
+      "The connection to the admin portal is unavailable right now. Try again shortly.",
+    );
   }
 
   const raw = await response.json();
