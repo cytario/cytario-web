@@ -15,7 +15,7 @@ const BUCKETS_LOOKUP_TIMEOUT_MS = 10_000;
 // caller degrades to a clear error. Fail-closed fetch-through, memoized per
 // organization, with failure backoff so an outage fails fast instead of
 // round-tripping the portal per request.
-export const bucketCatalogCache = createCatalogCache<BucketCatalog>(
+const bucketCatalogCache = createCatalogCache<BucketCatalog>(
   fetchPortalBuckets,
   (organization) => `portal:${organization}`,
 );
