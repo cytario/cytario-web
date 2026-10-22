@@ -22,11 +22,11 @@ import {
   defaultFormValues,
   suggestName,
 } from "./connection.schema";
+import { GrantLevelHint, grantLevelHint, levelsForGrant } from "./grantLevels";
 import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { adminCovers } from "~/utils/authorization";
-import { ACCESS_LEVELS, type AccessLevel } from "~/utils/providerCatalog.schema";
+import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
 const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -237,30 +237,13 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     [bucketCatalog, providerConnectionId, bucketName],
   );
 
-  /**
-   * Access levels offerable for a grant scope: the level must be backed by a
-   * provider role on the SELECTED bucket whose allowed scopes cover the grant
-   * scope (a role with no allowed scopes is unrestricted). Levels the bucket
-   * has no role for are simply not offered.
-   */
-  const levelsForGrant = (grantScope: string): AccessLevel[] => {
-    const roleLevels = new Set(
-      (catalog?.providerRoles ?? [])
-        .filter(
-          (role) =>
-            role.providerConnectionId === providerConnectionId &&
-            (bucketRowId === undefined || role.bucketIds.includes(bucketRowId)),
-        )
-        .filter(
-          (role) =>
-            role.allowedScopes.length === 0 ||
-            !grantScope ||
-            role.allowedScopes.some((allowed) => adminCovers(allowed, grantScope)),
-        )
-        .map((role) => role.accessLevel),
+  const levelHint = (grantScope: string): string | undefined =>
+    grantLevelHint(
+      { catalog, loading: catalogLoading, error: catalogError },
+      providerConnectionId,
+      grantScope,
+      bucketRowId,
     );
-    return ACCESS_LEVELS.filter((level) => roleLevels.has(level));
-  };
 
   const bucketHasRoles = useMemo(
     () =>
@@ -420,9 +403,14 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                   const grant = grantsValue?.[index];
                   const grantScope = grant?.scope ?? "";
                   const grantLevel = grant?.accessLevel ?? "";
-                  const levels = levelsForGrant(grantScope);
                   const grantError = serverErrors?.[`grants.${index}.accessLevel`]?.[0];
-                  const levelItems: SelectItem[] = levels.map((level) => ({
+                  const hint = levelHint(grantScope);
+                  const levelItems: SelectItem[] = levelsForGrant(
+                    catalog,
+                    providerConnectionId,
+                    grantScope,
+                    bucketRowId,
+                  ).map((level) => ({
                     id: level,
                     name: ACCESS_LEVEL_LABELS[level],
                   }));
@@ -456,26 +444,34 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                           administrator to complete the storage onboarding before granting access.
                         </Banner>
                       ) : (
-                        <Controller
-                          name={`grants.${index}.accessLevel` as const}
-                          control={control}
-                          render={({ field: levelField, fieldState: levelFieldState }) => (
-                            <Select
-                              label="Access level"
-                              description="The permissions this group gets on the data."
-                              items={levelItems}
-                              isDisabled={
-                                !providerConnectionId ||
-                                !bucketName ||
-                                (bucketSource === "portal" && !bucketHasRoles) ||
-                                levelItems.length === 0
-                              }
-                              selectedKey={grantLevel || null}
-                              onSelectionChange={(key) => levelField.onChange(key)}
-                              errorMessage={levelFieldState.error?.message ?? grantError}
-                            />
-                          )}
-                        />
+                        <div
+                          className={[
+                            "flex flex-col gap-(--spacing-2)",
+                            hint ? "opacity-60" : "",
+                          ].join(" ")}
+                        >
+                          <Controller
+                            name={`grants.${index}.accessLevel` as const}
+                            control={control}
+                            render={({ field: levelField, fieldState: levelFieldState }) => (
+                              <Select
+                                label="Access level"
+                                description="The permissions this group gets on the data."
+                                items={levelItems}
+                                isDisabled={
+                                  !providerConnectionId ||
+                                  !bucketName ||
+                                  (bucketSource === "portal" && !bucketHasRoles) ||
+                                  hint !== undefined
+                                }
+                                selectedKey={grantLevel || null}
+                                onSelectionChange={(key) => levelField.onChange(key)}
+                                errorMessage={levelFieldState.error?.message ?? grantError}
+                              />
+                            )}
+                          />
+                          {hint && <GrantLevelHint hint={hint} />}
+                        </div>
                       )}
 
                       {fields.length > 1 && (
