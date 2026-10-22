@@ -54,12 +54,6 @@ const HtmlViewer = lazy(() =>
   })),
 );
 
-const MarkdownViewer = lazy(() =>
-  import("~/components/MarkdownViewer/MarkdownViewer").then((module) => ({
-    default: module.MarkdownViewer,
-  })),
-);
-
 interface PluginViewerRouterProps {
   resourceId: string;
   signedFetch: SignedFetch;
@@ -238,7 +232,7 @@ export default function ObjectsRoute() {
   if (isSingleFile) {
     const category = getFileCategory(resourceId);
 
-    if (category === "text") {
+    if (category === "text" || category === "markdown") {
       const signedFetch = createSignedFetch(
         liveCredentials(connectionId),
         signingRegion,
@@ -258,22 +252,6 @@ export default function ObjectsRoute() {
         <ClientOnly fallback={<LoaderView label="Loading data…" />}>
           <Suspense fallback={<LoaderView label="Loading data…" />}>
             <DataGrid resourceId={resourceId} />
-          </Suspense>
-        </ClientOnly>
-      );
-    }
-
-    if (category === "markdown") {
-      const signedFetch = createSignedFetch(
-        liveCredentials(connectionId),
-        signingRegion,
-        connectionId,
-      );
-
-      return (
-        <ClientOnly>
-          <Suspense fallback={<LoaderView label="Loading document…" />}>
-            <MarkdownViewer key={resourceId} resourceId={resourceId} signedFetch={signedFetch} />
           </Suspense>
         </ClientOnly>
       );
