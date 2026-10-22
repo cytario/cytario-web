@@ -458,12 +458,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                                 label="Access level"
                                 description="The permissions this group gets on the data."
                                 items={levelItems}
-                                isDisabled={
-                                  !providerConnectionId ||
-                                  !bucketName ||
-                                  (bucketSource === "portal" && !bucketHasRoles) ||
-                                  hint !== undefined
-                                }
+                                isDisabled={hint !== undefined}
                                 selectedKey={grantLevel || null}
                                 onSelectionChange={(key) => levelField.onChange(key)}
                                 errorMessage={levelFieldState.error?.message ?? grantError}
