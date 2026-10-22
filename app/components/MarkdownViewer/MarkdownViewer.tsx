@@ -1,4 +1,4 @@
-import { Button } from "@cytario/design";
+import { Banner, Button } from "@cytario/design";
 import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -57,7 +57,9 @@ export const MarkdownViewer = ({ resourceId, signedFetch }: MarkdownViewerProps)
   if (error !== null) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-foreground">{error}</p>
+        <Banner variant="danger" className="max-w-xl text-left">
+          {error}
+        </Banner>
         <Button variant="secondary" onPress={handleRetry}>
           Retry
         </Button>
@@ -73,9 +75,14 @@ export const MarkdownViewer = ({ resourceId, signedFetch }: MarkdownViewerProps)
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-4 py-2">
         <span className="text-sm text-muted-foreground">Markdown</span>
-        <Button variant="secondary" onPress={() => setEditMode((editing) => !editing)}>
-          {editMode ? "Preview" : "Edit"}
-        </Button>
+        <div className="flex items-center gap-3">
+          {editMode && (
+            <span className="text-xs text-muted-foreground">Unsaved edits are discarded</span>
+          )}
+          <Button variant="secondary" onPress={() => setEditMode((editing) => !editing)}>
+            {editMode ? "Back to view" : "Edit"}
+          </Button>
+        </div>
       </header>
       {editMode ? (
         <TextEditor resourceId={resourceId} signedFetch={signedFetch} />

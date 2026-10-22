@@ -118,8 +118,9 @@ describe("MarkdownViewer", () => {
   test("Edit switches to the Text Editor and back to the rendered document", async () => {
     renderViewer();
 
+    // The header toggle is the viewer's only button in view mode.
     const editButton = await waitFor(() => {
-      const button = screen.getByRole("button", { name: "Edit" });
+      const button = screen.getByRole("button");
       expect(button).toBeVisible();
       return button;
     });
@@ -127,7 +128,9 @@ describe("MarkdownViewer", () => {
 
     expect(screen.getByTestId("text-editor-mock")).toBeVisible();
 
-    await userEvent.click(screen.getByRole("button", { name: "Preview" }));
+    // The mocked TextEditor renders no buttons, so the header toggle remains
+    // the only button in edit mode too.
+    await userEvent.click(screen.getByRole("button"));
     expect(screen.getByRole("heading", { level: 1, name: "Batch README" })).toBeVisible();
     expect(screen.queryByTestId("text-editor-mock")).toBeNull();
   });
