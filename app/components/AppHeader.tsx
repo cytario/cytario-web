@@ -38,9 +38,8 @@ export function AppHeader() {
         <Breadcrumbs />
       </div>
 
-      <div className="hidden xl:block">{headerSlot}</div>
-
       <div className="h-full flex-none flex gap-2 p-2 items-center">
+        {headerSlot}
         {data?.accountSettingsUrl && data.user && (
           <UserMenu
             user={data.user}

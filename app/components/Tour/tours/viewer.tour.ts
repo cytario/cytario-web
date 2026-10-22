@@ -46,9 +46,9 @@ export const viewerTour: TourDefinition = {
     },
     {
       target: "#image-controls-toggle",
-      // Sits at the panel's bottom-right corner; anchoring left keeps the
-      // tooltip over the image rather than past the viewport edge.
-      placement: "top",
+      // Sits in the application header's right cluster; anchor below it so the
+      // tooltip opens over the image instead of past the viewport's top edge.
+      placement: "bottom",
       content: "Collapse the controls panel to view the image full-width, and reopen it here.",
     },
   ],
