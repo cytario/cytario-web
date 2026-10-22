@@ -4,11 +4,12 @@ import { useEffect, useMemo } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useActionData, useNavigation, useSubmit } from "react-router";
 
+import { GrantLevelHint, grantLevelHint, levelsForGrant } from "./grantLevels";
 import { type ShareFolderFormData, shareFolderSchema } from "./shareFolder.schema";
+import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { adminCovers } from "~/utils/authorization";
-import { ACCESS_LEVELS, type AccessLevel } from "~/utils/providerCatalog.schema";
+import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
 const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
   "read-only": "Read Only",
@@ -41,7 +42,8 @@ export const ShareFolderForm = ({
 }: ShareFolderFormProps) => {
   const submit = useSubmit();
   const navigation = useNavigation();
-  const { catalog, error: catalogError } = useProviderCatalog();
+  const { catalog, error: catalogError, loading: catalogLoading } = useProviderCatalog();
+  const { catalog: bucketCatalog } = useBucketCatalog();
   const actionData = useActionData<{
     errors?: Record<string, string[]>;
     formError?: string;
@@ -80,20 +82,13 @@ export const ShareFolderForm = ({
     [adminScopes],
   );
 
-  const levelsForGrant = (grantScope: string): AccessLevel[] => {
-    const roleLevels = new Set(
-      (catalog?.providerRoles ?? [])
-        .filter((r) => r.providerConnectionId === providerConnectionId)
-        .filter(
-          (r) =>
-            r.allowedScopes.length === 0 ||
-            !grantScope ||
-            r.allowedScopes.some((allowed) => adminCovers(allowed, grantScope)),
-        )
-        .map((r) => r.accessLevel),
-    );
-    return ACCESS_LEVELS.filter((level) => roleLevels.has(level));
-  };
+  const bucketRowId = useMemo(
+    () =>
+      (bucketCatalog?.buckets ?? []).find(
+        (b) => b.providerConnectionId === providerConnectionId && b.bucketName === bucketName,
+      )?.id,
+    [bucketCatalog, providerConnectionId, bucketName],
+  );
 
   const onSubmit = (data: ShareFolderFormData) => {
     const formData = new FormData();
@@ -152,7 +147,18 @@ export const ShareFolderForm = ({
             const grantScope = grant?.scope ?? "";
             const grantLevel = grant?.accessLevel ?? "";
             const grantError = serverErrors?.[`grants.${index}.accessLevel`]?.[0];
-            const levelItems: SelectItem[] = levelsForGrant(grantScope).map((level) => ({
+            const hint = grantLevelHint(
+              { catalog, loading: catalogLoading, error: catalogError },
+              providerConnectionId,
+              grantScope,
+              bucketRowId,
+            );
+            const levelItems: SelectItem[] = levelsForGrant(
+              catalog,
+              providerConnectionId,
+              grantScope,
+              bucketRowId,
+            ).map((level) => ({
               id: level,
               name: ACCESS_LEVEL_LABELS[level],
             }));
@@ -179,21 +185,28 @@ export const ShareFolderForm = ({
                   )}
                 />
 
-                <Controller
-                  name={`grants.${index}.accessLevel` as const}
-                  control={control}
-                  render={({ field: levelField, fieldState: levelFieldState }) => (
-                    <Select
-                      label="Access level"
-                      description="The permissions this group gets on the data."
-                      items={levelItems}
-                      isDisabled={levelItems.length === 0}
-                      selectedKey={grantLevel || null}
-                      onSelectionChange={(key) => levelField.onChange(key)}
-                      errorMessage={levelFieldState.error?.message ?? grantError}
-                    />
+                <div
+                  className={["flex flex-col gap-(--spacing-2)", hint ? "opacity-60" : ""].join(
+                    " ",
                   )}
-                />
+                >
+                  <Controller
+                    name={`grants.${index}.accessLevel` as const}
+                    control={control}
+                    render={({ field: levelField, fieldState: levelFieldState }) => (
+                      <Select
+                        label="Access level"
+                        description="The permissions this group gets on the data."
+                        items={levelItems}
+                        isDisabled={hint !== undefined}
+                        selectedKey={grantLevel || null}
+                        onSelectionChange={(key) => levelField.onChange(key)}
+                        errorMessage={levelFieldState.error?.message ?? grantError}
+                      />
+                    )}
+                  />
+                  {hint && <GrantLevelHint hint={hint} />}
+                </div>
 
                 {fields.length > 1 && (
                   <Button

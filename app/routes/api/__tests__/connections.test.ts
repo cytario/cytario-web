@@ -236,13 +236,13 @@ describe("create", () => {
     vi.mocked(createConnectionWithCatalogValidation).mockResolvedValue({
       ok: false,
       error: "catalog",
-      message: "Provider catalog is unavailable.",
+      message: "The connection to the admin portal is unavailable right now.",
     } as never);
 
     const response = await action(buildArgs(postRequest(validPayload)));
     expect(response.status).toBe(422);
     const body = await response.json();
-    expect(body.error).toBe("Provider catalog is unavailable.");
+    expect(body.error).toBe("The connection to the admin portal is unavailable right now.");
   });
 
   test("invalid JSON body is a 400", async () => {
