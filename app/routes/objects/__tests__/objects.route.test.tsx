@@ -340,6 +340,16 @@ describe("Bucket Route", () => {
     });
   });
 
+  test("renders the TextEditor for a .md file", async () => {
+    seedConnection("aws-test-bucket");
+    const StubMd = stubSingleFile("test/path/to/README.md");
+    render(<StubMd initialEntries={["/connections/aws-test-bucket/test/path/to/README.md"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("text-editor")).toBeInTheDocument();
+    });
+  });
+
   test("renders the TextEditor for a Quarto Markdown source file", async () => {
     seedConnection("aws-test-bucket");
     const StubQmd = stubSingleFile("test/path/to/analysis.qmd");

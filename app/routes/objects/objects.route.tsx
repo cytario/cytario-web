@@ -232,7 +232,7 @@ export default function ObjectsRoute() {
   if (isSingleFile) {
     const category = getFileCategory(resourceId);
 
-    if (category === "text") {
+    if (category === "text" || category === "markdown") {
       const signedFetch = createSignedFetch(
         liveCredentials(connectionId),
         signingRegion,

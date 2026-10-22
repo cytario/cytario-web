@@ -1,12 +1,14 @@
 import { json } from "@codemirror/lang-json";
 import { yaml } from "@codemirror/lang-yaml";
-import { Button } from "@cytario/design";
+import { Banner, Button } from "@cytario/design";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { FormattedTextView } from "./FormattedTextView";
+import { PlainTextView } from "./PlainTextView";
 import { readTextFile } from "./readText";
 import { writeTextFile } from "./writeText";
-import { getExtension } from "~/utils/fileType";
+import { getFileType, getExtension } from "~/utils/fileType";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 interface TextEditorProps {
@@ -27,15 +29,24 @@ function languageExtensions(ext: string | undefined) {
   }
 }
 
+const MARKDOWN_TYPES = new Set(["Markdown", "Quarto Markdown"]);
+
+/** Files with a formatted view mode; everything else views as plain text. */
+function isFormattedTextType(type: string): boolean {
+  return MARKDOWN_TYPES.has(type);
+}
+
 export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
   const [content, setContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   const ext = getExtension(resourceId);
   const extensions = useMemo(() => [EditorView.lineWrapping, ...languageExtensions(ext)], [ext]);
+  const formatted = isFormattedTextType(getFileType(resourceId));
 
   const dirty = content !== originalContent;
 
@@ -94,7 +105,9 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
   if (error && !content) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
-        <p className="text-sm text-destructive">{error}</p>
+        <Banner variant="danger" className="max-w-xl text-left">
+          {error}
+        </Banner>
         <Button
           onPress={() => {
             setError(null);
@@ -119,19 +132,32 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-4 py-2">
-        <span className="text-sm text-muted-foreground">
-          {dirty ? "Unsaved changes" : "All changes saved"}
-        </span>
+        {dirty || editMode ? (
+          <span className="text-sm text-muted-foreground">
+            {dirty ? "Unsaved changes" : "All changes saved"}
+          </span>
+        ) : null}
         <div className="flex items-center gap-2">
           {error && <span className="text-sm text-destructive">{error}</span>}
-          <Button onPress={handleSave} isDisabled={!dirty || saving} variant="secondary">
-            {saving ? "Saving…" : "Save"}
+          {editMode && (
+            <Button onPress={handleSave} isDisabled={!dirty || saving} variant="secondary">
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          )}
+          <Button variant="secondary" onPress={() => setEditMode((editing) => !editing)}>
+            {editMode ? "Back to view" : "Edit"}
           </Button>
         </div>
       </header>
-      <div className="flex-1 overflow-auto">
-        <CodeMirror value={content} onChange={setContent} extensions={extensions} height="100%" />
-      </div>
+      {editMode ? (
+        <div className="flex-1 overflow-auto">
+          <CodeMirror value={content} onChange={setContent} extensions={extensions} height="100%" />
+        </div>
+      ) : formatted ? (
+        <FormattedTextView markdown={content} />
+      ) : (
+        <PlainTextView text={content} />
+      )}
     </div>
   );
 }
