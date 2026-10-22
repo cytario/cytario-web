@@ -13,7 +13,7 @@ describe("session cookie", () => {
   });
 });
 
-describe("provider catalog cache TTL", () => {
+describe("provider catalog failure backoff", () => {
   // config.ts reads process.env once at import time, so each case re-imports
   // the module with a stubbed env.
   const importConfig = async () =>
@@ -24,18 +24,18 @@ describe("provider catalog cache TTL", () => {
     vi.resetModules();
   });
 
-  test("defaults to 30s when CATALOG_CACHE_TTL_MS is unset", async () => {
-    vi.stubEnv("CATALOG_CACHE_TTL_MS", "");
-    expect((await importConfig()).providers.catalogCacheTtlMs).toBe(30_000);
+  test("defaults to 5s when CATALOG_FAILURE_BACKOFF_MS is unset", async () => {
+    vi.stubEnv("CATALOG_FAILURE_BACKOFF_MS", "");
+    expect((await importConfig()).providers.catalogFailureBackoffMs).toBe(5_000);
   });
 
-  test("0 disables the cache (an explicit zero must not fall back to the default)", async () => {
-    vi.stubEnv("CATALOG_CACHE_TTL_MS", "0");
-    expect((await importConfig()).providers.catalogCacheTtlMs).toBe(0);
+  test("0 disables the backoff (an explicit zero must not fall back to the default)", async () => {
+    vi.stubEnv("CATALOG_FAILURE_BACKOFF_MS", "0");
+    expect((await importConfig()).providers.catalogFailureBackoffMs).toBe(0);
   });
 
   test("honours a custom value", async () => {
-    vi.stubEnv("CATALOG_CACHE_TTL_MS", "5000");
-    expect((await importConfig()).providers.catalogCacheTtlMs).toBe(5_000);
+    vi.stubEnv("CATALOG_FAILURE_BACKOFF_MS", "10000");
+    expect((await importConfig()).providers.catalogFailureBackoffMs).toBe(10_000);
   });
 });

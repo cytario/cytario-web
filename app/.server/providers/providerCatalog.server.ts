@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 
 import { createLabel } from "~/.server/logging";
 import { findBucketByName } from "~/.server/providers/bucketCatalog.server";
+import { createCatalogCache } from "~/.server/providers/catalogCache.server";
 import { cytarioConfig } from "~/config";
 import type { BucketCatalog } from "~/utils/bucketCatalog.schema";
 import {
@@ -20,68 +21,25 @@ const PROVIDERS_LOOKUP_PATH = "/org/providers";
 const PROVIDERS_LOOKUP_HEADER = "X-Providers-Lookup-Secret";
 const PROVIDERS_LOOKUP_TIMEOUT_MS = 10_000;
 
-/** How long a resolved catalog is served from memory before re-reading its source. */
-const CATALOG_CACHE_TTL_MS = cytarioConfig.providers.catalogCacheTtlMs;
-const CATALOG_CACHE_MAX_ENTRIES = 100;
-
-interface CatalogCacheEntry {
-  expiresAt: number;
-  promise: Promise<ProviderCatalog>;
-}
-
-const catalogCache = new Map<string, CatalogCacheEntry>();
-
-/** Test hook: drop every cached catalog. */
-export function clearProviderCatalogCache(): void {
-  catalogCache.clear();
-}
-
-// Call this when the access scope changes on a catalog connection or when
-// the connection is removed — a stale `allowedGroups` set must never be
-// served across an access-scope change. The cache is keyed per organization
-// (the portal response is whole-org), so `catalogConnectionId` is accepted
-// only for caller intent and observability.
-export function invalidateProviderCatalogCache(
-  organization: string,
-  catalogConnectionId?: string,
-): void {
-  const fromPortal = cytarioConfig.providers.source === "portal";
-  const cacheKey = fromPortal ? `portal:${organization}` : "oss";
-  const evicted = catalogCache.delete(cacheKey);
-  if (evicted && catalogConnectionId) {
-    console.info(
-      `${label} Provider catalog cache invalidated for org "${organization}" on catalog connection "${catalogConnectionId}" (access-scope change or removal).`,
-    );
-  }
-}
-
 // The lookup is advisory: on staleness or unavailability the caller degrades
-// to a clear error rather than blocking. Memoized per organization with a
-// short TTL (portal round-trip / YAML read should not run per request;
-// CATALOG_CACHE_TTL_MS `0` disables). Failures are never cached.
+// to a clear error rather than blocking. Fail-closed fetch-through — every
+// call beyond the burst window re-reads its source, and failures are
+// memoized (backoff) so an outage fails fast instead of round-tripping the
+// portal per request.
+export const providerCatalogCache = createCatalogCache<ProviderCatalog>(
+  (organization, accessToken) =>
+    cytarioConfig.providers.source === "portal"
+      ? fetchPortalCatalog(organization, accessToken)
+      : loadOssCatalog(),
+  (organization) =>
+    cytarioConfig.providers.source === "portal" ? `portal:${organization}` : "oss",
+);
+
 export async function getProviderCatalog(
   organization: string,
   accessToken?: string,
 ): Promise<ProviderCatalog> {
-  const fromPortal = cytarioConfig.providers.source === "portal";
-  const cacheKey = fromPortal ? `portal:${organization}` : "oss";
-
-  const cached = catalogCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return cached.promise;
-
-  const promise = (
-    fromPortal ? fetchPortalCatalog(organization, accessToken) : loadOssCatalog()
-  ).catch((error: unknown) => {
-    catalogCache.delete(cacheKey);
-    throw error;
-  });
-
-  if (catalogCache.size >= CATALOG_CACHE_MAX_ENTRIES) {
-    const oldestKey = catalogCache.keys().next().value;
-    if (oldestKey !== undefined) catalogCache.delete(oldestKey);
-  }
-  catalogCache.set(cacheKey, { expiresAt: Date.now() + CATALOG_CACHE_TTL_MS, promise });
-  return promise;
+  return providerCatalogCache.get(organization, accessToken);
 }
 
 async function fetchPortalCatalog(
