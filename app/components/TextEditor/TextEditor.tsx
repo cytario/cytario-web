@@ -132,9 +132,11 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-4 py-2">
-        <span className="text-sm text-muted-foreground">
-          {dirty ? "Unsaved changes" : editMode ? "All changes saved" : "Viewing"}
-        </span>
+        {dirty || editMode ? (
+          <span className="text-sm text-muted-foreground">
+            {dirty ? "Unsaved changes" : "All changes saved"}
+          </span>
+        ) : null}
         <div className="flex items-center gap-2">
           {error && <span className="text-sm text-destructive">{error}</span>}
           {editMode && (
