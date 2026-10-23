@@ -183,7 +183,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
-    "@vitest/coverage-v8": "^3.2.3",
+    "@vitest/coverage-v8": "^4.0.0",
     "badge-maker": "^6.0.0",
     "eslint": ">=8.38.0",
     "eslint-config-prettier": "^10.1.8",
@@ -202,7 +202,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.3"
+    "vitest": "^4.0.0"
   },
   "overrides": {
     "@hono/node-server": ">=1.19.13",

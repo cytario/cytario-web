@@ -29,6 +29,7 @@ const mockedGetJobBrokerToken = vi.mocked(getJobBrokerToken);
 describe("revokeGrant (SDS-CY-080901, SRS-CY-416106)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    mockedGetJobBrokerToken.mockReset();
     mockedGetJobBrokerToken.mockResolvedValue("broker-bearer-token");
     deleteBatchCredentialsMock.mockReset();
     deleteBatchCredentialsMock.mockResolvedValue(undefined);

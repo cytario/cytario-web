@@ -62,11 +62,11 @@ describe("Histogram", () => {
     vi.clearAllMocks();
 
     // Mock ResizeObserver
-    global.ResizeObserver = vi.fn().mockImplementation(() => ({
-      observe: vi.fn(),
-      unobserve: vi.fn(),
-      disconnect: vi.fn(),
-    }));
+    global.ResizeObserver = vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+      this.observe = vi.fn();
+      this.unobserve = vi.fn();
+      this.disconnect = vi.fn();
+    });
 
     (useViewerStore as Mock).mockImplementation((selector) => {
       if (selector === select.channelsState) {

@@ -73,6 +73,7 @@ const mockRequestData: HostRequestData = {
 
 describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     getProviderCatalogMock.mockResolvedValue(EMPTY_CATALOG);
   });
 

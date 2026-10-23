@@ -43,14 +43,15 @@ describe("createDatabase", () => {
       pthreadWorker: "pthread.js",
     } as never);
     vi.mocked(createWorker).mockResolvedValue({} as never);
-    vi.mocked(AsyncDuckDB).mockImplementation(
-      () =>
-        ({
-          instantiate: mockInstantiate,
-          open: mockOpen,
-          connect: mockConnect,
-        }) as never,
-    );
+    vi.mocked(AsyncDuckDB).mockImplementation(function (this: {
+      instantiate: unknown;
+      open: unknown;
+      connect: unknown;
+    }) {
+      this.instantiate = mockInstantiate;
+      this.open = mockOpen;
+      this.connect = mockConnect;
+    } as never);
     mockConnection = { query: mockQuery };
     mockConnect.mockResolvedValue(mockConnection);
     mockQuery.mockResolvedValue({});

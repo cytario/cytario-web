@@ -10,13 +10,31 @@ import {
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
-  AssumeRoleWithWebIdentityCommand: vi.fn((input) => ({ __type: "AssumeRole", input })),
+  AssumeRoleWithWebIdentityCommand: vi.fn(function (
+    this: { __type: string; input: unknown },
+    input: unknown,
+  ) {
+    this.__type = "AssumeRole";
+    this.input = input;
+  }),
 }));
 
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: vi.fn(),
-  GetBucketPolicyCommand: vi.fn((input) => ({ __type: "GetBucketPolicy", input })),
-  PutBucketPolicyCommand: vi.fn((input) => ({ __type: "PutBucketPolicy", input })),
+  GetBucketPolicyCommand: vi.fn(function (
+    this: { __type: string; input: unknown },
+    input: unknown,
+  ) {
+    this.__type = "GetBucketPolicy";
+    this.input = input;
+  }),
+  PutBucketPolicyCommand: vi.fn(function (
+    this: { __type: string; input: unknown },
+    input: unknown,
+  ) {
+    this.__type = "PutBucketPolicy";
+    this.input = input;
+  }),
 }));
 
 vi.mock("~/utils/s3Provider", () => ({
@@ -91,8 +109,12 @@ const containsSecret = (value: unknown, secrets: string[]): boolean => {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  vi.mocked(STSClient).mockImplementation(() => ({ send: stsSend }) as unknown as STSClient);
-  vi.mocked(S3Client).mockImplementation(() => ({ send: s3Send }) as unknown as S3Client);
+  vi.mocked(STSClient).mockImplementation(function (this: STSClient) {
+    this.send = stsSend;
+  } as unknown as new () => STSClient);
+  vi.mocked(S3Client).mockImplementation(function (this: S3Client) {
+    this.send = s3Send;
+  } as unknown as new () => S3Client);
 
   stsSend.mockResolvedValue({ Credentials: WRITE_CREDS });
   // default: bucket has no policy yet
