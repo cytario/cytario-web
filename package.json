@@ -92,7 +92,7 @@
     "@headless-tree/core": "^1.7.0",
     "@headless-tree/react": "^1.7.0",
     "@hms-dbmi/viv": "^0.22.0",
-    "@hookform/resolvers": "^5.2.2",
+    "@hookform/resolvers": "^6.0.0",
     "@loaders.gl/3d-tiles": "4.5.3",
     "@loaders.gl/core": "4.5.3",
     "@loaders.gl/gis": "4.5.3",
