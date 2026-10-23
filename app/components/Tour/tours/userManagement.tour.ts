@@ -10,6 +10,13 @@ function adminUsersUrl(context: Pick<TourContext, "adminScopes">): string {
 const CONNECTIONS_URL = "/connections";
 
 /**
+ * A connection row in the content area. The sidebar tree holds the same link
+ * shape, so an unscoped `main a[…]` would highlight the navigation panel
+ * instead of the browsed listing.
+ */
+const CONTENT_CONNECTION_ROW = 'main section a[href^="/connections/"]';
+
+/**
  * Walks an organization admin through bringing teammates in: reaching the
  * user-management screen from the user menu, inviting a user, and sharing a
  * connection with a group so the invitee can actually see data. Offered only
@@ -29,11 +36,12 @@ export const userManagementTour: TourDefinition = {
         "areas you manage. Open it to reach user management.",
     },
     {
-      // The user-management screen's action row; its entries (invite, create
-      // group) are the screen's core affordances. The provider navigates to
-      // the admin's first scope — the screen 400s without one. Scoped to the
-      // page header: the empty state renders a second invite CTA in main.
-      target: 'main header a[href*="/admin/users/invite"]',
+      // The screen's own heading — the scope being administered. The provider
+      // navigates to the admin's first scope (the screen 400s without one).
+      target: "main section header h2",
+      // The heading is wide enough that a left-anchored tooltip lands on top of
+      // it; below the heading row there is clear space.
+      placement: "bottom",
       title: "User management",
       content:
         "This screen lists each group's members and its connections. Open the " +
@@ -41,6 +49,7 @@ export const userManagementTour: TourDefinition = {
       data: { navigateToFromContext: adminUsersUrl },
     },
     {
+      // Scoped to the page header: the empty state renders a second invite CTA.
       target: 'main header a[href*="/admin/users/invite"]',
       title: "Invite a user",
       content:
@@ -48,14 +57,17 @@ export const userManagementTour: TourDefinition = {
         "access levels are assigned after they accept.",
     },
     {
-      // The share action lives in a connection row's context menu, so the tour
-      // navigates back to the connections screen and points at a row.
-      target: 'main a[href^="/connections/"]',
+      // The share action lives in a row's context menu, so the tour navigates
+      // back to the connections screen and points at a listing row. Anchored
+      // left: a listing row is a tall card, and a tooltip placed below it runs
+      // past the bottom of a short viewport.
+      target: CONTENT_CONNECTION_ROW,
+      placement: "left",
       title: "Share a connection or folder",
       content:
         "An invited user sees nothing until a connection is shared with their " +
-        "group. Right-click a connection or folder and choose Share to grant a " +
-        "group access — the access level you pick here is what they get.",
+        "group. Right-click a row and choose Share; the access level you pick " +
+        "there is what the group gets.",
       data: { navigateToFromContext: () => CONNECTIONS_URL },
     },
     {

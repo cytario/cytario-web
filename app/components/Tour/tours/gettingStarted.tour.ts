@@ -7,8 +7,12 @@ import { GETTING_STARTED_TOUR_ID, isImageViewerRoute, type TourDefinition } from
  */
 const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href^="/connections/"]';
 
-/** A folder or file inside the browsed connection — the content area. */
-const CONTENT_ENTRY_LINK = 'main a[href^="/connections/"]';
+/**
+ * A folder or file inside the browsed connection. Scoped to the content
+ * area's <section>: the sidebar tree holds the same link shape, so an
+ * unscoped `main a[…]` resolves to the navigation panel instead.
+ */
+const CONTENT_ENTRY_LINK = 'main section a[href^="/connections/"]';
 
 export const gettingStartedTour: TourDefinition = {
   id: GETTING_STARTED_TOUR_ID,
@@ -63,10 +67,10 @@ export const gettingStartedTour: TourDefinition = {
     },
     {
       target: CONTENT_ENTRY_LINK,
-      title: "Open an image",
+      title: "Open an item",
       content:
-        "Open anything here to browse deeper. Images open in the full viewer — " +
-        "where a second short tour will show you the viewing controls.",
+        "Open a folder here to browse deeper; open an image and it launches in the " +
+        "full viewer — where a second short tour will show you the viewing controls.",
     },
     {
       target: 'button[aria-label="Help"]',

@@ -179,6 +179,34 @@ describe("tourRegistry", () => {
     });
   });
 
+  // The navigation tree renders the same anchor shape as the content listing,
+  // so an unscoped `main a[…]` silently resolves to the sidebar and highlights
+  // the wrong element.
+  describe("content-area step targets", () => {
+    const targets = tourRegistry.flatMap((tour) => tour.steps.map((step) => String(step.target)));
+
+    test("connection entries are scoped to the content section, not bare `main`", () => {
+      expect(targets.filter((target) => /^main a\[/.test(target))).toEqual([]);
+      expect(
+        targets.some((target) => target.startsWith('main section a[href^="/connections/"]')),
+      ).toBe(true);
+    });
+
+    test("the sidebar entry step and the content entry step differ", () => {
+      const selectors = tourRegistry.flatMap((tour) =>
+        tour.steps.flatMap((step) => [
+          String(step.target),
+          String(step.data?.enterConnectionVia ?? ""),
+        ]),
+      );
+      const sidebar = selectors.filter((selector) => selector.startsWith("#navigation-sidebar a["));
+      const content = selectors.filter((selector) => selector.startsWith("main section a["));
+      expect(sidebar.length).toBeGreaterThan(0);
+      expect(content.length).toBeGreaterThan(0);
+      expect(sidebar).not.toEqual(content);
+    });
+  });
+
   describe("helpers", () => {
     test("isResourcePath matches nested resource routes", () => {
       expect(isResourcePath("/connections/abc/folder/img.tiff")).toBe(true);
