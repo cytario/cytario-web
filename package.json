@@ -202,7 +202,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.21.0",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.3"
+    "vitest": "^4.0.0"
   },
   "overrides": {
     "@hono/node-server": ">=1.19.13",
