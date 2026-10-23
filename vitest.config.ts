@@ -53,6 +53,7 @@ export default defineConfig({
         "**/__tests__/**",
         "**/.generated/**",
         "**/*.d.ts",
+        "**/*.md",
         "**/types.ts",
         "**/*.types.ts",
         "**/routes.ts",

@@ -172,12 +172,9 @@ describe("getAllSessionCredentials", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    vi.mocked(STSClient).mockImplementation(
-      () =>
-        ({
-          send: mockSend,
-        }) as unknown as STSClient,
-    );
+    vi.mocked(STSClient).mockImplementation(function (this: STSClient) {
+      this.send = mockSend;
+    } as unknown as new () => STSClient);
 
     mockSend.mockResolvedValue({
       Credentials: mockCredentials,

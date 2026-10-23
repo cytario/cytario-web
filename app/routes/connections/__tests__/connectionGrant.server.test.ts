@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { prisma } from "~/.server/db/prisma";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -333,6 +333,10 @@ describe("validateProviderRefs", () => {
 });
 
 describe("applyBucketGrantSet", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test("assembles the grant set from the bucket's persisted rows and applies via the given connection", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(catalog);
     vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue([

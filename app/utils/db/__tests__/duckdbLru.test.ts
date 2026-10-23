@@ -46,7 +46,7 @@ describe("DuckDB instance LRU", () => {
       pthreadWorker: "pthread.js",
     } as never);
     vi.mocked(createWorker).mockImplementation(async () => ({}) as never);
-    vi.mocked(AsyncDuckDB).mockImplementation(() => {
+    vi.mocked(AsyncDuckDB).mockImplementation(function (this: Record<string, unknown>) {
       // `db` is what eviction terminates — terminate belongs on the outer
       // AsyncDuckDB mock, not on the per-connect instance.
       const instance: Instance = {
@@ -59,13 +59,11 @@ describe("DuckDB instance LRU", () => {
         },
       };
       instances.push(instance);
-      return {
-        instantiate: vi.fn().mockResolvedValue(undefined),
-        open: vi.fn().mockResolvedValue(undefined),
-        connect: vi.fn().mockResolvedValue(instance.connection),
-        terminate: instance.terminate,
-      } as never;
-    });
+      this.instantiate = vi.fn().mockResolvedValue(undefined);
+      this.open = vi.fn().mockResolvedValue(undefined);
+      this.connect = vi.fn().mockResolvedValue(instance.connection);
+      this.terminate = instance.terminate;
+    } as never);
   });
 
   test("reuses one instance per resourceId", async () => {
@@ -174,22 +172,19 @@ describe("DuckDB instance LRU", () => {
   test("a failed init under cap pressure does not poison the resourceId", async () => {
     let created = 0;
     let failFirst = true;
-    vi.mocked(AsyncDuckDB).mockImplementation(
-      () =>
-        ({
-          instantiate: vi.fn(async () => {
-            created += 1;
-            if (failFirst) {
-              failFirst = false;
-              throw new Error("init failed under pressure");
-            }
-            return undefined;
-          }),
-          open: vi.fn().mockResolvedValue(undefined),
-          connect: vi.fn().mockResolvedValue({ query: vi.fn().mockResolvedValue({}) }),
-          terminate: vi.fn(),
-        }) as never,
-    );
+    vi.mocked(AsyncDuckDB).mockImplementation(function (this: Record<string, unknown>) {
+      this.instantiate = vi.fn(async () => {
+        created += 1;
+        if (failFirst) {
+          failFirst = false;
+          throw new Error("init failed under pressure");
+        }
+        return undefined;
+      });
+      this.open = vi.fn().mockResolvedValue(undefined);
+      this.connect = vi.fn().mockResolvedValue({ query: vi.fn().mockResolvedValue({}) });
+      this.terminate = vi.fn();
+    } as never);
 
     // Start the doomed create but do NOT await it yet.
     const doomed = createDatabase("poison-a", credentials, undefined);
@@ -211,7 +206,7 @@ describe("DuckDB instance LRU", () => {
   test("an eviction racing a create-in-flight defers termination past both borrows", async () => {
     // Slow-init instances so the borrows are outstanding when eviction runs.
     let initGate: Promise<void> = Promise.resolve();
-    vi.mocked(AsyncDuckDB).mockImplementation(() => {
+    vi.mocked(AsyncDuckDB).mockImplementation(function (this: Record<string, unknown>) {
       const instance: Instance = {
         terminate: vi.fn().mockImplementation(async () => {
           terminated.push(instance);
@@ -222,15 +217,13 @@ describe("DuckDB instance LRU", () => {
         },
       };
       instances.push(instance);
-      return {
-        instantiate: vi.fn().mockImplementation(async () => {
-          await initGate;
-        }),
-        open: vi.fn().mockResolvedValue(undefined),
-        connect: vi.fn().mockResolvedValue(instance.connection),
-        terminate: instance.terminate,
-      } as never;
-    });
+      this.instantiate = vi.fn().mockImplementation(async () => {
+        await initGate;
+      });
+      this.open = vi.fn().mockResolvedValue(undefined);
+      this.connect = vi.fn().mockResolvedValue(instance.connection);
+      this.terminate = instance.terminate;
+    } as never);
 
     let releaseGate!: () => void;
     initGate = new Promise((resolve) => (releaseGate = resolve));
@@ -260,19 +253,16 @@ describe("DuckDB instance LRU", () => {
 
   test("a failed init is not kept and not terminated as a live handle", async () => {
     let created = 0;
-    vi.mocked(AsyncDuckDB).mockImplementation(
-      () =>
-        ({
-          instantiate: vi.fn(async () => {
-            created += 1;
-            if (created === 1) throw new Error("init failed");
-            return undefined;
-          }),
-          open: vi.fn().mockResolvedValue(undefined),
-          connect: vi.fn().mockResolvedValue({ query: vi.fn().mockResolvedValue({}) }),
-          terminate: vi.fn(),
-        }) as never,
-    );
+    vi.mocked(AsyncDuckDB).mockImplementation(function (this: Record<string, unknown>) {
+      this.instantiate = vi.fn(async () => {
+        created += 1;
+        if (created === 1) throw new Error("init failed");
+        return undefined;
+      });
+      this.open = vi.fn().mockResolvedValue(undefined);
+      this.connect = vi.fn().mockResolvedValue({ query: vi.fn().mockResolvedValue({}) });
+      this.terminate = vi.fn();
+    } as never);
 
     await expect(createDatabase("lru-fail", credentials, undefined)).rejects.toThrow();
     await createDatabase("lru-fail", credentials, undefined);

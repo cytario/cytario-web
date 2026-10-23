@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -73,6 +73,10 @@ const cliToken = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("me.connections loader — SRS-CY-419101/419102", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   test("lists connections with the user's most permissive grant", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
     vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
