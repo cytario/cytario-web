@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download package.json
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         continue-on-error: true # artifact only exists when running on main
         with:
           name: package-json
@@ -96,7 +96,7 @@ jobs:
       id-token: write # keyless cosign signing via GitHub OIDC
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: digests-*
