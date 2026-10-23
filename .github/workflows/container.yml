@@ -33,7 +33,7 @@ jobs:
             runner: ubuntu-24.04-arm64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history + tags so the plugin-api version-stamping
           # prebuild step can resolve `git describe --tags
