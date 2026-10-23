@@ -2,17 +2,23 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
 import { createRoutesStub } from "react-router";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { HelpMenu } from "~/components/HelpMenu";
 import { useTourControllerStore } from "~/components/Tour/useTourController";
+
+vi.mock("~/hooks/useCurrentUser", () => ({
+  useCurrentUser: () => ({ sub: "user-a", adminScopes }),
+}));
+
+let adminScopes: string[] = [];
 
 vi.mock("@cytario/design", async () => {
   const actual = await vi.importActual<typeof import("@cytario/design")>("@cytario/design");
   return {
     ...actual,
-    Menu: ({ content }: { content: React.ReactNode }) =>
-      createElement("div", { "data-testid": "menu-content" }, content),
+    Menu: ({ content, children }: { content?: React.ReactNode; children?: React.ReactNode }) =>
+      createElement("div", { "data-testid": "menu-content" }, children, content),
     MenuSeparator: () => createElement("hr", null),
     MenuSection: ({ header, children }: { header?: React.ReactNode; children: React.ReactNode }) =>
       createElement(
@@ -21,8 +27,15 @@ vi.mock("@cytario/design", async () => {
         header ? createElement("div", { "data-testid": "menu-section-header" }, header) : null,
         children,
       ),
-    IconButton: ({ icon, label }: { icon: string; label: string }) =>
-      createElement("button", { "data-testid": "help-trigger", "data-icon": icon }, label),
+    IconButton: ({
+      icon,
+      label,
+      ref,
+    }: {
+      icon: string;
+      label: string;
+      ref?: React.Ref<HTMLButtonElement>;
+    }) => createElement("button", { "data-testid": "help-trigger", "data-icon": icon, ref }, label),
     MenuItem: ({
       id,
       href,
@@ -74,6 +87,10 @@ async function renderMenu(
 }
 
 describe("HelpMenu", () => {
+  beforeEach(() => {
+    adminScopes = [];
+    useTourControllerStore.setState({ helpMenuRevealSignal: 0 });
+  });
   test("renders documentation and support links when both URLs are set", async () => {
     await renderMenu({
       version: "1.2.3",
@@ -142,5 +159,28 @@ describe("HelpMenu", () => {
     await userEvent.click(screen.getByTestId("menu-item-tour-viewer"));
     expect(useTourControllerStore.getState().requestedTourId).toBe("viewer");
     useTourControllerStore.getState().consumeRequest();
+  });
+
+  test("offers the user-management tour only to admins", async () => {
+    adminScopes = ["*"];
+    await renderMenu({ version: "1.2.3" });
+    expect(screen.getByTestId("menu-item-tour-user-management")).toHaveTextContent(
+      "User management and sharing tour",
+    );
+  });
+
+  test("omits the user-management tour for plain members", async () => {
+    adminScopes = [];
+    await renderMenu({ version: "1.2.3" });
+    expect(screen.queryByTestId("menu-item-tour-user-management")).not.toBeInTheDocument();
+  });
+
+  test("opens itself when the getting-started finale signals", async () => {
+    await renderMenu({ version: "1.2.3" });
+    const trigger = screen.getByTestId("help-trigger") as HTMLButtonElement;
+    const click = vi.fn();
+    trigger.addEventListener("click", click);
+    useTourControllerStore.getState().signalHelpMenuReveal();
+    await waitFor(() => expect(click).toHaveBeenCalled());
   });
 });

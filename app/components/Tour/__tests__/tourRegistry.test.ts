@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   GETTING_STARTED_TOUR_ID,
+  USER_MANAGEMENT_TOUR_ID,
   VIEWER_TOUR_ID,
   isImageViewerRoute,
   isResourcePath,
@@ -10,19 +11,30 @@ import {
 import { tourRegistry } from "../tours/registry";
 
 const gettingStarted = tourRegistry.find((tour) => tour.id === GETTING_STARTED_TOUR_ID)!;
+const userManagement = tourRegistry.find((tour) => tour.id === USER_MANAGEMENT_TOUR_ID)!;
 const viewer = tourRegistry.find((tour) => tour.id === VIEWER_TOUR_ID)!;
 
 describe("tourRegistry", () => {
   describe("getting-started shouldAutoStart", () => {
     test("starts with at least one connection", () => {
       expect(
-        gettingStarted.shouldAutoStart({ pathname: "/", leafName: "", connectionCount: 1 }),
+        gettingStarted.shouldAutoStart({
+          pathname: "/",
+          leafName: "",
+          connectionCount: 1,
+          adminScopes: [] as string[],
+        }),
       ).toBe(true);
     });
 
     test("does not start without connections", () => {
       expect(
-        gettingStarted.shouldAutoStart({ pathname: "/", leafName: "", connectionCount: 0 }),
+        gettingStarted.shouldAutoStart({
+          pathname: "/",
+          leafName: "",
+          connectionCount: 0,
+          adminScopes: [] as string[],
+        }),
       ).toBe(false);
     });
 
@@ -32,6 +44,7 @@ describe("tourRegistry", () => {
           pathname: "/connections/abc/folder",
           leafName: "folder",
           connectionCount: 3,
+          adminScopes: [] as string[],
         }),
       ).toBe(true);
     });
@@ -42,6 +55,7 @@ describe("tourRegistry", () => {
           pathname: "/connections/abc/slide.ome.tiff",
           leafName: "slide.ome.tiff",
           connectionCount: 3,
+          adminScopes: [] as string[],
         }),
       ).toBe(false);
     });
@@ -52,6 +66,7 @@ describe("tourRegistry", () => {
           pathname: "/connections/abc/notes.txt",
           leafName: "notes.txt",
           connectionCount: 1,
+          adminScopes: [] as string[],
         }),
       ).toBe(true);
     });
@@ -61,6 +76,7 @@ describe("tourRegistry", () => {
         pathname: "/connections/abc/slide.ome.tiff",
         leafName: "slide.ome.tiff",
         connectionCount: 1,
+        adminScopes: [] as string[],
       };
       const claiming = tourRegistry.filter((tour) => tour.shouldAutoStart(context));
       expect(claiming.map((tour) => tour.id)).toEqual([VIEWER_TOUR_ID]);
@@ -74,6 +90,7 @@ describe("tourRegistry", () => {
           pathname: "/connections/abc/slide.ome.tiff",
           leafName: "slide.ome.tiff",
           connectionCount: 1,
+          adminScopes: [] as string[],
         }),
       ).toBe(true);
     });
@@ -84,6 +101,7 @@ describe("tourRegistry", () => {
           pathname: "/connections/abc/folder",
           leafName: "folder",
           connectionCount: 1,
+          adminScopes: [] as string[],
         }),
       ).toBe(false);
     });
@@ -94,23 +112,35 @@ describe("tourRegistry", () => {
           pathname: "/connections/abc/notes.txt",
           leafName: "notes.txt",
           connectionCount: 1,
+          adminScopes: [] as string[],
         }),
       ).toBe(false);
     });
 
     test("does not start on the connections index", () => {
       expect(
-        viewer.shouldAutoStart({ pathname: "/connections", leafName: "", connectionCount: 1 }),
+        viewer.shouldAutoStart({
+          pathname: "/connections",
+          leafName: "",
+          connectionCount: 1,
+          adminScopes: [] as string[],
+        }),
       ).toBe(false);
     });
   });
 
   describe("replay availability", () => {
-    const appScreen = { pathname: "/", leafName: "", connectionCount: 0 };
+    const appScreen = {
+      pathname: "/",
+      leafName: "",
+      connectionCount: 0,
+      adminScopes: [] as string[],
+    };
     const viewerScreen = {
       pathname: "/connections/abc/slide.ome.tiff",
       leafName: "slide.ome.tiff",
       connectionCount: 1,
+      adminScopes: [] as string[],
     };
 
     test("the getting-started tour is replayable on every screen", () => {
@@ -125,14 +155,55 @@ describe("tourRegistry", () => {
       expect(viewer.isAvailable(viewerScreen)).toBe(true);
       expect(viewer.isAvailable(appScreen)).toBe(false);
       expect(
-        viewer.isAvailable({ pathname: "/connections/abc", leafName: "abc", connectionCount: 1 }),
+        viewer.isAvailable({
+          pathname: "/connections/abc",
+          leafName: "abc",
+          connectionCount: 1,
+          adminScopes: [] as string[],
+        }),
       ).toBe(false);
+    });
+
+    test("the user-management tour is offered only to admins and never auto-starts", () => {
+      const adminScreen = { ...appScreen, adminScopes: ["*"] };
+      expect(userManagement.isAvailable(adminScreen)).toBe(true);
+      expect(userManagement.isAvailable(appScreen)).toBe(false);
+      // A deliberate deep-dive, not part of first-run orientation.
+      expect(userManagement.shouldAutoStart(adminScreen)).toBe(false);
     });
 
     test("every tour carries a distinct menu label", () => {
       const labels = tourRegistry.map((tour) => tour.menuLabel);
       expect(labels.every((label) => label.length > 0)).toBe(true);
       expect(new Set(labels).size).toBe(labels.length);
+    });
+  });
+
+  // The navigation tree renders the same anchor shape as the content listing,
+  // so an unscoped `main a[…]` silently resolves to the sidebar and highlights
+  // the wrong element.
+  describe("content-area step targets", () => {
+    const targets = tourRegistry.flatMap((tour) => tour.steps.map((step) => String(step.target)));
+
+    test("connection entries are scoped to the content section, not bare `main`", () => {
+      expect(targets.filter((target) => /^main a\[/.test(target))).toEqual([]);
+      expect(
+        targets.some((target) => target.startsWith('main section a[href^="/connections/"]')),
+      ).toBe(true);
+    });
+
+    test("the sidebar entry step and the content entry step differ", () => {
+      const selectors = tourRegistry.flatMap((tour) =>
+        tour.steps.flatMap((step) => [
+          String(step.target),
+          String(step.data?.enterConnectionVia ?? ""),
+        ]),
+      );
+      const sidebar = selectors.filter((selector) => selector.startsWith("#navigation-sidebar a["));
+      const content = selectors.filter((selector) => selector.startsWith("main section a["));
+      expect(sidebar.length).toBeGreaterThan(0);
+      expect(content.length).toBeGreaterThan(0);
+      expect(sidebar).not.toEqual(content);
     });
   });
 

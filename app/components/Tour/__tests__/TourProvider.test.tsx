@@ -13,7 +13,7 @@ import { useTourControllerStore } from "../useTourController";
 import { useTourProgressStore } from "../useTourProgress";
 
 vi.mock("~/hooks/useCurrentUser", () => ({
-  useCurrentUser: () => ({ sub: "user-a" }),
+  useCurrentUser: () => ({ sub: "user-a", adminScopes: [] }),
 }));
 
 vi.mock("react-router", async () => {
@@ -63,7 +63,9 @@ function renderAt(path: string, connectionCount: number) {
       <nav aria-label="Breadcrumb" />
       <div role="radiogroup" aria-label="View mode" />
       <main>
-        <a href="/connections/conn-1/folder">folder</a>
+        <section>
+          <a href="/connections/conn-1/folder">folder</a>
+        </section>
       </main>
       <button aria-label="Help" type="button" />
       {/* Viewer targets */}
