@@ -33,7 +33,7 @@ jobs:
             runner: ubuntu-24.04-arm64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # Full history + tags so the plugin-api version-stamping
           # prebuild step can resolve `git describe --tags
@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download package.json
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         continue-on-error: true # artifact only exists when running on main
         with:
           name: package-json
@@ -96,7 +96,7 @@ jobs:
       id-token: write # keyless cosign signing via GitHub OIDC
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: digests-*
