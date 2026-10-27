@@ -31,7 +31,6 @@ import { cytarioConfig } from "./config";
 import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
 import { toastBridge, toToastVariant } from "./toast-bridge";
-import { useFileStore } from "./utils/localFilesStore/useFileStore";
 
 import "./styles.css";
 import "rc-slider/assets/index.css";
@@ -125,10 +124,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       toastBridge.emit({ variant, message: data.notification.message });
     }
   }, [data?.notification]);
-
-  useEffect(() => {
-    useFileStore.getState().hydrate();
-  }, []);
 
   // Move focus to main content on route change (skip initial render).
   useEffect(() => {
