@@ -115,7 +115,17 @@ export const useChannelsLayer = (
         // namespaced to rawLoader so an image switch drops the cache. signal is
         // intentionally excluded from the key.
         const cacheKey = `${levelIndex}:${params.x}:${params.y}:${selectionKey(params.selection)}`;
-        const fetchTile = () => getCachedTile(rawLoader, cacheKey, () => originalGetTile(params));
+        // deck.gl's per-tile signal is deliberately NOT threaded into the
+        // loader. geotiff's BlockedSource coalesces sibling tiles into shared
+        // 64 KiB block-group fetches, so one tile's abort kills the group and
+        // every sibling rejects with AggregateError — which deck.gl treats as
+        // terminal (content = null, never re-requested), parking those tiles at
+        // their blurry parent level. Letting fetches complete instead is safe:
+        // deck.gl's loaderId guard discards results whose tile was aborted.
+        const fetchTile = () =>
+          getCachedTile(rawLoader, cacheKey, () =>
+            originalGetTile({ ...params, signal: undefined }),
+          );
 
         // deck.gl treats a getTileData rejection as terminal (content = null,
         // never re-requested — the tile parks at its blurry parent level), so a

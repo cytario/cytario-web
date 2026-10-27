@@ -467,6 +467,43 @@ describe("useChannelsLayer selections stability", () => {
     expect(calls).toBe(2);
   });
 
+  test("deck.gl's per-tile signal never reaches the loader's getTile", async () => {
+    // geotiff's BlockedSource coalesces sibling tiles into shared block-group
+    // fetches, so one tile's abort rejects every sibling sharing the group
+    // with an AggregateError — terminal in deck.gl (stuck at the parent level).
+    // The wrapper therefore strips the signal before dispatch; stale results
+    // are discarded by deck.gl's loaderId guard instead.
+    const controller = new AbortController();
+    controller.abort();
+    let seenSignal: unknown = "unset";
+    const spyLoader = {
+      ...loaderLevel,
+      getTile: (req: { signal?: AbortSignal }) => {
+        seenSignal = req.signal ?? null;
+        return Promise.resolve({ data: new Uint8Array(16), width: 4, height: 4 });
+      },
+    };
+    act(() => {
+      store.setState({ loader: [spyLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    const tile = await wrappedLoader.getTile({
+      x: 0,
+      y: 0,
+      selection: { c: 0, z: 0 },
+      signal: controller.signal,
+    });
+    expect(tile).toMatchObject({ width: 4, height: 4 });
+    expect(seenSignal).toBe(null);
+  });
+
   test("a non-abort tile error still rejects", async () => {
     const failingLoader = {
       ...loaderLevel,
