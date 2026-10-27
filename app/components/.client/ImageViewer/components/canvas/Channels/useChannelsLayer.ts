@@ -16,6 +16,10 @@ import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
 
+/** Both abort shapes loaders use: DOMException (plugins, spec) and plain Error. */
+const isAbortError = (error: unknown): boolean =>
+  (error instanceof DOMException || error instanceof Error) && error.name === "AbortError";
+
 // `getTile` runs once per tile per channel per load — and again for each
 // channel of a `best-available` refinement — so serializing `params.selection`
 // inline re-stringified the same array on every fetch. The selection array is
@@ -106,36 +110,48 @@ export const useChannelsLayer = (
 
         loadTile(tileId);
 
+        // Shared across panels: a second ImagePanel's getTile resolves from memory
+        // instead of refetching. Keyed by level + tile coords + full selection;
+        // namespaced to rawLoader so an image switch drops the cache. signal is
+        // intentionally excluded from the key.
+        const cacheKey = `${levelIndex}:${params.x}:${params.y}:${selectionKey(params.selection)}`;
+        // deck.gl's per-tile signal is deliberately NOT threaded into the
+        // loader. geotiff's BlockedSource coalesces sibling tiles into shared
+        // 64 KiB block-group fetches, so one tile's abort kills the group and
+        // every sibling rejects with AggregateError — which deck.gl treats as
+        // terminal (content = null, never re-requested), parking those tiles at
+        // their blurry parent level. Letting fetches complete instead is safe:
+        // deck.gl's loaderId guard discards results whose tile was aborted.
+        const fetchTile = () =>
+          getCachedTile(rawLoader, cacheKey, () =>
+            originalGetTile({ ...params, signal: undefined }),
+          );
+
+        // deck.gl treats a getTileData rejection as terminal (content = null,
+        // never re-requested — the tile parks at its blurry parent level), so a
+        // single transient read error (S3 5xx/429, network blip, SigV4 hiccup)
+        // would strand the tile with no retry anywhere. Abort errors convert to
+        // viv's SIGNAL_ABORTED sentinel (the composite getTileData catches it and
+        // returns null, which deck.gl marks refinable — plugin loaders throw
+        // DOMException AbortError, viv's own loaders throw the sentinel). One
+        // retry covers transient failures; persistent ones still reject.
         try {
-          // Shared across panels: a second ImagePanel's getTile resolves from memory
-          // instead of refetching. Keyed by level + tile coords + full selection;
-          // namespaced to rawLoader so an image switch drops the cache. signal is
-          // intentionally excluded from the key.
-          const cacheKey = `${levelIndex}:${params.x}:${params.y}:${selectionKey(params.selection)}`;
-          const result = await getCachedTile(rawLoader, cacheKey, () => originalGetTile(params));
-
+          const result = await fetchTile();
           finishTile(tileId);
-
           return result;
         } catch (error) {
-          finishTile(tileId);
-
-          // deck.gl aborts in-flight tiles on every viewport change and treats a
-          // getTileData rejection as terminal (never re-requested — the tile parks
-          // at its blurry parent level). The cancellable protocol is viv's
-          // SIGNAL_ABORTED sentinel: the composite getTileData catches it and
-          // returns null, which deck.gl marks refinable. Plugin loaders (qptiff et
-          // al.) throw DOMException AbortError, so convert to the sentinel here —
-          // a plain null return would be dereferenced by the composite's
-          // tiles.map((d) => d.data) and reject anyway.
-          if (error instanceof DOMException && error.name === "AbortError") {
+          if (isAbortError(error)) {
+            finishTile(tileId);
             throw SIGNAL_ABORTED;
           }
-          if (error instanceof Error && error.name === "AbortError") {
-            throw SIGNAL_ABORTED;
+          try {
+            const retried = await fetchTile();
+            finishTile(tileId);
+            return retried;
+          } catch (retryError) {
+            finishTile(tileId);
+            throw retryError;
           }
-
-          throw error;
         }
       };
 
@@ -166,8 +182,8 @@ export const useChannelsLayer = (
       refinementStrategy: "best-available",
       pickable: true,
       onTileError: (error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        if (error instanceof Error && error.name === "AbortError") return;
+        if (isAbortError(error)) return;
+        if (error === SIGNAL_ABORTED) return;
         if (error instanceof AggregateError && error.errors.every((e) => e?.name === "AbortError"))
           return;
         console.error(error);

@@ -411,6 +411,99 @@ describe("useChannelsLayer selections stability", () => {
     );
   });
 
+  test("a transient tile error is retried once before rejecting", async () => {
+    // deck.gl treats a getTileData rejection as terminal (content = null, never
+    // re-requested), so a single transient read error — an S3 5xx/429, a
+    // network blip, a SigV4 hiccup — would strand the tile at its parent
+    // (blurry) level with no retry anywhere. The wrapper retries once.
+    let calls = 0;
+    const flakyLoader = {
+      ...loaderLevel,
+      getTile: () => {
+        calls += 1;
+        if (calls === 1) return Promise.reject(new Error("transient S3 503"));
+        return Promise.resolve({ data: new Uint8Array(16), width: 4, height: 4 });
+      },
+    };
+    act(() => {
+      store.setState({ loader: [flakyLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    const tile = await wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } });
+    expect(tile).toMatchObject({ width: 4, height: 4 });
+    expect(calls).toBe(2);
+  });
+
+  test("a persistent tile error rejects after exactly one retry", async () => {
+    let calls = 0;
+    const alwaysFailingLoader = {
+      ...loaderLevel,
+      getTile: () => {
+        calls += 1;
+        return Promise.reject(new Error("persistent failure"));
+      },
+    };
+    act(() => {
+      store.setState({ loader: [alwaysFailingLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    await expect(wrappedLoader.getTile({ x: 0, y: 0, selection: { c: 0, z: 0 } })).rejects.toThrow(
+      "persistent failure",
+    );
+    expect(calls).toBe(2);
+  });
+
+  test("deck.gl's per-tile signal never reaches the loader's getTile", async () => {
+    // geotiff's BlockedSource coalesces sibling tiles into shared block-group
+    // fetches, so one tile's abort rejects every sibling sharing the group
+    // with an AggregateError — terminal in deck.gl (stuck at the parent level).
+    // The wrapper therefore strips the signal before dispatch; stale results
+    // are discarded by deck.gl's loaderId guard instead.
+    const controller = new AbortController();
+    controller.abort();
+    let seenSignal: unknown = "unset";
+    const spyLoader = {
+      ...loaderLevel,
+      getTile: (req: { signal?: AbortSignal }) => {
+        seenSignal = req.signal ?? null;
+        return Promise.resolve({ data: new Uint8Array(16), width: 4, height: 4 });
+      },
+    };
+    act(() => {
+      store.setState({ loader: [spyLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    const tile = await wrappedLoader.getTile({
+      x: 0,
+      y: 0,
+      selection: { c: 0, z: 0 },
+      signal: controller.signal,
+    });
+    expect(tile).toMatchObject({ width: 4, height: 4 });
+    expect(seenSignal).toBe(null);
+  });
+
   test("a non-abort tile error still rejects", async () => {
     const failingLoader = {
       ...loaderLevel,
