@@ -368,27 +368,33 @@ npx prisma studio                                 # Database GUI
 npx prisma generate                               # Regenerate client
 ```
 
-#### Cloning the DEV database
+#### Cloning a database
 
-`scripts/clone-dev-db.mjs` copies the DEV PostgreSQL (schema + data) into the local Podman cluster's Postgres. It uses the `pg` driver rather than `pg_dump`/`psql`, so it works through pgbouncer (transaction-pooling mode) — `pg_dump` fails on session-level operations there.
+```sh
+npm run clone-dev-db <source-url> <target-url>
+```
+
+Replaces the target's `public` schema with a `pg_dump` of the source database — schema, sequences, unique indexes, and data, including `_prisma_migrations` (so `npx prisma migrate deploy` is a no-op unless your checkout has migrations newer than the source). The target must resolve to loopback. Requires `pg_dump` and `psql` on your `PATH` with a client major version at least the server's (for a PG 18 server: `brew install postgresql@18`, then put `/opt/homebrew/opt/postgresql@18/bin` on `PATH`).
+
+The source must be a direct connection to the primary postgres instance: `pg_dump` cannot run through PgBouncer in transaction-pooling mode (it breaks pg_dump's session-level catalog access). `PGPASSWORD` from the environment is honored by both `pg_dump` and `psql`; a password embedded in a URL takes precedence.
 
 ```sh
 # 1. Make sure the local cluster is up and Postgres is reachable on :5433.
 cd devenv && podman kube play local-deployment.yaml && cd ..
 
-# 2. Clone. Pass the DEV DATABASE_URL as the source and the local URL
-#    (from .env.template) as the target. The script refuses to write to
-#    any host that doesn't resolve to loopback.
+# 2. Clone. Pass the source DATABASE_URL as the source and the local URL
+#    (from .env.template) as the target. The script refuses to write to any
+#    host that doesn't resolve to loopback.
 npm run clone-dev-db -- \
-  "$DEV_DATABASE_URL" \
+  "<source-database-url>" \
   "postgresql://cytario:cytario@localhost:5433/cytario"
 
-# 3. Apply any migrations the local checkout has that DEV doesn't yet.
+# 3. Apply any migrations the local checkout has that the source doesn't yet.
 DATABASE_URL="postgresql://cytario:cytario@localhost:5433/cytario" \
   npx prisma migrate deploy
 ```
 
-The clone copies every public-schema table, including `_prisma_migrations`, so Prisma recognises which migrations are already applied. If the target database already has tables, the script lists them and asks for confirmation before dropping them.
+The dump includes every public-schema table, so Prisma recognises which migrations are already applied. If the target database already has tables, its public schema is dropped without asking — the loopback check is the guard against writing anywhere remote.
 
 ### Testing
 

@@ -1,34 +1,37 @@
 #!/usr/bin/env node
-/* global console, process, URL */
+/* global Buffer, console, process, URL */
 /**
- * Clone the DEV cytario-web database to a local database (schema + data).
+ * Clone a source database to a local database (schema + data).
  *
  * Usage:
  *   node scripts/clone-dev-db.mjs <source-url> <target-url>
  *
- *   source-url  — DEV DATABASE_URL (read source; may go through pgbouncer)
- *   target-url  — local DATABASE_URL (will be overwritten)
+ *   source-url  — source DATABASE_URL; must reach postgres directly. pg_dump
+ *                 cannot run through the PgBouncer transaction pooler, so
+ *                 connect to the primary instance (see the README section
+ *                 "Cloning a database").
+ *   target-url  — local DATABASE_URL; its public schema is dropped and
+ *                 recreated from the dump.
  *
- * Copies schema (tables, columns, enum types, defaults, PKs, unique constraints)
- * and data from the source, including the `_prisma_migrations` table so Prisma
- * knows which migrations are already applied. Run `prisma migrate deploy`
- * afterwards to apply any pending local migrations.
+ * Streams pg_dump from the source into psql on the target, so tables, enum
+ * types, sequences, defaults, constraints, unique indexes, and data (including
+ * `_prisma_migrations`) land exactly as pg_dump serializes them. Requires
+ * pg_dump/psql on PATH with a client major version >= the server's.
+ * PGPASSWORD from the environment is honored by both; a password embedded in
+ * the URL takes precedence.
  *
- * Uses the `pg` driver (already a project dependency) instead of `pg_dump` /
- * `psql`, so it works through pgbouncer (transaction-pooling mode) where
- * `pg_dump` fails on session-level operations.
- *
- * Safety:
- *   - Refuses to operate on a target whose URL host resolves to a non-loopback
- *     address, to avoid clobbering a remote DB by mistake.
- *   - Requires an explicit confirmation if the target already has tables.
+ * Safety: refuses to operate on a target whose URL host resolves to a
+ * non-loopback address, to avoid clobbering a remote DB by mistake.
  */
+import { spawn } from "node:child_process";
 import { lookup } from "node:dns/promises";
-import pg from "pg";
 
-const { Client } = pg;
+function fail(msg) {
+  console.error(`FAIL: ${msg}`);
+  process.exit(1);
+}
 
-function parsePgUrl(url) {
+function hostOf(url) {
   let u;
   try {
     u = new URL(url);
@@ -38,279 +41,49 @@ function parsePgUrl(url) {
   if (u.protocol !== "postgresql:" && u.protocol !== "postgres:") {
     fail(`not a postgres URL: ${url}`);
   }
-  const port = u.port || "5432";
-  const database = (u.pathname || "/").slice(1);
-  if (!database) fail(`URL has no database: ${url}`);
-  return {
-    url,
-    host: u.hostname,
-    port,
-    database,
-    user: decodeURIComponent(u.username),
-    password: decodeURIComponent(u.password || ""),
-  };
+  return u.hostname;
 }
 
-function fail(msg) {
-  console.error(`FAIL: ${msg}`);
-  process.exit(1);
-}
-
-async function resolveHost(host) {
-  if (host === "localhost" || host === "127.0.0.1" || host === "::1") {
-    return ["127.0.0.1"];
-  }
-  try {
-    const records = await lookup(host, { all: true });
-    return records.map((r) => r.address);
-  } catch {
-    fail(`cannot resolve host "${host}"`);
-  }
-}
-
-const BATCH_SIZE = 500;
-
-async function listTables(client) {
-  const { rows } = await client.query(
-    `SELECT c.relname FROM pg_class c
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname = 'public' AND c.relkind = 'r'
-    ORDER BY c.relname`,
-  );
-  return rows.map((r) => r.relname);
-}
-
-async function listEnums(client) {
-  const { rows } = await client.query(
-    `SELECT t.typname, string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder) AS labels
-    FROM pg_type t
-    JOIN pg_enum e ON t.oid = e.enumtypid
-    JOIN pg_namespace n ON t.typnamespace = n.oid
-    WHERE n.nspname = 'public'
-    GROUP BY t.typname
-    ORDER BY t.typname`,
-  );
-  return rows.map((r) => ({ name: r.typname, labels: r.labels.split(",") }));
-}
-
-async function listColumns(client, table) {
-  const { rows } = await client.query(
-    `SELECT a.attname AS name, format_type(a.atttypid, a.atttypmod) AS type,
-    a.attnotnull AS notnull,
-    pg_get_expr(d.adbin, d.adrelid) AS default_expr
-    FROM pg_attribute a
-    LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
-    JOIN pg_class c ON a.attrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname = 'public' AND c.relname = $1 AND a.attnum > 0 AND NOT a.attisdropped
-    ORDER BY a.attnum`,
-    [table],
-  );
-  return rows;
-}
-
-async function listPrimaryKeys(client, table) {
-  const { rows } = await client.query(
-    `SELECT a.attname AS column_name
-    FROM pg_index i
-    JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
-    JOIN pg_class c ON c.oid = i.indrelid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname = 'public' AND c.relname = $1 AND i.indisprimary
-    ORDER BY array_position(i.indkey, a.attnum)`,
-    [table],
-  );
-  return rows.map((r) => r.column_name);
-}
-
-async function listUniqueConstraints(client, table) {
-  // Unique constraints declared via `CONSTRAINT ... UNIQUE` live in
-  // pg_constraint; unique indexes created via `CREATE UNIQUE INDEX` (as the
-  // migration files do) do NOT — they only appear in pg_index with
-  // indisunique=true. The clone must copy both or the recreated table
-  // silently drops index-style uniqueness, which `prisma migrate status` will
-  // not detect because the copied `_prisma_migrations` table marks every
-  // migration applied. Returns { name, columns, style } where style is
-  // "constraint" or "index".
-  const { rows: constraintRows } = await client.query(
-    `SELECT con.conname AS name, array_to_string(array_agg(a.attname ORDER BY array_position(con.conkey, a.attnum)), ',') AS columns
-    FROM pg_constraint con
-    JOIN pg_class c ON con.conrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
-    WHERE n.nspname = 'public' AND c.relname = $1
-    AND con.contype = 'u'
-    GROUP BY con.conname`,
-    [table],
-  );
-
-  const { rows: indexRows } = await client.query(
-    `SELECT i.relname AS name, array_to_string(array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)), ',') AS columns
-    FROM pg_index ix
-    JOIN pg_class i ON i.oid = ix.indexrelid
-    JOIN pg_class t ON t.oid = ix.indrelid
-    JOIN pg_namespace n ON t.relnamespace = n.oid
-    JOIN pg_attribute a ON a.attrelid = ix.indrelid AND a.attnum = ANY(ix.indkey)
-    WHERE n.nspname = 'public' AND t.relname = $1 AND ix.indisunique AND NOT ix.indisprimary
-    AND NOT EXISTS (SELECT 1 FROM pg_constraint con WHERE con.conindid = i.oid)
-    GROUP BY i.relname`,
-    [table],
-  );
-
-  const parseCols = (s) => (s ? s.split(",") : []);
-  return [
-    ...constraintRows.map((r) => ({
-      name: r.name,
-      columns: parseCols(r.columns),
-      style: "constraint",
-    })),
-    ...indexRows.map((r) => ({ name: r.name, columns: parseCols(r.columns), style: "index" })),
-  ];
-}
-
-async function countRows(client, table) {
-  const { rows } = await client.query(`SELECT count(*)::int AS n FROM "${table}"`);
-  return rows[0].n;
-}
-
-async function listSequences(client) {
-  const { rows } = await client.query(
-    `SELECT sequencename AS name, data_type, start_value::text AS start_value,
-    min_value::text AS min_value, max_value::text AS max_value,
-    increment_by::text AS increment, cycle, cache_size::text AS cache_size,
-    last_value::text AS last_value
-    FROM pg_sequences
-    WHERE schemaname = 'public'`,
-  );
-  // pg_depend rows with deptype = 'a' link a sequence to the table.column it
-  // backs via a serial/bigserial DEFAULT. Prisma's introspect and
-  // `prisma migrate diff` rely on this metadata.
-  const { rows: ownRows } = await client.query(
-    `SELECT c.relname AS seq_name,
-    format('%I.%I', t.relname, a.attname) AS owned_by
-    FROM pg_class c
-    JOIN pg_depend d ON d.objid = c.oid AND d.classid = 'pg_class'::regclass
-    JOIN pg_class t ON d.refobjid = t.oid
-    JOIN pg_attribute a ON d.refobjid = a.attrelid AND d.refobjsubid = a.attnum
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE n.nspname = 'public' AND c.relkind = 'S' AND d.deptype = 'a'`,
-  );
-  const ownerMap = new Map(ownRows.map((r) => [r.seq_name, r.owned_by]));
-  return rows.map((r) => ({
-    name: r.name,
-    dataType: r.data_type,
-    start: r.start_value,
-    minValue: r.min_value,
-    maxValue: r.max_value,
-    increment: r.increment,
-    cycle: r.cycle,
-    cacheSize: r.cache_size,
-    lastValue: r.last_value,
-    ownedBy: ownerMap.get(r.name) ?? null,
-  }));
-}
-
-async function copySequences(source, target) {
-  const seqs = await listSequences(source);
-  // Bare sequences — table DDL references them via the DEFAULT expression
-  // captured from pg_attrdef; ownership is wired in a second pass after
-  // tables exist (linkSequenceOwnership).
-  for (const s of seqs) {
-    const cycle = s.cycle ? "CYCLE" : "NO CYCLE";
-    // last_value is null for never-read sequences; fall back to start_value
-    // so the sequence is usable immediately.
-    const start = s.lastValue ?? s.start;
-    await target.query(
-      `CREATE SEQUENCE "${s.name}" AS ${s.dataType}
-      INCREMENT BY ${s.increment}
-      MINVALUE ${s.minValue}
-      MAXVALUE ${s.maxValue}
-      START WITH ${start}
-      CACHE ${s.cacheSize}
-         ${cycle}`,
-    );
-  }
-  return seqs;
-}
-
-async function linkSequenceOwnership(source, target) {
-  const seqs = await listSequences(source);
-  for (const s of seqs) {
-    if (s.ownedBy) {
-      await target.query(`ALTER SEQUENCE "${s.name}" OWNED BY ${s.ownedBy}`);
+async function assertLoopback(host) {
+  const addrs =
+    host === "localhost" || host === "127.0.0.1" || host === "::1"
+      ? ["127.0.0.1"]
+      : await lookup(host, { all: true })
+          .then((records) => records.map((r) => r.address))
+          .catch(() => fail(`cannot resolve host "${host}"`));
+  for (const addr of addrs) {
+    if (!addr.startsWith("127.") && addr !== "::1") {
+      fail(
+        `target host "${host}" resolves to ${addr}, which is not loopback — refusing to clobber a remote database`,
+      );
     }
   }
 }
 
-async function recreateSchema(target) {
-  await target.query(`DROP SCHEMA IF EXISTS public CASCADE`);
-  await target.query(`CREATE SCHEMA public`);
-  await target.query(`GRANT ALL ON SCHEMA public TO public`);
+function run(cmd, args, stdio) {
+  const child = spawn(cmd, args, { stdio });
+  const errors = [];
+  child.stderr.on("data", (chunk) => errors.push(chunk));
+  const done = new Promise((resolve) => {
+    child.on("close", (code) => resolve(code ?? 1));
+    child.on("error", (err) => {
+      errors.push(Buffer.from(`${cmd}: ${err.message}\n`));
+      resolve(127);
+    });
+  });
+  return { child, errors, done };
 }
 
-function buildColumnDef(col) {
-  let def = `"${col.name}" ${col.type}`;
-  if (col.notnull) def += " NOT NULL";
-  if (col.default_expr) def += ` DEFAULT ${col.default_expr}`;
-  return def;
-}
-
-async function copyTable(source, target, table) {
-  const columns = await listColumns(source, table);
-  if (columns.length === 0) return 0;
-
-  const colDefs = columns.map(buildColumnDef).join(", ");
-
-  const pks = await listPrimaryKeys(source, table);
-  let constraints = "";
-  if (pks.length > 0) {
-    constraints += `, PRIMARY KEY (${pks.map((c) => `"${c}"`).join(", ")})`;
+async function psql(targetUrl, args) {
+  const { errors, done } = run(
+    "psql",
+    ["--no-psqlrc", "-v", "ON_ERROR_STOP=1", ...args, targetUrl],
+    ["ignore", "pipe", "pipe"],
+  );
+  const code = await done;
+  if (code !== 0) {
+    fail(`psql exited with ${code}:\n${Buffer.concat(errors).toString()}`);
   }
-
-  const uniques = await listUniqueConstraints(source, table);
-  for (const u of uniques) {
-    const cols = u.columns.map((c) => `"${c}"`).join(", ");
-    if (u.style !== "index") {
-      constraints += `, CONSTRAINT "${u.name}" UNIQUE (${cols})`;
-    }
-  }
-
-  await target.query(`CREATE TABLE "${table}" (${colDefs}${constraints})`);
-
-  // Index-style unique indexes must be issued after the CREATE TABLE — they
-  // cannot be table constraints.
-  for (const u of uniques) {
-    if (u.style === "index") {
-      const cols = u.columns.map((c) => `"${c}"`).join(", ");
-      await target.query(`CREATE UNIQUE INDEX "${u.name}" ON "${table}" (${cols})`);
-    }
-  }
-
-  const colNames = columns.map((c) => `"${c.name}"`).join(", ");
-  const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
-
-  const total = await countRows(source, table);
-  if (total === 0) return 0;
-
-  let offset = 0;
-  let inserted = 0;
-  while (offset < total) {
-    const { rows } = await source.query(
-      `SELECT ${colNames} FROM "${table}" ORDER BY ctid LIMIT $1 OFFSET $2`,
-      [BATCH_SIZE, offset],
-    );
-    if (rows.length === 0) break;
-    for (const row of rows) {
-      const values = columns.map((c) => row[c.name]);
-      await target.query(`INSERT INTO "${table}" (${colNames}) VALUES (${placeholders})`, values);
-      inserted++;
-    }
-    offset += rows.length;
-    if (offset % 5000 === 0 || offset >= total) {
-      console.log(`  ${table}: ${offset}/${total} rows`);
-    }
-  }
-  return inserted;
 }
 
 async function main() {
@@ -319,89 +92,42 @@ async function main() {
     fail("usage: node scripts/clone-dev-db.mjs <source-url> <target-url>");
   }
 
-  const source = parsePgUrl(sourceUrl);
-  const target = parsePgUrl(targetUrl);
+  hostOf(sourceUrl);
+  await assertLoopback(hostOf(targetUrl));
 
-  console.log(`source: ${source.user}@${source.host}:${source.port}/${source.database}`);
-  console.log(`target: ${target.user}@${target.host}:${target.port}/${target.database}`);
+  console.log("resetting target schema…");
+  await psql(targetUrl, [
+    "-c",
+    "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO public;",
+  ]);
 
-  // Safety: refuse non-loopback targets.
-  const targetAddrs = await resolveHost(target.host);
-  for (const addr of targetAddrs) {
-    if (!addr.startsWith("127.") && addr !== "::1") {
-      fail(
-        `target host "${target.host}" resolves to ${addr}, which is not loopback — refusing to clobber a remote database`,
-      );
-    }
-  }
-
-  const sourceClient = new Client({ ...source, ssl: false });
-  const targetClient = new Client({ ...target, ssl: false });
-  await sourceClient.connect();
-  await targetClient.connect();
-
-  // Safety: confirm if the target already has tables.
-  let existingTables = [];
-  try {
-    existingTables = await listTables(targetClient);
-  } catch (err) {
-    fail(`cannot read target tables: ${err.message}`);
-  }
-  if (existingTables.length > 0) {
-    console.error(`target has ${existingTables.length} table(s): ${existingTables.join(", ")}`);
-    console.error("this operation will DROP them. Continue? [y/N]");
-    const answer = await new Promise((resolve) => {
-      process.stdin.resume();
-      process.stdin.once("data", (d) => {
-        process.stdin.pause();
-        resolve(d.toString().trim().toLowerCase());
-      });
-    });
-    if (answer !== "y" && answer !== "yes") {
-      fail("aborted by user");
-    }
-  }
-
-  console.log("recreating target schema…");
-  await recreateSchema(targetClient);
-
-  // Copy enum types first (tables may depend on them).
-  console.log("copying enum types…");
-  const enums = await listEnums(sourceClient);
-  for (const { name, labels } of enums) {
-    const labelList = labels.map((l) => `'${l.replace(/'/g, "''")}'`).join(", ");
-    await targetClient.query(`CREATE TYPE "${name}" AS ENUM (${labelList})`);
-  }
-
-  // Sequences before tables — table DDL embeds DEFAULT nextval(...) captured
-  // from pg_attrdef, which fails if the sequence doesn't exist.
-  console.log("copying sequences…");
-  const seqs = await copySequences(sourceClient, targetClient);
-  console.log(`  ${seqs.length} sequence(s)`);
-
-  // Tables (including _prisma_migrations so Prisma knows what's applied).
-  console.log("copying tables…");
-  const tables = await listTables(sourceClient);
-  let totalRows = 0;
-  for (const table of tables) {
-    const n = await copyTable(sourceClient, targetClient, table);
-    totalRows += n;
-    console.log(`  ${table}: ${n} rows`);
-  }
-
-  // Wire sequence → column ownership now that every table exists, so
-  // Prisma's introspect sees the serial binding.
-  console.log("linking sequence ownership…");
-  await linkSequenceOwnership(sourceClient, targetClient);
-
-  await sourceClient.end();
-  await targetClient.end();
-
-  console.log(
-    `done. ${tables.length} tables, ${seqs.length} sequences, ${totalRows} rows cloned from DEV to local.`,
+  console.log("streaming pg_dump → psql…");
+  const dump = run(
+    "pg_dump",
+    ["--no-owner", "--no-privileges", sourceUrl],
+    ["ignore", "pipe", "pipe"],
   );
+  const restore = run(
+    "psql",
+    ["--no-psqlrc", "-v", "ON_ERROR_STOP=1", targetUrl],
+    ["pipe", "pipe", "pipe"],
+  );
+
+  // psql dying early must not crash on the resulting broken pipe.
+  dump.child.stdout.on("error", () => {});
+  dump.child.stdout.pipe(restore.child.stdin);
+
+  const [dumpCode, restoreCode] = [await dump.done, await restore.done];
+  if (dumpCode !== 0) {
+    fail(`pg_dump exited with ${dumpCode}:\n${Buffer.concat(dump.errors).toString()}`);
+  }
+  if (restoreCode !== 0) {
+    fail(`psql exited with ${restoreCode}:\n${Buffer.concat(restore.errors).toString()}`);
+  }
+
+  console.log("done. local database now matches the source (schema + data).");
   console.log(
-    "run `DATABASE_URL=<target-url> npx prisma migrate deploy` to apply any pending migrations.",
+    "run `npx prisma migrate dev` against the target if your branch has migrations newer than the source.",
   );
 }
 
