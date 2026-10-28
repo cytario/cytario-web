@@ -93,6 +93,55 @@ describe("resolveConnectSrcHosts", () => {
     expect(getProviderCatalogMock).toHaveBeenCalledWith(ORG, TOKEN);
   });
 
+  test("an AWS provider endpoint yields the regional origin, not the endpoint's own region", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        { id: "public", endpoint: "https://s3.us-east-1.amazonaws.com", region: "us-east-1" },
+      ],
+    });
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toEqual(["https://s3.us-east-1.amazonaws.com"]);
+  });
+
+  test("a public connection with a fixed AWS endpoint and a discovered region admits that region's origin", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        {
+          id: "public",
+          endpoint: "https://s3.us-east-1.amazonaws.com",
+          region: "us-east-1",
+          isPublic: true,
+        },
+      ],
+    });
+    getBucketCatalogMock.mockResolvedValue({ buckets: [] });
+    listConnectionsMock.mockResolvedValue([
+      {
+        providerConnectionId: "public",
+        bucketName: "sea-ad-spatial-transcriptomics",
+        publicEndpoint: null,
+        publicRegion: "us-west-2",
+        grants: [],
+      },
+    ]);
+    resolveMock.mockImplementation(
+      (
+        _catalog: unknown,
+        connection: { publicEndpoint?: string | null; publicRegion?: string | null },
+      ) => ({
+        endpoint: connection.publicEndpoint ?? "https://s3.us-east-1.amazonaws.com",
+        region: connection.publicRegion ?? "us-east-1",
+      }),
+    );
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toContain("https://s3.us-west-2.amazonaws.com");
+    expect(hosts).toContain("https://s3.us-east-1.amazonaws.com");
+  });
+
   test("emits the regional S3 endpoint origin for a null (AWS) endpoint", async () => {
     getSessionDataMock.mockResolvedValue(sessionWith(ORG));
     getProviderCatalogMock.mockResolvedValue({
