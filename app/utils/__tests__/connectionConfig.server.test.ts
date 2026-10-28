@@ -40,6 +40,7 @@ describe("connectionConfig.server", () => {
 
       expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
         where: { organization: "org1" },
+        orderBy: { name: "asc" },
         include: { grants: true },
       });
       expect(filterVisible).toHaveBeenCalledWith(user, configs);
@@ -96,6 +97,7 @@ describe("connectionConfig.server", () => {
         bucketName: "my-bucket",
         providerConnectionId: "pc-1",
         prefix: "data/",
+        publicEndpoint: null,
       };
       const grants = [{ scope: "lab", accessLevel: "read-only" }];
 

@@ -12,6 +12,7 @@ export interface CreateConnectionInput {
   bucketName: string;
   providerConnectionId: string;
   prefix: string;
+  publicEndpoint: string | null;
 }
 
 export interface GrantInput {
@@ -31,6 +32,7 @@ export interface CreateConnectionPayload {
   providerConnectionId: string;
   bucketName: string;
   prefix: string;
+  publicEndpoint?: string | null;
   grants: GrantInput[];
 }
 
@@ -118,7 +120,12 @@ export async function validateConnectionAgainstCatalogs(
     return { ok: false as const, error: "validation" as const, formError: "", errors: refs.errors };
   }
 
-  const bucketRef = await validateBucketRef(organization, accessToken, data);
+  const bucketRef = await validateBucketRef(
+    organization,
+    accessToken,
+    data,
+    refs.providerConnection,
+  );
   if (!bucketRef.ok) {
     if ("formError" in bucketRef) {
       return { ok: false as const, error: "catalog" as const, message: bucketRef.formError };
@@ -191,6 +198,7 @@ export async function createConnectionWithCatalogValidation(
         bucketName: data.bucketName,
         providerConnectionId: data.providerConnectionId,
         prefix: data.prefix,
+        publicEndpoint: data.publicEndpoint ?? null,
       },
       data.grants,
       options?.initialBucketPolicyStatus,

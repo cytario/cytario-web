@@ -16,7 +16,8 @@ export const clientLoader = async ({
   const resolved = { ...serverData, pendingClientLoad: false };
 
   // Server already flagged this connection as unreachable — skip the S3 listing.
-  if (resolved.connectionError || !resolved.credentials) {
+  // A public connection carries no credential but no error either, so it lists.
+  if (resolved.connectionError) {
     return { ...resolved, nodes: [] };
   }
 

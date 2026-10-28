@@ -55,7 +55,10 @@ const waitForRotatedCredentials = (
 /**
  * Keeps STS credentials and the Keycloak session alive. Also installs the
  * `credentialsRefresh` refresher so the ExpiredToken retry path in
- * `signedFetch` / `listObjectsClient` can re-mint credentials.
+ * `signedFetch` / `listObjectsClient` can re-mint credentials. A public
+ * (credential-less) connection has nothing to rotate — its refresh resolves
+ * with the store's null credential so callers that genuinely need credentials
+ * still fail loudly.
  */
 export function useCredentialsKeepAlive() {
   const revalidator = useRevalidator();
@@ -84,6 +87,12 @@ export function useCredentialsKeepAlive() {
     };
 
     const uninstall = setCredentialsRefresher(async (connectionId) => {
+      const connection = useConnectionsStore.getState().connections[connectionId];
+      if (connection?.provider?.isPublic) {
+        throw new Error(
+          `Connection "${connectionId}" is public (credential-less) — no credentials to refresh.`,
+        );
+      }
       const previousKeyId = liveCredentials(connectionId)()?.AccessKeyId;
 
       await revalidateOnce();

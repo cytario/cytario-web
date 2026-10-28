@@ -120,12 +120,40 @@ async function signedListBucketRequest({
   query,
   signal,
 }: {
-  credentials: Credentials;
+  credentials: Credentials | null;
   region: string;
   bucketUrl: string;
   query: Record<string, string>;
   signal?: AbortSignal;
 }): Promise<Response> {
+  const parsed = new URL(bucketUrl);
+
+  const browserOrigin =
+    typeof window !== "undefined" && typeof window.location?.origin === "string"
+      ? window.location.origin
+      : "";
+
+  // A null credential means the connection's provider is public: the listing
+  // goes out unsigned. The query params are identical — anonymous
+  // ListObjectsV2 needs no `x-amz-*` headers — and redirects are followed
+  // since there is no credential to leak to a redirect target.
+  if (!credentials) {
+    const anonymousQuery = encodeWireQuery(query);
+    const anonymousUrl = `${parsed.origin}${parsed.pathname}?${anonymousQuery}`;
+    try {
+      return await fetch(anonymousUrl, {
+        method: "GET",
+        signal,
+        redirect: "follow",
+      });
+    } catch (error) {
+      if (isLikelyCorsFailure(error)) {
+        throw new CorsLikelyError(parsed.host, browserOrigin, error);
+      }
+      throw error;
+    }
+  }
+
   if (!credentials.AccessKeyId || !credentials.SecretAccessKey) {
     throw new Error("Invalid credentials: AccessKeyId and SecretAccessKey are required");
   }
@@ -143,8 +171,6 @@ async function signedListBucketRequest({
     uriEscapePath: false,
   });
 
-  const parsed = new URL(bucketUrl);
-
   const signed = await signer.sign({
     method: "GET",
     protocol: parsed.protocol,
@@ -158,10 +184,6 @@ async function signedListBucketRequest({
   const wireQuery = encodeWireQuery(query);
   const wireUrl = `${parsed.origin}${parsed.pathname}?${wireQuery}`;
 
-  const browserOrigin =
-    typeof window !== "undefined" && typeof window.location?.origin === "string"
-      ? window.location.origin
-      : "";
   try {
     return await fetch(wireUrl, {
       method: "GET",
@@ -215,7 +237,7 @@ async function isExpiredTokenResponse(response: Response): Promise<boolean> {
  */
 export async function listObjectsClient(
   connectionConfig: ConnectionAddress,
-  credentials: Credentials,
+  credentials: Credentials | null,
   options: ListObjectsClientOptions = {},
 ): Promise<ListObjectsClientResult> {
   const {
@@ -232,7 +254,7 @@ export async function listObjectsClient(
   const region = connectionConfig.region || "eu-central-1";
   const connectionId = connectionConfig.id;
 
-  let activeCredentials: Credentials = credentials;
+  let activeCredentials: Credentials | null = credentials;
 
   const contents: _Object[] = [];
   const commonPrefixes: string[] = [];

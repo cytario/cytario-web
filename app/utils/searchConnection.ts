@@ -55,7 +55,7 @@ export async function searchConnection({
     pathName: "",
   };
 
-  if (!credentials) {
+  if (!credentials && !connection.provider?.isPublic) {
     return {
       node: { ...bucketBase, children: [] },
       isCapped: false,
@@ -108,7 +108,7 @@ export async function searchConnection({
 /** BFS walk collecting `_Object`s whose key (or leaf-directory name) matches `query`. */
 async function bfsSearch(
   connection: Connection,
-  credentials: Credentials,
+  credentials: Credentials | null,
   rootPrefix: string,
   query: string,
   filters: TreeFilters | undefined,

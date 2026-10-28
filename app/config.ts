@@ -79,6 +79,22 @@ interface CytarioConfig {
      * are never served beyond the burst window.
      */
     catalogFailureBackoffMs: number;
+    /**
+     * Default endpoint and region of the built-in public provider connection
+     * ("Public") appended to every resolved provider catalog, in portal and
+     * OSS builds alike. Self-hosted deployments point the default at a public
+     * S3-compatible mirror via CYTARIO_PUBLIC_PROVIDER_ENDPOINT /
+     * CYTARIO_PUBLIC_PROVIDER_REGION; a connection may override the endpoint
+     * per-connection (publicEndpoint), which leaves these env vars as the
+     * default (AWS when unset). Setting CYTARIO_PUBLIC_PROVIDER_ENDPOINT to
+     * the empty string opts out entirely — for deployments that curate their
+     * public catalogs another way.
+     */
+    builtinPublicProvider: {
+      /** null = the built-in public provider is disabled (opt-out). */
+      endpoint: string | null;
+      region: string;
+    };
   };
   /** Base64-encoded 32-byte AES-256-GCM key for secrets held in Postgres. */
   dbEncryptionKey?: string;
@@ -110,6 +126,8 @@ const {
   PROVIDERS_LOOKUP_SECRET,
   PROVIDERS_OSS_CONFIG_PATH,
   CATALOG_FAILURE_BACKOFF_MS,
+  CYTARIO_PUBLIC_PROVIDER_ENDPOINT,
+  CYTARIO_PUBLIC_PROVIDER_REGION,
   DB_ENCRYPTION_KEY,
 } = process.env;
 
@@ -117,6 +135,36 @@ const {
 // (EE/SaaS) resolve provider connections/roles from the portal lookup; OSS
 // builds read them from a deploy-time YAML file.
 const providersSource: "portal" | "oss" = PORTAL_INTERNAL_URL ? "portal" : "oss";
+
+const DEFAULT_PUBLIC_PROVIDER_ENDPOINT = "https://s3.us-east-1.amazonaws.com";
+const DEFAULT_PUBLIC_PROVIDER_REGION = "us-east-1";
+
+// Same carve-out shape as the S3-host allowlist: loopback http only ever in a
+// local environment, so a misconfigured deployment cannot boot pointing the
+// anonymous probe at an arbitrary plaintext intranet host.
+const isLoopbackHttpUrl = (url: URL): boolean =>
+  url.protocol === "http:" &&
+  (url.hostname === "localhost" || url.hostname === "127.0.0.1") &&
+  (NODE_ENV === "development" || NODE_ENV === "test");
+
+function parsePublicProviderEndpoint(raw: string | undefined): string | null {
+  if (raw === "") return null;
+  const value = raw ?? DEFAULT_PUBLIC_PROVIDER_ENDPOINT;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(
+      `Refusing to start: CYTARIO_PUBLIC_PROVIDER_ENDPOINT "${value}" is not a valid URL — set an https:// endpoint, or "" to disable the built-in public provider.`,
+    );
+  }
+  if (parsed.protocol !== "https:" && !isLoopbackHttpUrl(parsed)) {
+    throw new Error(
+      `Refusing to start: CYTARIO_PUBLIC_PROVIDER_ENDPOINT "${value}" must be an https:// URL (loopback http://localhost[:port] or http://127.0.0.1[:port] is allowed in development and test) — or "" to disable the built-in public provider.`,
+    );
+  }
+  return value;
+}
 
 export const cytarioConfig: Readonly<CytarioConfig> = {
   endpoints: {
@@ -155,6 +203,10 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
       CATALOG_FAILURE_BACKOFF_MS !== undefined && CATALOG_FAILURE_BACKOFF_MS !== ""
         ? Number(CATALOG_FAILURE_BACKOFF_MS)
         : 5_000,
+    builtinPublicProvider: {
+      endpoint: parsePublicProviderEndpoint(CYTARIO_PUBLIC_PROVIDER_ENDPOINT),
+      region: CYTARIO_PUBLIC_PROVIDER_REGION || DEFAULT_PUBLIC_PROVIDER_REGION,
+    },
   },
   dbEncryptionKey: DB_ENCRYPTION_KEY,
   cookie: {

@@ -156,6 +156,8 @@ export interface ClientConnectionProvider {
   allowsSharing: boolean;
   // Advisory UI gate; S3 denies enforce the actual permission boundary.
   accessLevel: AccessLevel;
+  /** True when the connection's provider is credential-less and read-only. */
+  isPublic: boolean;
 }
 
 export interface SessionCredentialsResult {
@@ -233,17 +235,39 @@ export const getAllSessionCredentials = async (
           endpoint: connectionProvider.endpoint,
           allowsSharing: connectionProvider.allowsSharing,
           accessLevel: grant?.accessLevel ?? "read-only",
+          isPublic: connectionProvider.isPublic,
         };
       }
     }
   }
 
+  // A public connection never mints and never records a credential error — its
+  // null credential is the healthy state, not a broken one. A stale credential
+  // from before the provider turned public is pruned so a mode flip cannot
+  // leave a minted credential behind.
+  const publicConnectionIds = new Set(
+    connectionConfigs
+      .filter((connectionConfig) => providers[connectionConfig.id]?.isPublic)
+      .map((connectionConfig) => connectionConfig.id),
+  );
+
+  const stalePublicCredentialIds = publicConnectionIds.size
+    ? [...publicConnectionIds].filter((id) => id in sessionData.credentials)
+    : [];
+  const credentialsWithoutPublic =
+    stalePublicCredentialIds.length > 0 ? { ...sessionData.credentials } : sessionData.credentials;
+  for (const connectionId of stalePublicCredentialIds) {
+    delete credentialsWithoutPublic[connectionId];
+  }
+
   const connectionsNeedingRefresh = connectionConfigs.filter(
-    (connectionConfig) => !isValidCredentials(sessionData.credentials[connectionConfig.id]),
+    (connectionConfig) =>
+      !publicConnectionIds.has(connectionConfig.id) &&
+      !isValidCredentials(credentialsWithoutPublic[connectionConfig.id]),
   );
 
   if (connectionsNeedingRefresh.length === 0) {
-    return { credentials: sessionData.credentials, errors: {}, providers };
+    return { credentials: credentialsWithoutPublic, errors: {}, providers };
   }
 
   console.info(
@@ -286,7 +310,7 @@ export const getAllSessionCredentials = async (
     }),
   );
 
-  const newCredentials = { ...sessionData.credentials };
+  const newCredentials = { ...credentialsWithoutPublic };
   const errors: Record<string, string> = {};
   credentialResults.forEach((credentialResult, i) => {
     if (credentialResult.status === "fulfilled") {

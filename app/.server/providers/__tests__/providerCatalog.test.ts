@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { CATALOG_BURST_WINDOW_MS } from "../catalogCache.server";
 import {
+  BUILTIN_PUBLIC_PROVIDER_ID,
   findProviderConnection,
   findStorageRole,
   getProviderCatalog,
@@ -25,6 +26,10 @@ vi.mock("~/config", () => ({
       lookupSecret: undefined,
       ossConfigPath: undefined,
       catalogFailureBackoffMs: 5_000,
+      builtinPublicProvider: {
+        endpoint: "https://s3.us-east-1.amazonaws.com",
+        region: "us-east-1",
+      },
     },
   },
 }));
@@ -35,6 +40,7 @@ const providers = cytarioConfig.providers as {
   portalInternalUrl?: string;
   lookupSecret?: string;
   ossConfigPath?: string;
+  builtinPublicProvider: { endpoint: string | null; region: string };
 };
 
 const CATALOG = {
@@ -119,6 +125,10 @@ beforeEach(() => {
   providers.portalInternalUrl = undefined;
   providers.lookupSecret = undefined;
   providers.ossConfigPath = "/etc/cytario/providers.yaml";
+  providers.builtinPublicProvider = {
+    endpoint: "https://s3.us-east-1.amazonaws.com",
+    region: "us-east-1",
+  };
 });
 
 afterEach(() => {
@@ -413,7 +423,7 @@ describe("getProviderCatalog (OSS build)", () => {
     const catalog = await getProviderCatalog("acme");
 
     expect(readFileMock).toHaveBeenCalledWith("/etc/cytario/providers.yaml", "utf8");
-    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections).toHaveLength(2);
     expect(catalog.providerRoles[0].roleArn).toContain("cytario/provider-roles/reader");
   });
 
@@ -425,6 +435,108 @@ describe("getProviderCatalog (OSS build)", () => {
   test("throws when the YAML fails schema validation", async () => {
     readFileMock.mockResolvedValue("providerConnections: not-an-array\nproviderRoles: []");
     await expect(getProviderCatalog("acme")).rejects.toThrow();
+  });
+});
+
+describe("getProviderCatalog — built-in public provider", () => {
+  const ossYaml = [
+    "providerConnections:",
+    "  - id: pc-1",
+    "    name: Prod",
+    "    providerType: aws",
+    "    endpoint: null",
+    "    region: eu-central-1",
+    "    status: connected",
+    "providerRoles:",
+    "  - providerConnectionId: pc-1",
+    "    roleArn: arn:aws:iam::123456789012:role/cytario/provider-roles/reader",
+    "    allowedScopes:",
+    "      - lab/team-a",
+    "    accessLevel: read-only",
+  ].join("\n");
+
+  test("appends the built-in public provider to the OSS catalog", async () => {
+    readFileMock.mockResolvedValue(ossYaml);
+
+    const catalog = await getProviderCatalog("acme");
+
+    const builtin = catalog.providerConnections.find((c) => c.id === BUILTIN_PUBLIC_PROVIDER_ID);
+    expect(builtin).toEqual({
+      id: BUILTIN_PUBLIC_PROVIDER_ID,
+      name: "Public",
+      providerType: "aws",
+      endpoint: "https://s3.us-east-1.amazonaws.com",
+      region: "us-east-1",
+      status: "connected",
+      isPublic: true,
+    });
+  });
+
+  test("appends the built-in public provider to the portal catalog", async () => {
+    providers.source = "portal";
+    providers.portalInternalUrl = "http://portal.internal:4000";
+    providers.lookupSecret = "s3cr3t";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(CATALOG),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const catalog = await getProviderCatalog("acme");
+
+    expect(catalog.providerConnections).toHaveLength(2);
+    expect(catalog.providerConnections.at(-1)?.id).toBe(BUILTIN_PUBLIC_PROVIDER_ID);
+    expect(catalog.providerConnections.at(-1)?.isPublic).toBe(true);
+  });
+
+  test("the org's own provider wins: the built-in is not appended when the id collides", async () => {
+    providers.source = "portal";
+    providers.portalInternalUrl = "http://portal.internal:4000";
+    providers.lookupSecret = "s3cr3t";
+    const colliding = {
+      ...CATALOG,
+      providerConnections: [
+        {
+          ...CATALOG.providerConnections[0],
+          id: BUILTIN_PUBLIC_PROVIDER_ID,
+          name: "Org-curated public data",
+          isPublic: true,
+        },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(colliding),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const catalog = await getProviderCatalog("acme");
+
+    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections[0].name).toBe("Org-curated public data");
+  });
+
+  test("the built-in is absent when the deployment opts out (empty endpoint)", async () => {
+    providers.builtinPublicProvider = { endpoint: null, region: "us-east-1" };
+    readFileMock.mockResolvedValue(ossYaml);
+
+    const catalog = await getProviderCatalog("acme");
+
+    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections.some((c) => c.id === BUILTIN_PUBLIC_PROVIDER_ID)).toBe(
+      false,
+    );
+  });
+
+  test("the built-in carries the env-overridden endpoint and region", async () => {
+    providers.builtinPublicProvider = { endpoint: "http://localhost:9000", region: "us-east-2" };
+    readFileMock.mockResolvedValue(ossYaml);
+
+    const catalog = await getProviderCatalog("acme");
+
+    const builtin = catalog.providerConnections.find((c) => c.id === BUILTIN_PUBLIC_PROVIDER_ID);
+    expect(builtin?.endpoint).toBe("http://localhost:9000");
+    expect(builtin?.region).toBe("us-east-2");
   });
 });
 
@@ -447,7 +559,7 @@ describe("getProviderCatalog (portal build)", () => {
     const [calledUrl, init] = fetchMock.mock.calls[0];
     expect(String(calledUrl)).toContain("http://portal.internal:4000/org/providers");
     expect(init.headers["X-Providers-Lookup-Secret"]).toBe("s3cr3t");
-    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections).toHaveLength(2);
   });
 
   test("degrades to a clear error on non-OK response", async () => {
@@ -564,7 +676,7 @@ describe("getProviderCatalog (portal build)", () => {
     await vi.advanceTimersByTimeAsync(BACKOFF_MS);
 
     const catalog = await getProviderCatalog("acme");
-    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -612,7 +724,7 @@ describe("getProviderCatalog (portal build)", () => {
     await expect(getProviderCatalog("acme")).rejects.toThrow(/unavailable/i);
 
     const catalog = await getProviderCatalog("globex");
-    expect(catalog.providerConnections).toHaveLength(1);
+    expect(catalog.providerConnections).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
@@ -622,6 +734,18 @@ const PARSED_CATALOG = providerCatalogSchema.parse(CATALOG);
 describe("catalog payload defaults", () => {
   test("C-378: defaults accessLevel to read-only when the catalog payload omits it", () => {
     expect(PARSED_CATALOG.providerRoles[0].accessLevel).toBe("read-only");
+  });
+
+  test("defaults isPublic to false when the catalog payload omits it", () => {
+    expect(PARSED_CATALOG.providerConnections[0].isPublic).toBe(false);
+  });
+
+  test("parses an explicitly public provider connection", () => {
+    const catalog = providerCatalogSchema.parse({
+      ...CATALOG,
+      providerConnections: [{ ...CATALOG.providerConnections[0], isPublic: true }],
+    });
+    expect(catalog.providerConnections[0].isPublic).toBe(true);
   });
 });
 
@@ -680,6 +804,30 @@ describe("resolveConnectionProviderWithGrants", () => {
       },
     ]);
     expect(resolved?.allowsSharing).toBe(false);
+    expect(resolved?.isPublic).toBe(false);
+  });
+
+  test("a public provider synthesizes read-only ARN-less grants regardless of the stored level", () => {
+    const publicCatalog = providerCatalogSchema.parse({
+      ...CATALOG,
+      providerConnections: [{ ...CATALOG.providerConnections[0], isPublic: true }],
+      providerRoles: [],
+    });
+    const resolved = resolveConnectionProviderWithGrants(publicCatalog, {
+      providerConnectionId: "pc-1",
+      bucketName: "my-bucket",
+      grants: [
+        { scope: "lab/team-a", accessLevel: "admin" },
+        { scope: "lab/team-b", accessLevel: "read-write" },
+      ],
+    });
+    expect(resolved).toBeDefined();
+    expect(resolved?.isPublic).toBe(true);
+    expect(resolved?.allowsSharing).toBe(false);
+    expect(resolved?.grants).toEqual([
+      { scope: "lab/team-a", roleArn: null, accessLevel: "read-only" },
+      { scope: "lab/team-b", roleArn: null, accessLevel: "read-only" },
+    ]);
   });
 
   test("drops grants whose level string is not a known access level", () => {
@@ -697,6 +845,41 @@ describe("resolveConnectionProviderWithGrants", () => {
         providerConnectionId: "pc-missing",
       }),
     ).toBeUndefined();
+  });
+
+  test("a public connection resolves the per-connection endpoint override, null falls back to the provider", () => {
+    const publicCatalog = providerCatalogSchema.parse({
+      ...CATALOG,
+      providerConnections: [{ ...CATALOG.providerConnections[0], isPublic: true }],
+      providerRoles: [],
+    });
+    expect(
+      resolveConnectionProviderWithGrants(publicCatalog, {
+        ...connection,
+        publicEndpoint: "http://localhost:9000",
+      })?.endpoint,
+    ).toBe("http://localhost:9000");
+    expect(
+      resolveConnectionProviderWithGrants(publicCatalog, {
+        ...connection,
+        publicEndpoint: null,
+      })?.endpoint,
+    ).toBeNull();
+  });
+
+  test("a non-public connection ignores the per-connection endpoint override", () => {
+    const catalogWithEndpoint = providerCatalogSchema.parse({
+      ...CATALOG,
+      providerConnections: [
+        { ...CATALOG.providerConnections[0], endpoint: "https://minio.example.com" },
+      ],
+    });
+    expect(
+      resolveConnectionProviderWithGrants(catalogWithEndpoint, {
+        ...connection,
+        publicEndpoint: "http://localhost:9000",
+      })?.endpoint,
+    ).toBe("https://minio.example.com");
   });
 
   test("marks allowsSharing when any grant resolves to an admin role", () => {

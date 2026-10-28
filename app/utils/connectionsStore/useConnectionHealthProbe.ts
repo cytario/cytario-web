@@ -12,12 +12,13 @@ const PROBE_CONCURRENCY = 4;
  */
 export function useConnectionHealthProbe() {
   const setConnectionStatuses = useConnectionsStore((s) => s.setConnectionStatuses);
-  // Stable primitive key: re-probe only when the credentialed connection set
-  // changes. Credential-less connections can't be probed (no creds to sign
-  // with) — they keep their seeded "error".
+  // Stable primitive key: re-probe only when the loaded connection set changes.
+  // A public (credential-less) connection probes unsigned, so it stays in the
+  // set; a connection with neither credentials nor a public provider keeps its
+  // seeded "error".
   const probeKey = useConnectionsStore((s) =>
     Object.values(s.connections)
-      .filter((c) => c.credentials)
+      .filter((c) => c.credentials || c.provider?.isPublic)
       .map((c) => c.connectionConfig.id)
       .sort()
       .join("|"),
@@ -29,13 +30,13 @@ export function useConnectionHealthProbe() {
     let cancelled = false;
 
     const targets = Object.values(useConnectionsStore.getState().connections).filter(
-      (c) => c.credentials,
+      (c) => c.credentials || c.provider?.isPublic,
     );
 
     void mapWithConcurrency(targets, PROBE_CONCURRENCY, async (connection) => {
       const result = await probeConnection(
         connection.connectionConfig,
-        connection.credentials!,
+        connection.credentials,
         connection.provider,
         controller.signal,
       );

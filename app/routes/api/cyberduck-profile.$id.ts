@@ -56,6 +56,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
       region: resolved.region,
       endpoint: resolved.endpoint,
       roleArn: grant.roleArn,
+      isPublic: resolved.isPublic,
     };
   } catch {
     return new Response("Provider connection or role is unavailable for this connection", {
@@ -69,24 +70,31 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
 
   const vendor = new URL(endpoints.webapp).hostname.replace(/\./g, "-");
 
-  const profile = generateCyberduckProfile({
+  const sharedConfig = {
     vendor,
     connectionName,
     bucketName,
     prefix: prefix?.replace(/\/$/, "") || "",
-    roleArn: connectionProvider.roleArn,
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
-    stsEndpoint: providerConfig.stsEndpoint,
     isAWS: providerConfig.isAwsS3,
-    oauthConfig: {
-      authUrl: `${auth.baseUrl}/protocol/openid-connect/auth`,
-      tokenUrl: `${auth.baseUrl}/protocol/openid-connect/token`,
-      clientId: auth.cyberduckClientId,
-      scopes: auth.scopes,
-      redirectUrl: "x-cyberduck-action:oauth",
-    },
-  });
+  };
+
+  const profile = connectionProvider.isPublic
+    ? generateCyberduckProfile({ ...sharedConfig, mode: "anonymous" })
+    : generateCyberduckProfile({
+        ...sharedConfig,
+        mode: "oidc",
+        roleArn: connectionProvider.roleArn,
+        stsEndpoint: providerConfig.stsEndpoint,
+        oauthConfig: {
+          authUrl: `${auth.baseUrl}/protocol/openid-connect/auth`,
+          tokenUrl: `${auth.baseUrl}/protocol/openid-connect/token`,
+          clientId: auth.cyberduckClientId,
+          scopes: auth.scopes,
+          redirectUrl: "x-cyberduck-action:oauth",
+        },
+      });
 
   return new Response(profile, {
     headers: {
@@ -96,16 +104,20 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
   });
 };
 
-interface CyberduckProfileConfig {
+interface CyberduckProfileConfigBase {
   vendor: string;
   connectionName: string;
   bucketName: string;
   prefix: string;
-  roleArn: string | null;
   region: string;
   endpoint: string;
-  stsEndpoint: string;
   isAWS: boolean;
+}
+
+interface OidcProfileConfig extends CyberduckProfileConfigBase {
+  mode: "oidc";
+  roleArn: string | null;
+  stsEndpoint: string;
   oauthConfig: {
     authUrl: string;
     tokenUrl: string;
@@ -115,23 +127,14 @@ interface CyberduckProfileConfig {
   };
 }
 
-function generateCyberduckProfile(config: CyberduckProfileConfig): string {
-  const {
-    vendor,
-    connectionName,
-    bucketName,
-    prefix,
-    roleArn,
-    region,
-    endpoint,
-    stsEndpoint,
-    isAWS,
-    oauthConfig,
-  } = config;
+interface AnonymousProfileConfig extends CyberduckProfileConfigBase {
+  mode: "anonymous";
+}
 
-  const scopesXml = oauthConfig.scopes
-    .map((scope) => `        <string>${escapeXml(scope)}</string>`)
-    .join("\n");
+type CyberduckProfileConfig = OidcProfileConfig | AnonymousProfileConfig;
+
+function generateCyberduckProfile(config: CyberduckProfileConfig): string {
+  const { vendor, connectionName, bucketName, prefix, region, endpoint, isAWS, mode } = config;
 
   const s3Properties: string[] = [];
 
@@ -151,6 +154,12 @@ function generateCyberduckProfile(config: CyberduckProfileConfig): string {
 
   const s3PropertiesXml = s3Properties.join("\n") + "\n";
 
+  const authSectionXml =
+    mode === "anonymous"
+      ? `        <key>Anonymous Configurable</key>
+        <true/>`
+      : oidcSectionXml(config.oauthConfig, config.stsEndpoint);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -165,7 +174,29 @@ function generateCyberduckProfile(config: CyberduckProfileConfig): string {
         <string>${escapeXml(connectionName)}</string>
         <key>Default Path</key>
         <string>/${escapeXml(bucketName)}${prefix ? `/${escapeXml(prefix)}` : ""}/</string>
-        <key>OAuth Authorization Url</key>
+${authSectionXml}
+        <key>Properties</key>
+        <dict>${
+          config.mode === "oidc" && config.roleArn
+            ? `
+            <key>s3.assumerole.rolearn</key>
+            <string>${escapeXml(config.roleArn)}</string>`
+            : ""
+        }
+${s3PropertiesXml}        </dict>
+    </dict>
+</plist>`;
+}
+
+function oidcSectionXml(
+  oauthConfig: OidcProfileConfig["oauthConfig"],
+  stsEndpoint: string,
+): string {
+  const scopesXml = oauthConfig.scopes
+    .map((scope) => `        <string>${escapeXml(scope)}</string>`)
+    .join("\n");
+
+  return `        <key>OAuth Authorization Url</key>
         <string>${escapeXml(oauthConfig.authUrl)}</string>
         <key>OAuth Token Url</key>
         <string>${escapeXml(oauthConfig.tokenUrl)}</string>
@@ -192,18 +223,7 @@ ${scopesXml}
         <key>Username Placeholder</key>
         <string>Username</string>
         <key>STS Endpoint</key>
-        <string>${escapeXml(stsEndpoint)}</string>
-        <key>Properties</key>
-        <dict>${
-          roleArn
-            ? `
-            <key>s3.assumerole.rolearn</key>
-            <string>${escapeXml(roleArn)}</string>`
-            : ""
-        }
-${s3PropertiesXml}        </dict>
-    </dict>
-</plist>`;
+        <string>${escapeXml(stsEndpoint)}</string>`;
 }
 
 function escapeXml(str: string): string {

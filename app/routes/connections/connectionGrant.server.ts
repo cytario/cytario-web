@@ -164,6 +164,24 @@ export function validateProviderRefs(
 
   const providerRoles: ProviderRole[] = [];
   const errors: Record<string, string[]> = {};
+
+  // A public provider is credential-less and read-only: it publishes no
+  // storage roles, so the grant set is validated against the flag instead of
+  // a role row — only read-only grants are acceptable.
+  if (providerConnection.isPublic) {
+    for (const [index, grant] of refs.grants.entries()) {
+      if (grant.accessLevel !== "read-only") {
+        errors[`grants.${index}.accessLevel`] = [
+          "A public provider connection only supports the read-only access level",
+        ];
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      return { ok: false, errors };
+    }
+    return { ok: true, providerConnection, providerRoles: [] };
+  }
+
   for (const [index, grant] of refs.grants.entries()) {
     const storageRole = findStorageRole(catalog, {
       providerConnectionId: providerConnection.id,
@@ -213,8 +231,13 @@ export async function validateBucketRef(
   organization: string,
   accessToken: string,
   refs: { providerConnectionId: string; bucketName: string },
+  providerConnection?: ProviderConnection,
 ): Promise<BucketRefValidation> {
   if (cytarioConfig.providers.source !== "portal") return { ok: true };
+
+  // A public provider connection has no registered bucket rows by design —
+  // the bucket is free text validated by the anonymous-listing probe instead.
+  if (providerConnection?.isPublic) return { ok: true };
 
   let bucketCatalog;
   try {
@@ -310,6 +333,7 @@ function connectionProviderFor(
     roleArn: storageRole.roleArn,
     allowedScopes: storageRole.allowedScopes,
     accessLevel: storageRole.accessLevel,
+    isPublic: providerConnection.isPublic,
   };
 }
 
@@ -461,8 +485,24 @@ export async function applyBucketGrantSet(
     };
   }
 
+  // A public provider's entitlement is the bucket's own public-read policy:
+  // there is no role to mint a write session under and no Cytario-authored
+  // statement to write, so the apply is skipped outright.
+  const publicProviderIds = new Set(
+    catalog.providerConnections.filter((c) => c.isPublic).map((c) => c.id),
+  );
+  const applyViaIsPublic = publicProviderIds.has(applyVia.providerConnectionId);
+  if (applyViaIsPublic || publicProviderIds.has(bucket.providerConnectionId)) {
+    return { status: "applied", result: { status: "applied" } };
+  }
+
   const configs = await prisma.connectionConfig.findMany({
-    where: bucket,
+    where: {
+      // `bucket` pins providerConnectionId, so a public provider's connections can
+      // never be in this set — no extra exclusion is needed, and adding one would
+      // drop the provider narrowing and pull in other providers' rows.
+      ...bucket,
+    },
     include: { grants: true },
   });
   const bucketCatalog = await bucketCatalogFor(bucket.organization, acting.accessToken);
@@ -500,6 +540,32 @@ export async function applyBucketGrantSet(
 }
 
 /** The apply step every connection mutation shares: recompute + apply the
+ * bucket's grant set, persist the outcome on the row's `bucketPolicyStatus`.
+ *
+ * A public provider's bucket policy is owned by the bucket owner, never
+ * Cytario: the row records `externally_managed` and no apply runs.
+ */
+async function externalIfPublicProvider(
+  config: ConnectionConfigWithGrants,
+  acting: ActingContext,
+): Promise<ApplyGrantOutcome | undefined> {
+  let catalog;
+  try {
+    catalog = await getProviderCatalog(config.organization, acting.accessToken);
+  } catch {
+    return undefined;
+  }
+  const providerConnection = findProviderConnection(catalog, config.providerConnectionId);
+  if (!providerConnection?.isPublic) return undefined;
+
+  await prisma.connectionConfig.update({
+    where: { id: config.id },
+    data: { bucketPolicyStatus: "externally_managed" },
+  });
+  return { status: "applied", result: { status: "applied" } };
+}
+
+/** The apply step every connection mutation shares: recompute + apply the
  * bucket's grant set, persist the outcome on the row's `bucketPolicyStatus`. */
 export async function applyGrantsAndRecordStatus(
   config: ConnectionConfigWithGrants,
@@ -512,6 +578,9 @@ export async function applyGrantsAndRecordStatus(
     });
     return { status: "applied", result: { status: "applied" } };
   }
+
+  const externalOutcome = await externalIfPublicProvider(config, acting);
+  if (externalOutcome) return externalOutcome;
 
   const outcome = await applyBucketGrantSet(
     {

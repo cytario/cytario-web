@@ -21,16 +21,46 @@ const PROVIDERS_LOOKUP_PATH = "/org/providers";
 const PROVIDERS_LOOKUP_HEADER = "X-Providers-Lookup-Secret";
 const PROVIDERS_LOOKUP_TIMEOUT_MS = 10_000;
 
+export const BUILTIN_PUBLIC_PROVIDER_ID = "public-datasets";
+const BUILTIN_PUBLIC_PROVIDER_NAME = "Public";
+
+// Runs inside the cached fetcher, so the built-in is appended once per fetch —
+// never on a cache hit — and an org's own public provider with the same id
+// wins: the built-in is additive, it never replaces a catalog row.
+function withBuiltinPublicProvider(catalog: ProviderCatalog): ProviderCatalog {
+  if (!cytarioConfig.providers.builtinPublicProvider.endpoint) return catalog;
+  if (catalog.providerConnections.some((c) => c.id === BUILTIN_PUBLIC_PROVIDER_ID)) {
+    return catalog;
+  }
+  return {
+    ...catalog,
+    providerConnections: [
+      ...catalog.providerConnections,
+      {
+        id: BUILTIN_PUBLIC_PROVIDER_ID,
+        name: BUILTIN_PUBLIC_PROVIDER_NAME,
+        providerType: "aws",
+        endpoint: cytarioConfig.providers.builtinPublicProvider.endpoint,
+        region: cytarioConfig.providers.builtinPublicProvider.region,
+        status: "connected",
+        isPublic: true,
+      },
+    ],
+  };
+}
+
 // The lookup is advisory: on staleness or unavailability the caller degrades
 // to a clear error rather than blocking. Fail-closed fetch-through — every
 // call beyond the burst window re-reads its source, and failures are
 // memoized (backoff) so an outage fails fast instead of round-tripping the
 // portal per request.
 export const providerCatalogCache = createCatalogCache<ProviderCatalog>(
-  (organization, accessToken) =>
-    cytarioConfig.providers.source === "portal"
-      ? fetchPortalCatalog(organization, accessToken)
-      : loadOssCatalog(),
+  async (organization, accessToken) =>
+    withBuiltinPublicProvider(
+      cytarioConfig.providers.source === "portal"
+        ? await fetchPortalCatalog(organization, accessToken)
+        : await loadOssCatalog(),
+    ),
   (organization) =>
     cytarioConfig.providers.source === "portal" ? `portal:${organization}` : "oss",
 );
@@ -143,6 +173,7 @@ export interface ConnectionProvider {
   roleArn: string | null;
   allowedScopes: string[];
   accessLevel: AccessLevel;
+  isPublic: boolean;
 }
 
 export interface ResolvedConnectionGrant {
@@ -160,6 +191,7 @@ export interface ResolvedConnectionProviderWithGrants {
   region: string;
   allowsSharing: boolean;
   grants: ResolvedConnectionGrant[];
+  isPublic: boolean;
 }
 
 // The portal provisions exactly one role per (connection, bucket, level), so
@@ -172,6 +204,7 @@ export function resolveConnectionProviderWithGrants(
   connection: {
     providerConnectionId: string;
     bucketName: string;
+    publicEndpoint?: string | null;
     grants: Array<{ scope: string; accessLevel: string }>;
   },
   bucketCatalog?: BucketCatalog,
@@ -182,6 +215,26 @@ export function resolveConnectionProviderWithGrants(
   const bucketRow = bucketCatalog
     ? findBucketByName(bucketCatalog, providerConnection.id, connection.bucketName)
     : undefined;
+
+  // A public provider is credential-less and read-only: the bucket's own
+  // public-read policy is the entire entitlement, so each stored grant maps to
+  // a synthesized read-only, ARN-less grant regardless of the stored level,
+  // and folder sharing stays off.
+  if (providerConnection.isPublic) {
+    const grants: ResolvedConnectionGrant[] = [];
+    for (const grant of connection.grants) {
+      if (!isAccessLevel(grant.accessLevel)) continue;
+      grants.push({ scope: grant.scope, roleArn: null, accessLevel: "read-only" });
+    }
+    return {
+      providerType: providerConnection.providerType,
+      endpoint: connection.publicEndpoint ?? providerConnection.endpoint,
+      region: providerConnection.region,
+      allowsSharing: false,
+      grants,
+      isPublic: true,
+    };
+  }
 
   const grants: ResolvedConnectionGrant[] = [];
   let allowsSharing = false;
@@ -207,5 +260,6 @@ export function resolveConnectionProviderWithGrants(
     region: providerConnection.region,
     allowsSharing,
     grants,
+    isPublic: false,
   };
 }

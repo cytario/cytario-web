@@ -1,3 +1,5 @@
+import { Credentials } from "@aws-sdk/client-sts";
+
 import { resolveResourceId, select, selectHttpsUrl } from "../selectors";
 import { useConnectionsStore } from "../useConnectionsStore";
 import mock from "~/utils/__tests__/__mocks__";
@@ -16,24 +18,30 @@ describe("useConnectionsStore", () => {
    */
   const seed = (
     config = connectionConfig,
-    creds = credentials,
+    creds: Credentials | null = credentials,
     provider?: {
       region: string;
       endpoint: string | null;
       allowsSharing?: boolean;
       accessLevel?: "read-only" | "annotate" | "read-write" | "admin";
+      isPublic?: boolean;
     },
   ) => {
-    useConnectionsStore
-      .getState()
-      .setConnections(
-        [config],
-        { [config.id]: creds },
-        {},
-        provider
-          ? { [config.id]: { allowsSharing: false, accessLevel: "read-only", ...provider } }
-          : {},
-      );
+    useConnectionsStore.getState().setConnections(
+      [config],
+      { [config.id]: creds as Credentials },
+      {},
+      provider
+        ? {
+            [config.id]: {
+              allowsSharing: false,
+              accessLevel: "read-only",
+              isPublic: false,
+              ...provider,
+            },
+          }
+        : {},
+    );
   };
 
   beforeEach(() => {
@@ -85,6 +93,28 @@ describe("useConnectionsStore", () => {
       expect(connections["conn-b"]?.credentials).toBeNull();
       expect(connections["conn-b"]?.status).toBe("error");
       expect(connections["conn-b"]?.statusMessage).toBe("STS assume role failed");
+    });
+
+    test("a credential-less connection with no mint error is connected (public)", () => {
+      useConnectionsStore.getState().setConnections(
+        [mock.connectionConfig({ id: "public-conn", name: "public-conn" })],
+        {},
+        {},
+        {
+          "public-conn": {
+            region: "us-east-1",
+            endpoint: null,
+            allowsSharing: false,
+            accessLevel: "read-only",
+            isPublic: true,
+          },
+        },
+      );
+
+      const { connections } = useConnectionsStore.getState();
+      expect(connections["public-conn"]?.credentials).toBeNull();
+      expect(connections["public-conn"]?.status).toBe("connected");
+      expect(connections["public-conn"]?.statusMessage).toBeUndefined();
     });
 
     test("sibling connections sharing a bucket each get their own entry", () => {
@@ -162,6 +192,24 @@ describe("useConnectionsStore", () => {
       const url = selectHttpsUrl("no-prefix/file.ome.tif")(useConnectionsStore.getState());
 
       expect(url).toBe("https://s3.eu-central-1.amazonaws.com/my-bucket/file.ome.tif");
+    });
+
+    test("resolveResourceId resolves a public connection with null credentials", () => {
+      seed(
+        mock.connectionConfig({
+          id: "public-conn",
+          name: "public-conn",
+          bucketName: "my-bucket",
+        }),
+        null,
+        { region: "eu-central-1", endpoint: null, isPublic: true, accessLevel: "read-only" },
+      );
+
+      const resolved = resolveResourceId("public-conn/image.ome.tif");
+      expect(resolved.credentials).toBeNull();
+      expect(resolved.httpsUrl).toBe(
+        "https://s3.eu-central-1.amazonaws.com/my-bucket/image.ome.tif",
+      );
     });
 
     test("resolveResourceId exposes httpsUrl matching selectHttpsUrl", () => {

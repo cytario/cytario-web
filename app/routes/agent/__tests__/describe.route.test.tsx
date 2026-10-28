@@ -62,6 +62,7 @@ const seedConnection = () => {
           region: "eu-central-1",
           endpoint: null,
           allowsSharing: false,
+          isPublic: false,
           accessLevel: "annotate",
         },
         status: "connected",

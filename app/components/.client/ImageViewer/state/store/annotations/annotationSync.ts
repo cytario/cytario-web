@@ -1,4 +1,5 @@
 import type { createViewerStore } from "../createViewerStore";
+import { connectionIsReadOnly } from "~/components/.client/ImageViewer/utils/useCanAnnotate";
 import { toastBridge } from "~/toast-bridge";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -65,6 +66,10 @@ export function attachAnnotationSync(store: ViewerStoreApi): void {
     flushing = true;
     try {
       const { id, annotationSets } = store.getState();
+      // The authoring UI is hidden on a read-only connection, but a flush can
+      // still fire (a stray edit, a delayed seed race) — S3 would deny it, so
+      // skip the write entirely rather than surface a failure toast.
+      if (connectionIsReadOnly(id)) return;
       for (const set of annotationSets) {
         const base = persisted[set.id];
         // A set diffs when its features array or its display name changed —

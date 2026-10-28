@@ -137,9 +137,22 @@ function encodeS3Path(pathname: string): string {
 }
 
 /**
+ * CORS-safelisted request headers for the unsigned path. `If-None-Match` and
+ * a request `Cache-Control` are safelisted by name but their VALUES are not,
+ * so sending them would force a preflight a public bucket's owner has no
+ * reason to allow.
+ */
+const ANONYMOUS_ALLOWED_HEADERS = new Set(["range", "accept"]);
+
+/**
  * SigV4-signing fetch. Credentials resolve lazily so the signer is rebuilt
  * when `AccessKeyId` rotates. Every GET injects `response-cache-control` so
  * the browser HTTP cache can serve repeat reads without a network round-trip.
+ *
+ * A null credential means the connection's provider is public: the request
+ * goes out unsigned (no SigV4, no `response-cache-control` — S3 rejects it for
+ * anonymous requests — safelisted headers only, redirects followed since
+ * there is no credential to leak).
  */
 export function createSignedFetch(
   getCredentials: () => Credentials | null,
@@ -154,13 +167,14 @@ export function createSignedFetch(
   let signer: SignatureV4;
 
   // Closured so the ExpiredToken retry path can rebuild with refreshed creds.
-  const buildSignedRequest = async (url: string, init?: RequestInit) => {
-    const credentials = getCredentials();
-
-    if (!credentials?.AccessKeyId || !credentials.SecretAccessKey) {
+  const buildSignedRequest = async (
+    url: string,
+    init: RequestInit | undefined,
+    credentials: Credentials,
+  ) => {
+    if (!credentials.AccessKeyId || !credentials.SecretAccessKey) {
       throw new Error("Invalid credentials: AccessKeyId and SecretAccessKey are required");
     }
-
     if (credentials.AccessKeyId !== cachedKeyId) {
       signer = new SignatureV4({
         credentials: {
@@ -254,8 +268,51 @@ export function createSignedFetch(
     return { wireUrl, fetchInit, host: parsed.host, browserOrigin };
   };
 
+  // The public-provider path: no credential exists, so the request goes out
+  // unsigned and CORS-simple. `response-cache-control` must be omitted (S3
+  // answers 400 InvalidRequest for anonymous GETs that ask for response
+  // headers) and redirects are followed — the global S3 endpoint 301s a
+  // non-us-east-1 bucket and there is no credential a redirect could leak.
+  const buildAnonymousRequest = (url: string, init?: RequestInit) => {
+    const parsed = new URL(url);
+
+    const callerHeaders = sanitizeHeaders(init?.headers as Record<string, string> | undefined);
+    const headers: Record<string, string> = {};
+    for (const [name, value] of Object.entries(callerHeaders)) {
+      if (ANONYMOUS_ALLOWED_HEADERS.has(name.toLowerCase())) headers[name] = value;
+    }
+
+    const wireUrl = `${parsed.origin}${encodeS3Path(parsed.pathname)}${parsed.search}`;
+
+    const browserOrigin =
+      typeof window !== "undefined" && typeof window.location?.origin === "string"
+        ? window.location.origin
+        : "";
+
+    const fetchInit: RequestInit = {
+      ...init,
+      method: init?.method,
+      headers,
+      signal: init?.signal,
+      redirect: "follow",
+    };
+
+    return { wireUrl, fetchInit, host: parsed.host, browserOrigin };
+  };
+
+  const buildRequest = async (url: string, init?: RequestInit) => {
+    const credentials = getCredentials();
+    if (credentials?.AccessKeyId && credentials.SecretAccessKey) {
+      return buildSignedRequest(url, init, credentials);
+    }
+    if (credentials) {
+      throw new Error("Invalid credentials: AccessKeyId and SecretAccessKey are required");
+    }
+    return buildAnonymousRequest(url, init);
+  };
+
   return async (url: string, init?: RequestInit): Promise<Response> => {
-    const first = await buildSignedRequest(url, init);
+    const first = await buildRequest(url, init);
     const response = await fetchWithCorsDetection(
       first.wireUrl,
       first.fetchInit,
@@ -270,7 +327,7 @@ export function createSignedFetch(
         );
       }
       await requestCredentialsRefresh(connectionId);
-      const retried = await buildSignedRequest(url, init);
+      const retried = await buildRequest(url, init);
       const retryResponse = await fetchWithCorsDetection(
         retried.wireUrl,
         retried.fetchInit,

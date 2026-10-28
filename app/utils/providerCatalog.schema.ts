@@ -43,6 +43,13 @@ export const providerConnectionSchema = z
     endpoint: z.string().nullable(),
     region: z.string().min(1),
     status: z.enum(PROVIDER_CONNECTION_STATUSES),
+    /**
+     * A public provider connection is credential-less and read-only: the
+     * bucket's own public-read policy is the entire entitlement, so it
+     * publishes no storage roles. Defaults to false so a catalog payload
+     * predating the field stays non-public.
+     */
+    isPublic: z.boolean().default(false),
   })
   .superRefine((connection, ctx) => {
     // A rustfs connection without an endpoint would silently mint against

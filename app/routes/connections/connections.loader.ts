@@ -22,6 +22,8 @@ function buildConnectionNodes(configs: ConnectionConfigWithGrants[]): TreeNode[]
 export interface ServerLoaderData {
   nodes: TreeNode[];
   credentials: Record<string, Credentials>;
+  /** Per-connection mint failures; a credential-less connection absent here is public, not broken. */
+  credentialErrors: Record<string, string>;
   connectionConfigs: ConnectionConfigWithGrants[];
 }
 
@@ -37,11 +39,12 @@ export interface LoaderData extends ServerLoaderData {
 }
 
 export async function loadConnections({ context }: LoaderFunctionArgs) {
-  const { connectionConfigs, credentials } = context.get(authContext);
+  const { connectionConfigs, credentials, credentialErrors } = context.get(authContext);
 
   const payload: ServerLoaderData = {
     nodes: buildConnectionNodes(connectionConfigs),
     credentials,
+    credentialErrors,
     connectionConfigs,
   };
 

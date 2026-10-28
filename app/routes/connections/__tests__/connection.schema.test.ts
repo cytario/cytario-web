@@ -5,6 +5,7 @@ import {
   connectionNameSchema,
   connectionSchema,
   prefixSchema,
+  publicEndpointSchema,
   scopeSchema,
   suggestName,
 } from "../connection.schema";
@@ -75,6 +76,24 @@ describe("prefixSchema (SRS-CY-42115)", () => {
 
   test("rejects over-length prefixes", () => {
     expect(prefixSchema.safeParse("a".repeat(1025)).success).toBe(false);
+  });
+});
+
+describe("publicEndpointSchema", () => {
+  test("empty string normalizes to undefined", () => {
+    expect(publicEndpointSchema.safeParse("").success).toBe(true);
+    expect(publicEndpointSchema.parse("")).toBeUndefined();
+  });
+
+  test("accepts a URL and trims surrounding whitespace", () => {
+    expect(publicEndpointSchema.parse(" https://s3.us-east-1.amazonaws.com ")).toBe(
+      "https://s3.us-east-1.amazonaws.com",
+    );
+  });
+
+  test("rejects a non-URL value and over-length values", () => {
+    expect(publicEndpointSchema.safeParse("not a url").success).toBe(false);
+    expect(publicEndpointSchema.safeParse(`https://h/${"a".repeat(2048)}`).success).toBe(false);
   });
 });
 

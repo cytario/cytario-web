@@ -25,6 +25,7 @@ function roleCoversScope(allowedScopes: string[], grantScope: string): boolean {
  * whose allowed scopes cover the grant scope. Mirrors the server's
  * `validateProviderRefs`: an org-root grant and an unselected scope skip the
  * coverage check; an org-wide role (empty allowedScopes) covers any scope.
+ * A public provider publishes no roles and only permits read-only.
  */
 export function levelsForGrant(
   catalog: ClientProviderCatalog | undefined,
@@ -32,6 +33,11 @@ export function levelsForGrant(
   grantScope: string,
   bucketRowId?: string,
 ): AccessLevel[] {
+  const isPublic = (catalog?.providerConnections ?? []).some(
+    (c) => c.id === providerConnectionId && c.isPublic,
+  );
+  if (isPublic) return ["read-only"];
+
   const roleLevels = new Set(
     (catalog?.providerRoles ?? [])
       .filter((role) => role.providerConnectionId === providerConnectionId)

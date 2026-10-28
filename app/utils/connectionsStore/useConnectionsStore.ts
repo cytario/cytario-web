@@ -31,12 +31,19 @@ export interface ConnectionProviderClient {
   allowsSharing: boolean;
   /** Advisory UI gate; S3 denies enforce the actual permission boundary. */
   accessLevel: AccessLevel;
+  /** True when the provider is credential-less and read-only — the connection
+   * carries no STS credential and never needs one. */
+  isPublic: boolean;
 }
 
 /** Static config + STS credentials + live health for one connection. */
 export interface Connection {
   connectionConfig: ConnectionConfigWithGrants;
-  /** `null` when STS credentials could not be minted (broken connection). */
+  /**
+   * `null` when the connection is public (credential-less by design) or when
+   * STS credentials could not be minted (broken connection — `status` is then
+   * `"error"`).
+   */
   credentials: Credentials | null;
   /** Resolved non-secret provider attributes (region/endpoint) for the data-plane. */
   provider?: ConnectionProviderClient;
@@ -54,9 +61,10 @@ export interface ConnectionsStore {
   connections: Record<string, Connection>;
   /**
    * Replace the whole store in one write; prunes entries removed server-side.
-   * Connections without credentials are kept (status `"error"`) so a broken
-   * connection stays visible rather than silently vanishing. A prior live
-   * probe result is preserved across re-hydration to avoid a green→yellow
+   * Connections without credentials are kept (status `"error"`, or
+   * `"connected"` for a public/credential-less one with no mint error) so a
+   * broken connection stays visible rather than silently vanishing. A prior
+   * live probe result is preserved across re-hydration to avoid a green→yellow
    * flicker on revalidation.
    */
   setConnections: (
@@ -89,7 +97,11 @@ export const useConnectionsStore = create<ConnectionsStore>()(
 
               let status: ConnectionStatus;
               let statusMessage: string | undefined;
-              if (!creds) {
+              if (!creds && !errors[cid]) {
+                // Credential-less with no mint error — a public connection;
+                // the null credential is its healthy state.
+                status = "connected";
+              } else if (!creds) {
                 status = "error";
                 statusMessage = errors[cid] ?? NO_CREDENTIALS_MESSAGE;
               } else if (prev?.credentials) {

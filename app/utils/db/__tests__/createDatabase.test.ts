@@ -165,4 +165,15 @@ describe("createDatabase", () => {
     expect(mockQuery).toHaveBeenCalledWith("SET s3_secret_access_key='secret''with''quotes'");
     expect(mockQuery).toHaveBeenCalledWith("SET s3_session_token='tok''en'");
   });
+
+  test("a null credential (public connection) applies no S3 credentials and does not re-apply per call", async () => {
+    mockQuery.mockClear();
+
+    await createDatabase("test-anonymous", null, undefined);
+    await createDatabase("test-anonymous", null, undefined);
+
+    expect(mockQuery).not.toHaveBeenCalledWith(expect.stringContaining("s3_access_key_id"));
+    expect(mockQuery).not.toHaveBeenCalledWith(expect.stringContaining("s3_secret_access_key"));
+    expect(mockQuery).not.toHaveBeenCalledWith(expect.stringContaining("s3_session_token"));
+  });
 });

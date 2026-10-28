@@ -31,6 +31,21 @@ providerConnections:
     region: eu-central-1 # used for SigV4 signing against the RustFS endpoint
     status: connected
 
+  # A public (credential-less) provider connection: the bucket's own
+  # public-read policy is the entire entitlement, so this provider declares NO
+  # provider roles below and its connections are read-only. One public
+  # provider per backend and region. The bucket must allow anonymous listing
+  # (s3:ListBucket for Principal "*") and cross-origin GET/HEAD reads; a
+  # non-AWS host must also appear in CYTARIO_ALLOWED_S3_HOSTS so the browser
+  # may reach it.
+  - id: public-open-data
+    name: Open Data (public)
+    providerType: aws
+    endpoint: null
+    region: us-east-1
+    status: connected
+    isPublic: true
+
 providerRoles:
   # A role is identified by (provider connection, access level) — the portal
   # provisions exactly one per (bucket, level), and grants reference the level;

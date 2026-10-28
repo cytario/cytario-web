@@ -47,6 +47,7 @@ const validUpdates = {
   bucketName: "updated-bucket",
   prefix: "",
   providerConnectionId: "pc-1",
+  publicEndpoint: null,
   grants: [{ scope: "cytario", accessLevel: "read-only" }],
 };
 
@@ -112,6 +113,7 @@ describe("createConnection strictness", () => {
           bucketName: "victim-bucket",
           providerConnectionId: "pc-1",
           prefix: "victim-prefix",
+          publicEndpoint: null,
         },
         [{ scope: "attacker-personal-scope", accessLevel: "read-only" }],
       ),

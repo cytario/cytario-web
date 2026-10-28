@@ -30,7 +30,14 @@ export function useConnectionSearch(
   query: string,
   filters?: TreeFilters,
 ): ConnectionSearch {
-  const hasCreds = useConnectionsStore((s) => !!s.connections[connectionId]?.credentials);
+  // Public connections are credential-less by design; only a non-public
+  // connection without credentials is broken.
+  const canSearch = useConnectionsStore(
+    (s) =>
+      !!(
+        s.connections[connectionId]?.credentials || s.connections[connectionId]?.provider?.isPublic
+      ),
+  );
   const hasExtensions = !!filters?.extensions?.length;
   const active = !!query || hasExtensions;
   const [result, setResult] = useState<SearchResult>({
@@ -43,7 +50,7 @@ export function useConnectionSearch(
   const key = `${connectionId} ${query} ${JSON.stringify(filters ?? {})}`;
 
   useEffect(() => {
-    if (!active || !hasCreds) return;
+    if (!active || !canSearch) return;
     const connection = useConnectionsStore.getState().connections[connectionId];
     if (!connection) return;
 
@@ -62,14 +69,14 @@ export function useConnectionSearch(
     return () => controller.abort();
     // `key` is the complete dep: caller-side filter identity churn must not re-trigger the walk.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, hasCreds]);
+  }, [key, canSearch]);
 
   const matched = active && result.key === key;
   return {
     nodes: matched ? result.nodes : [],
-    // No credentials → immediate error, not a spinner.
-    isSearching: active && hasCreds && !matched,
-    error: active && (!hasCreds || (matched && result.error)),
+    // No credentials on a non-public connection → immediate error, not a spinner.
+    isSearching: active && canSearch && !matched,
+    error: active && (!canSearch || (matched && result.error)),
     corsBlocked: matched && result.corsBlocked,
     isCapped: matched && result.isCapped,
   };

@@ -17,6 +17,11 @@ vi.mock("~/utils/connectionsStore/useConnectionsStore", () => {
         credentials: {},
         provider: {},
       },
+      public: {
+        connectionConfig: { id: "public", name: "public-conn" },
+        credentials: null,
+        provider: { isPublic: true },
+      },
     },
   };
   const useConnectionsStore = ((selector: (s: typeof state) => unknown) =>
@@ -65,5 +70,16 @@ describe("useConnectionSearch", () => {
     expect(result.current.nodes).toEqual([]);
     expect(result.current.isSearching).toBe(false);
     expect(result.current.isCapped).toBe(false);
+  });
+
+  test("searches a public (credential-less) connection", async () => {
+    searchMock.mockResolvedValue(scanResult([{ id: "n1" }]));
+    const { result } = renderHook(() => useConnectionSearch("public", "query"));
+
+    await waitFor(() => expect(result.current.isSearching).toBe(false));
+
+    expect(searchMock).toHaveBeenCalledTimes(1);
+    expect(result.current.nodes).toEqual([{ id: "n1" }]);
+    expect(result.current.error).toBe(false);
   });
 });

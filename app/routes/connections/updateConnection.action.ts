@@ -17,13 +17,24 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
+import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
 
 export interface UpdateConnectionInput {
   name: string;
   bucketName: string;
   prefix: string;
   providerConnectionId: string;
+  publicEndpoint: string | null;
   grants: GrantInput[];
+}
+
+/** https://, or loopback http in a local environment — the same carve-out the
+ * S3-host allowlist applies, so a probe-targeted plaintext intranet host is
+ * refused before the allowlist check even runs. */
+function isValidPublicEndpointScheme(endpoint: string): boolean {
+  const parsed = new URL(endpoint);
+  if (parsed.protocol === "https:") return true;
+  return isAllowedS3Host(endpoint);
 }
 
 export async function updateConnection(
@@ -76,6 +87,7 @@ export async function updateConnection(
       bucketName: updates.bucketName,
       prefix: updates.prefix,
       providerConnectionId: updates.providerConnectionId,
+      publicEndpoint: updates.publicEndpoint,
       grants: {
         deleteMany: {},
         createMany: {
@@ -117,6 +129,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
     bucketName: String(formData.get("bucketName") ?? ""),
     prefix: String(formData.get("prefix") ?? ""),
+    publicEndpoint: String(formData.get("publicEndpoint") ?? ""),
     grants: parseGrants(formData),
   };
 
@@ -143,10 +156,24 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     return { errors: refs.errors, status: "error" as const };
   }
 
+  const providerIsPublic = refs.providerConnection.isPublic;
+  const publicEndpoint = providerIsPublic ? (validated.publicEndpoint ?? null) : null;
+  if (publicEndpoint && !isValidPublicEndpointScheme(publicEndpoint)) {
+    return {
+      errors: {
+        publicEndpoint: [
+          "The endpoint must be an https:// URL (loopback http://localhost[:port] or http://127.0.0.1[:port] is allowed in development and test).",
+        ],
+      },
+      status: "error" as const,
+    };
+  }
+
   const bucketRef = await validateBucketRef(
     user.organization,
     session.get("authTokens")?.accessToken ?? "",
     validated,
+    refs.providerConnection,
   );
   if (!bucketRef.ok) {
     if ("formError" in bucketRef) {
@@ -161,6 +188,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
       bucketName: validated.bucketName,
       prefix: validated.prefix,
       providerConnectionId: validated.providerConnectionId,
+      publicEndpoint,
       grants: validated.grants,
     });
 

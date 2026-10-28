@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("../readText", () => ({
   readTextFile: vi.fn(async (resourceId: string) => {
@@ -14,11 +14,17 @@ vi.mock("../writeText", () => ({
 }));
 
 import { TextEditor } from "../TextEditor";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { SignedFetch } from "~/utils/signedFetch";
 
 const signedFetch = (async () => new Response()) as SignedFetch;
 
 describe("TextEditor", () => {
+  beforeEach(() => {
+    // The read-only gate reads the connections store; seed the connection as
+    // writable so the edit affordances render.
+    seedViewerConnection("c1", "annotate");
+  });
   test("a markdown file opens in view mode and renders formatted", async () => {
     render(<TextEditor resourceId="c1/notes.md" signedFetch={signedFetch} />);
 
@@ -80,5 +86,16 @@ describe("TextEditor", () => {
 
     expect(screen.getByText("Unsaved changes")).toBeVisible();
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  });
+
+  test("a read-only connection hides the Edit affordance entirely", async () => {
+    seedViewerConnection("c1", "read-only");
+    render(<TextEditor resourceId="c1/notes.md" signedFetch={signedFetch} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { level: 1, name: "Title" })).toBeVisible();
+    });
+
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
   });
 });

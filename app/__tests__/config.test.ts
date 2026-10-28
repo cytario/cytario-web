@@ -39,3 +39,64 @@ describe("provider catalog failure backoff", () => {
     expect((await importConfig()).providers.catalogFailureBackoffMs).toBe(10_000);
   });
 });
+
+describe("built-in public provider config", () => {
+  const importConfig = async () =>
+    (await vi.importActual<typeof import("~/config")>("~/config")).cytarioConfig;
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  test("defaults to the public AWS S3 endpoint and us-east-1", async () => {
+    expect(await importConfig()).toMatchObject({
+      providers: {
+        builtinPublicProvider: {
+          endpoint: "https://s3.us-east-1.amazonaws.com",
+          region: "us-east-1",
+        },
+      },
+    });
+  });
+
+  test("honours endpoint and region overrides", async () => {
+    vi.stubEnv("CYTARIO_PUBLIC_PROVIDER_ENDPOINT", "https://s3.mirror.example.com");
+    vi.stubEnv("CYTARIO_PUBLIC_PROVIDER_REGION", "eu-west-1");
+    expect(await importConfig()).toMatchObject({
+      providers: {
+        builtinPublicProvider: {
+          endpoint: "https://s3.mirror.example.com",
+          region: "eu-west-1",
+        },
+      },
+    });
+  });
+
+  test("an empty endpoint opts out (null disables the built-in)", async () => {
+    vi.stubEnv("CYTARIO_PUBLIC_PROVIDER_ENDPOINT", "");
+    expect((await importConfig()).providers.builtinPublicProvider.endpoint).toBeNull();
+  });
+
+  test("refuses to boot on a non-https endpoint", async () => {
+    vi.stubEnv("CYTARIO_PUBLIC_PROVIDER_ENDPOINT", "ftp://mirror.example.com");
+    await expect(importConfig()).rejects.toThrow(/CYTARIO_PUBLIC_PROVIDER_ENDPOINT/);
+  });
+
+  test("refuses to boot on an unparseable endpoint", async () => {
+    vi.stubEnv("CYTARIO_PUBLIC_PROVIDER_ENDPOINT", "://not a url");
+    await expect(importConfig()).rejects.toThrow(/CYTARIO_PUBLIC_PROVIDER_ENDPOINT/);
+  });
+
+  test("loopback http is allowed only in a local environment", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("CYTARIO_PUBLIC_PROVIDER_ENDPOINT", "http://localhost:9000");
+    await expect(importConfig()).rejects.toThrow(/CYTARIO_PUBLIC_PROVIDER_ENDPOINT/);
+
+    vi.stubEnv("NODE_ENV", "test");
+    vi.resetModules();
+    expect((await importConfig()).providers.builtinPublicProvider.endpoint).toBe(
+      "http://localhost:9000",
+    );
+  });
+});

@@ -3,6 +3,7 @@ import React from "react";
 
 import { AddOverlay } from "../AddOverlay";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 import { getOverlaySchema } from "~/utils/db/getOverlaySchema";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
 
@@ -11,11 +12,20 @@ vi.mock("~/utils/db/getOverlaySchema", () => ({
 }));
 
 vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
-  useConnectionsStore: vi.fn(),
+  useConnectionsStore: Object.assign(vi.fn(), {
+    getState: vi.fn(() => ({ connections: storeState })),
+  }),
 }));
 
+/** Connection shapes the store reports to the read-only check and the tree. */
+const storeState: Record<string, { id: string; provider?: { accessLevel: string } }> = {
+  "conn-1": { id: "conn-1", provider: { accessLevel: "annotate" } },
+  "conn-2": { id: "conn-2", provider: { accessLevel: "annotate" } },
+  "my-conn": { id: "my-conn", provider: { accessLevel: "annotate" } },
+};
+
 vi.mock("~/utils/connectionsStore/selectors", () => ({
-  select: { connections: () => ({ "conn-1": { id: "conn-1" } }) },
+  select: { connections: () => ({ "my-conn": { id: "my-conn" } }) },
 }));
 
 vi.mock("~/utils/db/convertCsvToParquet", () => ({
@@ -44,22 +54,25 @@ vi.mock("~/components/ConnectionTree/ConnectionTree", () => ({
 
 const toast = vi.fn();
 
-function renderAddOverlay(onOverlayAdd?: (o: Record<string, unknown>) => void) {
+function renderAddOverlay(
+  onOverlayAdd?: (o: Record<string, unknown>) => void,
+  extension: "csv" | "parquet" = "parquet",
+) {
   (useConnectionsStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
     (selector: unknown) =>
       (selector as (s: unknown) => unknown)({
-        "conn-1": { id: "conn-1" },
-        "conn-2": { id: "conn-2" },
+        connections: storeState,
       }),
   );
   render(
     <AddOverlayToastStub>
-      <AddOverlay extension="parquet" onOverlayAdd={onOverlayAdd} callback={vi.fn()} />
+      <AddOverlay extension={extension} onOverlayAdd={onOverlayAdd} callback={vi.fn()} />
     </AddOverlayToastStub>,
   );
 }
 
 vi.mock("@cytario/design", () => ({
+  createToastBridge: () => ({ emit: vi.fn() }),
   useToast: () => ({ toast }),
   Badge: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
   Button: ({ children }: { children?: React.ReactNode }) => <button>{children}</button>,
@@ -143,5 +156,28 @@ describe("AddOverlay parquet introspection", () => {
         message: expect.stringContaining("network down"),
       }),
     );
+  });
+});
+
+describe("AddOverlay CSV conversion", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("refuses to start a conversion on a read-only connection", () => {
+    storeState["my-conn"] = { id: "my-conn", provider: { accessLevel: "read-only" } };
+
+    renderAddOverlay(undefined, "csv");
+
+    screen.getByRole("button", { name: "pick" }).click();
+
+    expect(convertCsvToParquet).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variant: "error",
+        message: expect.stringContaining("read-only"),
+      }),
+    );
+    storeState["my-conn"] = { id: "my-conn", provider: { accessLevel: "annotate" } };
   });
 });

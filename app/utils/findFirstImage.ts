@@ -19,7 +19,7 @@ const isImagePreview = (obj: _Object) => getFileCategory(obj.Key ?? "") === "ima
  */
 export async function findFirstImage(
   address: ConnectionAddress,
-  credentials: Credentials,
+  credentials: Credentials | null,
   prefix: string | undefined,
   signal?: AbortSignal,
 ): Promise<_Object | undefined> {

@@ -23,12 +23,16 @@ export async function enrichConnectionsWithPreviews({
     PREVIEW_CONCURRENCY,
     async (config): Promise<ConnectionProbeResult> => {
       if (signal.aborted) return { status: "connected" };
-      const creds = server.credentials[config.id];
-      if (!creds) {
-        return { status: "error", errorMessage: "No credentials available for this connection." };
+      // A missing credential is only a failure when the server recorded a mint
+      // error for it — a public connection is credential-less by design.
+      if (!server.credentials[config.id] && server.credentialErrors[config.id]) {
+        return {
+          status: "error",
+          errorMessage: server.credentialErrors[config.id],
+        };
       }
       const provider = useConnectionsStore.getState().connections[config.id]?.provider;
-      return probeConnection(config, creds, provider, signal);
+      return probeConnection(config, server.credentials[config.id] ?? null, provider, signal);
     },
   );
 

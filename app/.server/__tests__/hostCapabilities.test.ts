@@ -1168,6 +1168,50 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  test("record rejects an ARN-less grant (a public provider's synthesized grant) — fail closed", async () => {
+    vi.spyOn(prisma.connectionConfig, "findFirst").mockResolvedValue({
+      id: "c1",
+      providerConnectionId: "pc-public",
+      grants: [{ accessLevel: "read-only" }],
+    } as never);
+    getProviderCatalogMock.mockResolvedValueOnce(EMPTY_CATALOG);
+    resolveConnectionProviderWithGrantsMock.mockReturnValueOnce({
+      providerType: "aws",
+      endpoint: null,
+      region: "eu-central-1",
+      allowsSharing: false,
+      isPublic: true,
+      grants: [{ scope: "*", roleArn: null, accessLevel: "read-only" }],
+    });
+    pickGrantForUserMock.mockReturnValueOnce({
+      scope: "*",
+      roleArn: null,
+      accessLevel: "read-only",
+    });
+    const create = vi.spyOn(prisma.jobLedgerEntry, "create").mockResolvedValue({} as never);
+
+    await withHostRequestContext(mockRequestData, async () => {
+      await expect(
+        hostCapabilities.jobLedger().record({
+          id: "",
+          status: "Pending",
+          batchId: "batch-1",
+          offlineSessionId: "sess-1",
+          organization: "testcorp",
+          owner: "user-123",
+          inputS3Uris: [],
+          outputS3Uri: "s3://bucket/output/",
+          connectionId: "c1",
+          roleArn: "",
+          region: "",
+          s3Endpoint: null,
+          jobToken: "job-session-token",
+        }),
+      ).rejects.toThrow(/no AWS role ARN/i);
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   test("record returns the ledger row's own id and creates the row Pending (SDS-CY-080903)", async () => {
     const create = vi
       .spyOn(prisma.jobLedgerEntry, "create")
