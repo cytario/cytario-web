@@ -380,12 +380,12 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                   render={({ field, fieldState }) => (
                     <Input
                       label="Endpoint"
-                      description="Optional. The S3 endpoint of the public backend — leave empty for AWS."
+                      description="Leave empty for AWS."
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       name={field.name}
-                      placeholder="https://s3.us-east-1.amazonaws.com"
+                      placeholder="https://mirror.example.com"
                       size="lg"
                       errorMessage={fieldState.error?.message}
                     />

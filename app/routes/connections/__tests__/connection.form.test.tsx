@@ -155,7 +155,9 @@ describe("ConnectionForm — built-in public provider bucket input", () => {
     await user.click(screen.getByRole("option", { name: "Public" }));
 
     const endpointInput = (await screen.findByLabelText(/Endpoint/)) as HTMLInputElement;
-    expect(endpointInput.placeholder).toBe("https://s3.us-east-1.amazonaws.com");
+    // The placeholder suggests a mirror URL, not an AWS regional endpoint —
+    // an AWS-looking default wrongly implies we pin the bucket's region.
+    expect(endpointInput.placeholder).toBe("https://mirror.example.com");
     await user.type(endpointInput, "http://localhost:9000");
     expect(endpointInput.value).toBe("http://localhost:9000");
   });
