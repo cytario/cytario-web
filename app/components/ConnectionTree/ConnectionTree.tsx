@@ -98,7 +98,7 @@ export function ConnectionTree({
           title="Search failed"
           description={
             corsBlocked
-              ? "The browser was blocked from reading this bucket — check its CORS policy."
+              ? "The browser was blocked from reading this bucket — check its CORS policy or ask your administrator about the Content-Security-Policy."
               : "Could not search this connection. Check the connection and try again."
           }
         />

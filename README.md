@@ -308,19 +308,18 @@ web-identity federation against the local Keycloak realm (client
 
 #### Object storage in .env
 
-The browser talks to object storage directly (SigV4-signed fetches), and the
-app's Content-Security-Policy only allows `connect-src` hosts from the
-`CYTARIO_ALLOWED_S3_HOSTS` allowlist. The defaults cover `https://*.amazonaws.com`
-and `https://*.cytario.com`; **any other host — including the local RustFS —
-must be added explicitly**:
+The browser talks to object storage directly (SigV4-signed fetches). The
+app's Content-Security-Policy `connect-src` is derived per request from the
+organization's provider catalog, so every storage endpoint the organization
+has a provider connection for — including the local RustFS — is admitted with
+no allowlist configuration. Endpoints must use `https:` in production; local
+dev environments can admit a plain-`http` object store via
+`CYTARIO_DEV_CONNECT_HOSTS`:
 
 ```sh
-# .env — allow the local RustFS (and any other S3-compatible endpoint)
-CYTARIO_ALLOWED_S3_HOSTS=http://localhost:9000,https://*.amazonaws.com,https://*.cytario.com
+# .env — local dev only: admit the local RustFS object store
+CYTARIO_DEV_CONNECT_HOSTS=http://localhost:9000
 ```
-
-Note the allowlist **replaces** the defaults entirely — include the AWS hosts
-when you still use AWS connections alongside.
 
 ### Getting Started
 

@@ -36,8 +36,8 @@ providerConnections:
   # provider roles below and its connections are read-only. One public
   # provider per backend and region. The bucket must allow anonymous listing
   # (s3:ListBucket for Principal "*") and cross-origin GET/HEAD reads; a
-  # non-AWS host must also appear in CYTARIO_ALLOWED_S3_HOSTS so the browser
-  # may reach it.
+  # non-AWS host must use https (the browser data plane is TLS-only —
+  # connect-src is derived per request from the provider catalog).
   - id: public-open-data
     name: Open Data (public)
     providerType: aws

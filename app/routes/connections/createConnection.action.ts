@@ -14,17 +14,13 @@ import type { GrantInput } from "~/.server/connections/createConnection.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { cytarioConfig } from "~/config";
 import { canCreate } from "~/utils/authorization";
+import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
 import { getPrefix } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
-import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
 
-/** https://, or loopback http in a local environment — the same carve-out the
- * S3-host allowlist applies, so the probe can never be pointed at a plaintext
- * intranet host before the allowlist check even runs. */
+/** The endpoint may be probed at all: https, or loopback http in a local env. */
 function isValidPublicEndpointScheme(endpoint: string): boolean {
-  const parsed = new URL(endpoint);
-  if (parsed.protocol === "https:") return true;
-  return isAllowedS3Host(endpoint);
+  return isProbingAllowedEndpoint(endpoint);
 }
 
 /** A connection config field set for `createConnectionRecord`. */
@@ -103,14 +99,12 @@ async function probePublicBucket(
     },
     "",
   );
-  // SSRF surface: the request host derives from the catalog endpoint (or the
-  // user-typed per-connection endpoint) plus the submitted bucket name — never
-  // a bare user-supplied URL — and is checked against the deployment allowlist
-  // so the probe cannot become a port-scan oracle against an internal host an
-  // org admin pointed it at.
-  if (!isAllowedS3Host(bucketUrl)) {
+  // The request host derives from the catalog endpoint plus the bucket name, so
+  // the probe can never be aimed at an arbitrary host; the guard still
+  // refuses private/network literals.
+  if (!isProbingAllowedEndpoint(bucketUrl)) {
     return {
-      formError: `The provider's endpoint for "${refs.bucketName}" is not an allowed storage host. Ask an administrator to add it to the allowed S3 hosts.`,
+      formError: `The provider's endpoint for "${refs.bucketName}" is not an allowed storage host — it must be a publicly reachable https endpoint.`,
     };
   }
   const url = `${bucketUrl}?${query.toString()}`;

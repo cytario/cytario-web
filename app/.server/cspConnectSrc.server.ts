@@ -1,0 +1,79 @@
+import { getSession, getSessionData } from "./auth/getSession";
+import type { UserProfile } from "./auth/getUserInfo";
+import { createLabel } from "./logging";
+import {
+  getProviderCatalog,
+  resolveConnectionProviderWithGrants,
+} from "./providers/providerCatalog.server";
+import { listConnections } from "~/routes/connections/connections.server";
+
+const label = createLabel("csp", "magenta");
+
+/** Derive the CSP connect-src host set for one HTML response from the
+ * organization active in the request's session. Fail-closed: no session, no
+ * active organization, or an unresolvable catalog yields an empty set. */
+export async function resolveConnectSrcHosts(request: Request): Promise<string[]> {
+  let organization: string | undefined;
+  let accessToken: string | undefined;
+  let user: UserProfile | undefined;
+  try {
+    const cookie = request.headers.get("cookie");
+    if (!cookie) return [];
+    const session = await getSession(request);
+    const sessionData = await getSessionData(session);
+    user = sessionData.user;
+    organization = sessionData.user?.organization;
+    accessToken = sessionData.authTokens?.accessToken;
+  } catch (error) {
+    console.warn(`${label} session read failed, CSP connect-src fails closed:`, error);
+    return [];
+  }
+
+  if (!user || !organization || !accessToken) return [];
+
+  try {
+    const catalog = await getProviderCatalog(organization, accessToken);
+    const hosts = new Set<string>();
+
+    // Catalog endpoints cover not-yet-connected providers; the row pass below
+    // covers per-connection endpoint overrides the catalog cannot see.
+    for (const connection of catalog.providerConnections) {
+      const source = endpointToCspSource(connection.endpoint, connection.region);
+      if (source) hosts.add(source);
+    }
+
+    const connectionConfigs = await listConnections(user);
+    for (const connectionConfig of connectionConfigs) {
+      const resolved = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+      if (!resolved) continue;
+      const source = endpointToCspSource(resolved.endpoint, resolved.region);
+      if (source) hosts.add(source);
+    }
+
+    return [...hosts];
+  } catch (error) {
+    console.warn(
+      `${label} provider catalog lookup failed for org ${organization}, CSP connect-src fails closed:`,
+      error,
+    );
+    return [];
+  }
+}
+
+/** The endpoint's origin, else the regional S3 origin (AWS); https-only. */
+function endpointToCspSource(endpoint: string | null, region: string): string | null {
+  if (endpoint) {
+    try {
+      const parsed = new URL(endpoint);
+      if (parsed.protocol !== "https:") {
+        console.warn(`[csp] dropping non-https provider endpoint: ${parsed.host}`);
+        return null;
+      }
+      return parsed.origin;
+    } catch {
+      console.warn(`[csp] dropping unparseable provider endpoint: ${endpoint}`);
+      return null;
+    }
+  }
+  return `https://s3.${region}.amazonaws.com`;
+}
