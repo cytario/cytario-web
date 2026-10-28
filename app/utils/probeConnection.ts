@@ -43,7 +43,8 @@ export async function probeConnection(
     if (error instanceof CorsLikelyError) {
       return {
         status: "error",
-        errorMessage: "Browser blocked from reading the bucket — check the bucket's CORS policy.",
+        errorMessage:
+          "Browser blocked from reading the bucket — check its CORS policy or ask your administrator about the Content-Security-Policy.",
       };
     }
     const message = error instanceof Error ? error.message : "Unknown error";

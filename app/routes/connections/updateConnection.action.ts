@@ -17,7 +17,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
-import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
+import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
 
 export interface UpdateConnectionInput {
   name: string;
@@ -28,13 +28,9 @@ export interface UpdateConnectionInput {
   grants: GrantInput[];
 }
 
-/** https://, or loopback http in a local environment — the same carve-out the
- * S3-host allowlist applies, so a probe-targeted plaintext intranet host is
- * refused before the allowlist check even runs. */
+/** The endpoint may be probed at all: https, or loopback http in a local env. */
 function isValidPublicEndpointScheme(endpoint: string): boolean {
-  const parsed = new URL(endpoint);
-  if (parsed.protocol === "https:") return true;
-  return isAllowedS3Host(endpoint);
+  return isProbingAllowedEndpoint(endpoint);
 }
 
 export async function updateConnection(

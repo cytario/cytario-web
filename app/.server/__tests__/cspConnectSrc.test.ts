@@ -1,0 +1,210 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+import { resolveConnectSrcHosts } from "~/.server/cspConnectSrc.server";
+
+const ORG = "vericura";
+const TOKEN = "test-access-token";
+
+const {
+  getSessionMock,
+  getSessionDataMock,
+  getProviderCatalogMock,
+  listConnectionsMock,
+  resolveMock,
+} = vi.hoisted(() => ({
+  getSessionMock: vi.fn(),
+  getSessionDataMock: vi.fn(),
+  getProviderCatalogMock: vi.fn(),
+  listConnectionsMock: vi.fn(),
+  resolveMock: vi.fn(),
+}));
+
+vi.mock("~/.server/auth/getSession", () => ({
+  getSession: getSessionMock,
+  getSessionData: getSessionDataMock,
+}));
+
+vi.mock("~/.server/providers/providerCatalog.server", () => ({
+  getProviderCatalog: getProviderCatalogMock,
+  resolveConnectionProviderWithGrants: resolveMock,
+}));
+
+vi.mock("~/routes/connections/connections.server", () => ({
+  listConnections: listConnectionsMock,
+}));
+
+const sessionWith = (organization: string | undefined, accessToken: string | null = TOKEN) => ({
+  user: organization ? { organization } : {},
+  authTokens: accessToken ? { accessToken: accessToken ?? undefined } : undefined,
+});
+
+// happy-dom strips `cookie` from Request-construction headers; setting it
+// after construction survives.
+const requestWithCookie = () => {
+  const request = new Request("https://app.cytar.io/objects");
+  request.headers.set("cookie", "__session=abc123");
+  return request;
+};
+
+describe("resolveConnectSrcHosts", () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    getSessionMock.mockResolvedValue({});
+    listConnectionsMock.mockResolvedValue([]);
+    resolveMock.mockImplementation(
+      (
+        _catalog: unknown,
+        connection: { publicEndpoint?: string | null; providerConnectionId: string },
+      ) =>
+        connection.publicEndpoint
+          ? { endpoint: connection.publicEndpoint, region: "eu-central-1" }
+          : undefined,
+    );
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    vi.clearAllMocks();
+  });
+
+  test("emits the endpoint origin per self-hosted provider connection", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        { id: "rustfs", endpoint: "https://s3.example.com", region: "eu-central-1" },
+      ],
+    });
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toEqual(["https://s3.example.com"]);
+    expect(getProviderCatalogMock).toHaveBeenCalledWith(ORG, TOKEN);
+  });
+
+  test("emits the regional S3 endpoint origin for a null (AWS) endpoint", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [{ id: "aws", endpoint: null, region: "us-east-1" }],
+    });
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([
+      "https://s3.us-east-1.amazonaws.com",
+    ]);
+  });
+
+  test("admits a public connection's per-connection endpoint override", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        // The catalog's public provider carries no endpoint (AWS default);
+        // the host comes from the connection row's override.
+        { id: "public", endpoint: null, region: "eu-central-1", isPublic: true },
+      ],
+    });
+    listConnectionsMock.mockResolvedValue([
+      {
+        providerConnectionId: "public",
+        bucketName: "open-data",
+        publicEndpoint: "https://data.open.example.org",
+        grants: [],
+      },
+    ]);
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toContain("https://s3.eu-central-1.amazonaws.com");
+    expect(hosts).toContain("https://data.open.example.org");
+  });
+
+  test("fails closed when no hosts resolve — never a wildcard", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({ providerConnections: [] });
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([]);
+  });
+
+  test("requires an active organization", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(undefined));
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([]);
+    expect(getProviderCatalogMock).not.toHaveBeenCalled();
+  });
+
+  test("requires an access token", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG, null));
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([]);
+    expect(getProviderCatalogMock).not.toHaveBeenCalled();
+  });
+
+  test("a request without a cookie yields no hosts", async () => {
+    const request = new Request("https://app.cytar.io/objects");
+    expect(await resolveConnectSrcHosts(request)).toEqual([]);
+    expect(getSessionMock).not.toHaveBeenCalled();
+  });
+
+  test("a session read failure fails closed with a warn", async () => {
+    getSessionDataMock.mockRejectedValue(new Error("redis down"));
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("a catalog lookup failure fails closed with a warn", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockRejectedValue(new Error("portal unreachable"));
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("drops a non-https endpoint with a warn", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        { id: "bad", endpoint: "http://minio.example.com", region: "eu-central-1" },
+        { id: "good", endpoint: "https://minio.example.com", region: "eu-central-1" },
+      ],
+    });
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([
+      "https://minio.example.com",
+    ]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("drops an unparseable endpoint with a warn", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [{ id: "bad", endpoint: "not a url", region: "eu-central-1" }],
+    });
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("deduplicates identical origins across provider connections", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        { id: "a", endpoint: "https://s3.example.com", region: "eu-central-1" },
+        { id: "b", endpoint: "https://s3.example.com", region: "eu-central-1" },
+        { id: "c", endpoint: "https://s3.example.com:9000", region: "eu-central-1" },
+      ],
+    });
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toEqual(["https://s3.example.com", "https://s3.example.com:9000"]);
+  });
+
+  test("strips paths from an endpoint carrying one — CSP sources are origins", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [
+        { id: "a", endpoint: "https://s3.example.com/buckets", region: "eu-central-1" },
+      ],
+    });
+
+    expect(await resolveConnectSrcHosts(requestWithCookie())).toEqual(["https://s3.example.com"]);
+  });
+});

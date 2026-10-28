@@ -1,16 +1,14 @@
-import { getAllowedS3Hosts } from "~/utils/s3HostAllowlist";
-
-export { getAllowedS3Hosts };
-
-/** Build the CSP header value. Callers feed the env so tests can override it. */
+/** Build the CSP header; the connect-src hosts are resolved per request by
+ * `cspConnectSrc.server.ts`, every other directive is static. */
 export function buildContentSecurityPolicy(
   env: Record<string, string | undefined> = process.env,
+  connectSrcHosts: string[] = [],
 ): string {
   const isLocalEnv = env.NODE_ENV === "development" || env.NODE_ENV === "test";
 
   const connectSrc = [
     "'self'",
-    ...getAllowedS3Hosts(env),
+    ...connectSrcHosts,
     // Dev-only carve-out so a local object store / OCI registry is reachable
     // during development; never applied outside local envs.
     ...(isLocalEnv

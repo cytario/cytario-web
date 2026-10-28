@@ -6,6 +6,7 @@ import type { EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 
 import { buildContentSecurityPolicy } from "./.server/csp";
+import { resolveConnectSrcHosts } from "./.server/cspConnectSrc.server";
 import { hostCapabilities } from "./.server/hostCapabilities";
 import { gateRegistry } from "./.server/pluginGates";
 import { routeRegistry } from "./.server/routeRegistry";
@@ -52,9 +53,25 @@ export default async function handleRequest(
 ) {
   await bootstrapPromise;
 
+  // Resolved once per request and shared by the bot and browser paths; only
+  // the HTML document needs it.
+  const connectSrcHosts = await resolveConnectSrcHosts(request);
+
   return isbot(request.headers.get("user-agent") || "")
-    ? handleBotRequest(request, responseStatusCode, responseHeaders, reactRouterContext)
-    : handleBrowserRequest(request, responseStatusCode, responseHeaders, reactRouterContext);
+    ? handleBotRequest(
+        request,
+        responseStatusCode,
+        responseHeaders,
+        reactRouterContext,
+        connectSrcHosts,
+      )
+    : handleBrowserRequest(
+        request,
+        responseStatusCode,
+        responseHeaders,
+        reactRouterContext,
+        connectSrcHosts,
+      );
 }
 
 function handleBotRequest(
@@ -62,6 +79,7 @@ function handleBotRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   reactRouterContext: EntryContext,
+  connectSrcHosts: string[],
 ) {
   return new Promise((resolve, reject) => {
     let shellRendered = false;
@@ -76,7 +94,10 @@ function handleBotRequest(
           responseHeaders.set("Content-Type", "text/html");
           // Only attached to the HTML document; `.data` and action JSON responses
           // inherit the document-level policy from the hydrated page.
-          responseHeaders.set("Content-Security-Policy", buildContentSecurityPolicy());
+          responseHeaders.set(
+            "Content-Security-Policy",
+            buildContentSecurityPolicy(process.env, connectSrcHosts),
+          );
 
           resolve(
             new Response(stream, {
@@ -111,6 +132,7 @@ function handleBrowserRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   reactRouterContext: EntryContext,
+  connectSrcHosts: string[],
 ) {
   return new Promise((resolve, reject) => {
     let shellRendered = false;
@@ -125,7 +147,10 @@ function handleBrowserRequest(
           responseHeaders.set("Content-Type", "text/html");
           // Only attached to the HTML document; `.data` and action JSON responses
           // inherit the document-level policy from the hydrated page.
-          responseHeaders.set("Content-Security-Policy", buildContentSecurityPolicy());
+          responseHeaders.set(
+            "Content-Security-Policy",
+            buildContentSecurityPolicy(process.env, connectSrcHosts),
+          );
 
           resolve(
             new Response(stream, {

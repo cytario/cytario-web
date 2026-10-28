@@ -149,7 +149,7 @@ describe("createAction — public provider connections", () => {
     expect(prisma.connectionConfig.create).not.toHaveBeenCalled();
   });
 
-  test("refuses an endpoint outside the allowed storage hosts without probing it", async () => {
+  test("refuses a metadata-host endpoint without probing it", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({
         providerConnections: [
@@ -173,19 +173,43 @@ describe("createAction — public provider connections", () => {
     expect(prisma.connectionConfig.create).not.toHaveBeenCalled();
   });
 
-  test("refuses a non-allowlisted typed endpoint inside the probe", async () => {
+  test("refuses a private-IP typed endpoint inside the probe", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog);
 
     const result = await createAction(
-      buildArgs({ ...publicForm, publicEndpoint: "https://intranet.internal:9000" }),
+      buildArgs({ ...publicForm, publicEndpoint: "https://10.0.0.7:9000" }),
     );
 
     expect(result).toEqual({
-      formError: expect.stringContaining("not an allowed storage host"),
+      errors: { publicEndpoint: [expect.stringContaining("https://")] },
       status: "error",
     });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(prisma.connectionConfig.create).not.toHaveBeenCalled();
+  });
+
+  test("a self-hosted DNS-name typed endpoint proceeds to the probe without operator configuration", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog);
+    const body =
+      '<?xml version="1.0"?><ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>';
+    fetchMock.mockResolvedValue(
+      new Response(body, { status: 200, headers: { "access-control-allow-origin": "*" } }),
+    );
+    const created = mock.connectionConfig({
+      id: "conn-public",
+      providerConnectionId: "pc-public",
+    });
+    vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
+
+    const result = await createAction(
+      buildArgs({ ...publicForm, publicEndpoint: "https://storage.customer.example.org" }),
+    );
+
+    expect(result).toBeInstanceOf(Response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://storage.customer.example.org/open-bucket?list-type=2&max-keys=1",
+      expect.anything(),
+    );
   });
 
   test("refuses a plaintext non-loopback typed endpoint", async () => {

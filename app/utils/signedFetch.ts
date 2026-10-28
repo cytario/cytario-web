@@ -20,18 +20,17 @@ export const SIGNED_REQUEST_HEADERS = [
   "x-amz-security-token",
 ] as const;
 
-/**
- * Thrown when a browser fetch fails before a Response — almost always a
- * CORS misconfiguration on the bucket. Caller error paths instanceof-check
- * this to surface a dedicated toast.
- */
+/** Thrown when a fetch fails before a Response — a bucket CORS
+ * misconfiguration or a CSP connect-src block, indistinguishable as a fetch
+ * TypeError, so the message names both. Caller paths instanceof-check this
+ * for a dedicated toast. */
 export class CorsLikelyError extends Error {
   public readonly host: string;
   public readonly origin: string;
 
   constructor(host: string, origin: string, cause?: unknown) {
     super(
-      `Browser was blocked from reading "${host}" — likely a CORS misconfiguration on the bucket.`,
+      `Browser was blocked from reading "${host}" — either a CORS misconfiguration on the bucket, or the host is not permitted by the app's Content-Security-Policy.`,
     );
     this.name = "CorsLikelyError";
     this.host = host;

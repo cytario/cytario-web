@@ -60,7 +60,7 @@ export const clientLoader = async ({
         ...resolved,
         nodes: [],
         notification: {
-          message: `Browser was blocked from reading "${resolved.name}" — likely a CORS misconfiguration on the bucket. Re-check the bucket's CORS policy or contact your administrator.`,
+          message: `Browser was blocked from reading "${resolved.name}" — either a CORS misconfiguration on the bucket, or the host is not permitted by the app's Content-Security-Policy. Contact your administrator.`,
           status: "error",
         },
       };
