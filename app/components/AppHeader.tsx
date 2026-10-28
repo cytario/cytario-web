@@ -4,9 +4,9 @@ import { type UserProfile } from "~/.server/auth/getUserInfo";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { HelpMenu } from "~/components/HelpMenu";
-import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { ExplorerSidebarToggle } from "~/components/Sidebar/Explorer/ExplorerSidebarToggle";
 import { UserMenu } from "~/components/UserMenu";
+import { type NotificationInput } from "~/utils/notifications";
 
 interface RootLoaderResponse {
   user?: UserProfile;

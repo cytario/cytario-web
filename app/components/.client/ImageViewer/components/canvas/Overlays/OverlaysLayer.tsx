@@ -1,3 +1,4 @@
+import type { ToastData } from "@cytario/design";
 import { AccessorContext } from "@deck.gl/core";
 import { type _TileLoadProps as TileLoadProps, TileLayer } from "@deck.gl/geo-layers";
 import { PolygonLayer } from "@deck.gl/layers";
@@ -10,7 +11,6 @@ import { getPolygon } from "./getPolygon";
 import { blendMarkerColor, MarkerProps } from "./markerUniforms";
 import { type CellMarker, type OverlayConfig } from "../../../state/store/types";
 import { OVERLAY_CACHE_NS, getCachedTile } from "../../../utils/sharedTileCache";
-import { toastBridge } from "~/toast-bridge";
 import { isPointMode } from "~/utils/db/getGeomQuery";
 import { getTileDataWasm } from "~/utils/db/getTileDataWasm";
 import { overlayConfigHash } from "~/utils/db/overlayConfig";
@@ -35,6 +35,8 @@ interface OverlaysLayerProps {
   strokeOpacity: number;
   loadTile: (id: string) => void;
   finishTile: (id: string) => void;
+  /** Bound at the React call site (useToast) — deck layers live outside the tree. */
+  showToast?: (toast: Omit<ToastData, "id">) => void;
 }
 
 export const OverlaysLayer = ({
@@ -50,6 +52,7 @@ export const OverlaysLayer = ({
   strokeOpacity,
   loadTile,
   finishTile,
+  showToast,
 }: OverlaysLayerProps) => {
   // Config participates in cache/error identity: reconfiguring must invalidate cached
   // tiles and re-arm the one-shot error toast.
@@ -57,7 +60,7 @@ export const OverlaysLayer = ({
 
   const reportTileError = (message: string) => {
     if (!shouldReportOverlayError(resourceId, configHash)) return;
-    toastBridge.emit({ variant: "error", message });
+    showToast?.({ variant: "error", message });
   };
 
   const getTileData = async ({ id, index }: TileLoadProps): Promise<Table | null> => {

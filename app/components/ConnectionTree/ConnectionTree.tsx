@@ -1,5 +1,5 @@
-import { EmptyState } from "@cytario/design";
-import { useMemo } from "react";
+import { EmptyState, useToast } from "@cytario/design";
+import { useCallback, useMemo } from "react";
 
 import { useConnectionSearch } from "./useConnectionSearch";
 import { LoaderView } from "../Loader/LoaderView";
@@ -37,6 +37,8 @@ export function ConnectionTree({
   nodeLinkProps,
 }: ConnectionTreeProps) {
   const rootId = `${selectedConnection}/`;
+  const { toast } = useToast();
+  const handleExpand = useCallback((parent: TreeNode) => onExpand(parent, toast), [toast]);
   const connectionName =
     useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
     selectedConnection;
@@ -144,7 +146,7 @@ export function ConnectionTree({
       key={selectedConnection}
       nodes={rootNodes}
       kind="entries"
-      onExpand={onExpand}
+      onExpand={handleExpand}
       defaultExpandedItems={browseExpanded}
       revealItems={browseExpanded}
       nodeLinkProps={nodeLinkProps}

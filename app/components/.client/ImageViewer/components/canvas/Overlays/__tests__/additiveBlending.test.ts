@@ -41,10 +41,6 @@ vi.mock("../AdditivePolygonLayer", () => ({
   },
 }));
 
-vi.mock("~/toast-bridge", () => ({
-  toastBridge: { emit: vi.fn() },
-}));
-
 const makeFileMarkers = (): Record<string, CellMarker> => ({
   marker_positive_CD3: {
     color: [255, 0, 0, 1],

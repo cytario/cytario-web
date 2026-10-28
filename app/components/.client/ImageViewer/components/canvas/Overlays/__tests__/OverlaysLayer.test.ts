@@ -3,7 +3,6 @@ import { vi } from "vitest";
 import type { CellMarker, OverlayConfig } from "../../../../state/store/types";
 import { createMarkerProps } from "../markerUniforms";
 import { OverlaysLayer } from "../OverlaysLayer";
-import { toastBridge } from "~/toast-bridge";
 
 // deck.gl's TileLayer constructor pulls in the whole runtime (luma.gl, gl
 // matrices, etc.) which happy-dom can't handle. We only care about the
@@ -30,15 +29,13 @@ vi.mock("../AdditiveScatterplotLayer", () => ({
   },
 }));
 
-vi.mock("~/toast-bridge", () => ({
-  toastBridge: { emit: vi.fn() },
-}));
-
 vi.mock("../AdditivePolygonLayer", () => ({
   AdditivePolygonLayer: class {
     constructor(public props: Record<string, unknown>) {}
   },
 }));
+
+const showToast = vi.fn();
 
 const makeFileMarkers = (): Record<string, CellMarker> => ({
   marker_positive_CD3: {
@@ -65,6 +62,7 @@ const buildLayer = (overrides: Partial<Parameters<typeof OverlaysLayer>[0]> = {}
     strokeOpacity: 1,
     loadTile: vi.fn(),
     finishTile: vi.fn(),
+    showToast,
     ...overrides,
   });
 
@@ -82,7 +80,7 @@ describe("OverlaysLayer", () => {
   });
 
   test("getTileData failures emit exactly one toast per resource+config", async () => {
-    vi.mocked(toastBridge.emit).mockClear();
+    showToast.mockClear();
     const layer = buildLayer() as unknown as {
       props: {
         getTileData: (t: {
@@ -99,7 +97,7 @@ describe("OverlaysLayer", () => {
       layer.props.getTileData(tile),
     ]);
     // one failure per resource+config per store run — repeated tile errors stay silent
-    expect(toastBridge.emit).toHaveBeenCalledTimes(1);
+    expect(showToast).toHaveBeenCalledTimes(1);
   });
 
   test("reconfiguration changes the cache key and updateTriggers", () => {

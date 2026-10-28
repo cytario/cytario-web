@@ -7,8 +7,8 @@ import { validateOAuthState, validateRedirectTo } from "~/.server/auth/oauthStat
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import { createLabel } from "~/.server/logging";
-import { NotificationInput } from "~/components/Notification/Notification.store";
 import { cytarioConfig } from "~/config";
+import { type NotificationInput } from "~/utils/notifications";
 
 const label = createLabel("auth-callback", "cyan");
 

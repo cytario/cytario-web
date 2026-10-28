@@ -1,4 +1,4 @@
-import { Button, Dialog, Input, Select, Spinner } from "@cytario/design";
+import { Button, Dialog, Input, Select, Spinner, useToast } from "@cytario/design";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import type {
@@ -38,6 +38,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
 
   const initialConnectionId = options.connectionId ?? connectionIds[0] ?? "";
   const [activeConnectionId, setActiveConnectionId] = useState(initialConnectionId);
+  const { toast } = useToast();
 
   // The root row is always the connection root, so the whole connection stays
   // reachable in either mode; `initialPath` only pre-selects the folder the
@@ -66,7 +67,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
 
   const onExpand = useCallback(
     async (parent: TreeNode) => {
-      const children = await defaultOnExpand(parent);
+      const children = await defaultOnExpand(parent, toast);
       setLoadedFiles((prev) => {
         const next = new Map(prev);
         for (const child of children) {
@@ -85,7 +86,7 @@ export function StoragePickerModal({ options, onConfirm, onCancel }: StoragePick
       }
       return children;
     },
-    [isFolderMode, initialFolderId],
+    [isFolderMode, initialFolderId, toast],
   );
 
   const toggleNode = useCallback((node: TreeNode) => {
