@@ -9,12 +9,14 @@ const {
   getSessionMock,
   getSessionDataMock,
   getProviderCatalogMock,
+  getBucketCatalogMock,
   listConnectionsMock,
   resolveMock,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   getSessionDataMock: vi.fn(),
   getProviderCatalogMock: vi.fn(),
+  getBucketCatalogMock: vi.fn(),
   listConnectionsMock: vi.fn(),
   resolveMock: vi.fn(),
 }));
@@ -27,6 +29,14 @@ vi.mock("~/.server/auth/getSession", () => ({
 vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
   resolveConnectionProviderWithGrants: resolveMock,
+}));
+
+vi.mock("~/.server/providers/bucketCatalog.server", () => ({
+  getBucketCatalog: getBucketCatalogMock,
+}));
+
+vi.mock("~/config", () => ({
+  cytarioConfig: { providers: { source: "portal" } },
 }));
 
 vi.mock("~/routes/connections/connections.server", () => ({
@@ -53,6 +63,7 @@ describe("resolveConnectSrcHosts", () => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     getSessionMock.mockResolvedValue({});
     listConnectionsMock.mockResolvedValue([]);
+    getBucketCatalogMock.mockResolvedValue({ buckets: [] });
     resolveMock.mockImplementation(
       (
         _catalog: unknown,
@@ -114,6 +125,77 @@ describe("resolveConnectSrcHosts", () => {
     const hosts = await resolveConnectSrcHosts(requestWithCookie());
     expect(hosts).toContain("https://s3.eu-central-1.amazonaws.com");
     expect(hosts).toContain("https://data.open.example.org");
+  });
+
+  test("admits a registered bucket's region when it differs from the provider default", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [{ id: "aws", endpoint: null, region: "us-east-1" }],
+    });
+    getBucketCatalogMock.mockResolvedValue({
+      buckets: [
+        {
+          providerConnectionId: "aws",
+          bucketName: "sea-ad-spatial-transcriptomics",
+          region: "us-west-2",
+        },
+      ],
+    });
+    listConnectionsMock.mockResolvedValue([]);
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toContain("https://s3.us-west-2.amazonaws.com");
+    expect(hosts).toContain("https://s3.us-east-1.amazonaws.com");
+  });
+
+  test("passes the bucket catalog to the connection resolver — bucket-row region wins for existing connections", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [{ id: "aws", endpoint: null, region: "us-east-1" }],
+    });
+    const bucketCatalog = {
+      buckets: [{ providerConnectionId: "aws", bucketName: "allencell", region: "us-west-2" }],
+    };
+    getBucketCatalogMock.mockResolvedValue(bucketCatalog);
+    listConnectionsMock.mockResolvedValue([
+      {
+        providerConnectionId: "aws",
+        bucketName: "allencell",
+        publicEndpoint: null,
+        publicRegion: null,
+        grants: [],
+      },
+    ]);
+    resolveMock.mockImplementation(
+      (
+        _catalog: unknown,
+        connection: { publicEndpoint?: string | null; publicRegion?: string | null },
+        bucketRows?: { buckets: Array<{ region: string }> },
+      ) => {
+        const bucketRow = bucketRows?.buckets[0];
+        return {
+          endpoint: connection.publicEndpoint ?? null,
+          region: bucketRow?.region ?? connection.publicRegion ?? "us-east-1",
+        };
+      },
+    );
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(resolveMock).toHaveBeenCalledWith(expect.anything(), expect.anything(), bucketCatalog);
+    expect(hosts).toContain("https://s3.us-west-2.amazonaws.com");
+  });
+
+  test("a bucket-catalog lookup failure degrades to the provider-default regions", async () => {
+    getSessionDataMock.mockResolvedValue(sessionWith(ORG));
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [{ id: "aws", endpoint: null, region: "us-east-1" }],
+    });
+    getBucketCatalogMock.mockRejectedValue(new Error("portal unreachable"));
+    listConnectionsMock.mockResolvedValue([]);
+
+    const hosts = await resolveConnectSrcHosts(requestWithCookie());
+    expect(hosts).toEqual(["https://s3.us-east-1.amazonaws.com"]);
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   test("fails closed when no hosts resolve — never a wildcard", async () => {
