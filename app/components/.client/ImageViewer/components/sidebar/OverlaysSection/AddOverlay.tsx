@@ -1,6 +1,7 @@
 import { Badge, Button, EmptyState, useToast } from "@cytario/design";
 import { useCallback, useMemo, useState } from "react";
 
+import { useCanWrite } from "../../../utils/useCanAnnotate";
 import { type OverlayEntry } from "~/components/.client/ImageViewer/state/store/types";
 import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSwitcherChip";
 import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
@@ -42,6 +43,9 @@ export function AddOverlay({
   const [override, setOverride] = useState<string | null>(sourceConnection || null);
   const [searchTerm, setSearchTerm] = useState(sourceName);
   const selectedConnection = override ?? connectionIds[0] ?? "";
+  // The tree only lists files of the selected connection, so one gate for it
+  // covers every node the user can pick.
+  const canWrite = useCanWrite(`${selectedConnection}/`);
 
   // Registry entry for the picker's extension scope ("Parquet" / "CSV").
   const scopeType = getFileTypeEntry(`file.${extension}`);
@@ -56,7 +60,20 @@ export function AddOverlay({
       };
       try {
         if (extension === "csv") {
-          convertCsvToParquet(node.id);
+          if (!canWrite) {
+            toast({
+              variant: "error",
+              message: `Cannot convert ${node.name}: this connection is read-only.`,
+            });
+            finish();
+            return;
+          }
+          void convertCsvToParquet(node.id).catch((error: unknown) => {
+            toast({
+              variant: "error",
+              message: `Conversion of ${node.name} failed: ${error instanceof Error ? error.message : "unknown error"}`,
+            });
+          });
           toast({ variant: "success", message: `Started conversion: ${node.name}` });
           finish();
           return;
@@ -94,7 +111,7 @@ export function AddOverlay({
         finish();
       }
     },
-    [extension, onOverlayAdd, toast, callback, busy],
+    [extension, onOverlayAdd, toast, callback, busy, canWrite],
   );
 
   if (!selectedConnection) {

@@ -8,6 +8,7 @@ import { FormattedTextView } from "./FormattedTextView";
 import { PlainTextView } from "./PlainTextView";
 import { readTextFile } from "./readText";
 import { writeTextFile } from "./writeText";
+import { useCanWrite } from "~/components/.client/ImageViewer/utils/useCanAnnotate";
 import { getFileType, getExtension } from "~/utils/fileType";
 import type { SignedFetch } from "~/utils/signedFetch";
 
@@ -47,6 +48,9 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
   const ext = getExtension(resourceId);
   const extensions = useMemo(() => [EditorView.lineWrapping, ...languageExtensions(ext)], [ext]);
   const formatted = isFormattedTextType(getFileType(resourceId));
+  // S3 remains the enforcement boundary; this only keeps the UI from offering
+  // an edit that cannot persist on a read-only connection.
+  const canWrite = useCanWrite(resourceId);
 
   const dirty = content !== originalContent;
 
@@ -84,17 +88,17 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
     }
   }, [resourceId, content, signedFetch]);
 
-  // Cmd/Ctrl+S to save
+  // Cmd/Ctrl+S to save — never on a read-only connection.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        if (dirty && !saving) handleSave();
+        if (canWrite && dirty && !saving) handleSave();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [dirty, saving, handleSave]);
+  }, [canWrite, dirty, saving, handleSave]);
 
   if (loading) {
     return (
@@ -140,13 +144,19 @@ export function TextEditor({ resourceId, signedFetch }: TextEditorProps) {
         <div className="flex items-center gap-2">
           {error && <span className="text-sm text-destructive">{error}</span>}
           {editMode && (
-            <Button onPress={handleSave} isDisabled={!dirty || saving} variant="secondary">
+            <Button
+              onPress={handleSave}
+              isDisabled={!dirty || saving || !canWrite}
+              variant="secondary"
+            >
               {saving ? "Saving…" : "Save"}
             </Button>
           )}
-          <Button variant="secondary" onPress={() => setEditMode((editing) => !editing)}>
-            {editMode ? "Back to view" : "Edit"}
-          </Button>
+          {canWrite && (
+            <Button variant="secondary" onPress={() => setEditMode((editing) => !editing)}>
+              {editMode ? "Back to view" : "Edit"}
+            </Button>
+          )}
         </div>
       </header>
       {editMode ? (

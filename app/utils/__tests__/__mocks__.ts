@@ -32,6 +32,7 @@ const mock = {
     createdBy: "mock-user-id",
     providerConnectionId: "pc-mock",
     prefix: "",
+    publicEndpoint: null,
     bucketPolicyStatus: "none",
     grants: data.grants ?? [mock.connectionGrant()],
     ...(data as Omit<typeof data, "grants">),
@@ -43,6 +44,7 @@ const mock = {
     endpoint: null,
     region: "us-east-1",
     status: "connected",
+    isPublic: false,
     ...data,
   }),
   providerRole: (data: Partial<ProviderRole> = {}): ProviderRole => ({
@@ -200,6 +202,7 @@ export const seedViewerConnection = (
           endpoint: null,
           allowsSharing: false,
           accessLevel,
+          isPublic: false,
         },
         status: "connected",
       },

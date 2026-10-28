@@ -24,6 +24,7 @@ createdBy            String
 bucketName           String
 providerConnectionId String // reference to the portal-managed / OSS-configured provider connection (carries provider type, endpoint, region)
 prefix               String             @default("")
+publicEndpoint       String? // per-connection endpoint override for public provider connections; null = the provider default
 bucketPolicyStatus   BucketPolicyStatus @default(none)
 
 grants         ConnectionGrant[] @relation("ConnectionGrants")

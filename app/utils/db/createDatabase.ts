@@ -75,6 +75,11 @@ type DuckDbHandle = Awaited<ReturnType<typeof createDatabaseInternal>>;
 // stale "already applied" verdict.
 const appliedKeyIds = new WeakMap<DuckDbHandle["connection"], string | undefined>();
 
+// Sentinel for the credential-less (public provider) case: DuckDB reads a
+// public bucket with no `s3_access_key_id` set at all, so nothing is applied
+// and the sentinel only marks the connection as already anonymous.
+const ANONYMOUS_S3_KEY_ID = "__anonymous__";
+
 // Serialize `SET s3_*` per resourceId: two concurrent reads straddling a
 // rotation would otherwise interleave their SET trios on the shared
 // connection and leave a mismatched key/secret pair behind.
@@ -142,7 +147,7 @@ function evictBeyondCap() {
  */
 export const createDatabase = async (
   resourceId: string,
-  credentials: Credentials,
+  credentials: Credentials | null,
   provider?: DatabaseProvider | null,
 ) => {
   let tracked = evictedHandles.get(resourceId);
@@ -184,9 +189,15 @@ export const createDatabase = async (
 
   const previous = pendingApplications.get(resourceId) ?? Promise.resolve();
   const application = previous.then(async () => {
-    if (appliedKeyIds.get(connection) !== credentials.AccessKeyId) {
-      await applyS3Credentials(connection, credentials);
-      appliedKeyIds.set(connection, credentials.AccessKeyId);
+    // The rotation bookkeeping keys on AccessKeyId; the anonymous case uses an
+    // explicit sentinel so a null credential does not re-apply (or attempt to)
+    // on every call.
+    const appliedKey = credentials ? credentials.AccessKeyId : ANONYMOUS_S3_KEY_ID;
+    if (appliedKeyIds.get(connection) !== appliedKey) {
+      if (credentials) {
+        await applyS3Credentials(connection, credentials);
+      }
+      appliedKeyIds.set(connection, appliedKey);
     }
   });
   // Keep the chain alive past a failed application so the next caller retries.

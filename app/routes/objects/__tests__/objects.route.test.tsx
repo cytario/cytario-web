@@ -17,6 +17,7 @@ function seedConnection(connectionId: string) {
           region: "eu-central-1",
           endpoint: null,
           allowsSharing: false,
+          isPublic: false,
           accessLevel: "annotate",
         },
         status: "connected",
@@ -257,9 +258,10 @@ describe("Bucket Route", () => {
     expect(receivedUrl).toContain("mock-bucket");
   });
 
-  test("persistent url-resolution failure falls back to the built-in viewer", async () => {
-    // Connection present but without credentials: resolveResourceId keeps
-    // failing even after the store populates — the dead-loader case.
+  test("a public (credential-less) connection resolves and renders the plugin viewer", async () => {
+    // A public connection carries a null credential and no error: the URL
+    // resolves and the plugin viewer renders (the null credential is healthy,
+    // not a dead-loader case).
     useConnectionsStore.setState({
       connections: {
         "aws-test-bucket": {
@@ -269,7 +271,8 @@ describe("Bucket Route", () => {
             region: "eu-central-1",
             endpoint: null,
             allowsSharing: false,
-            accessLevel: "annotate",
+            isPublic: true,
+            accessLevel: "read-only",
           },
           status: "connected",
         },
@@ -281,14 +284,11 @@ describe("Bucket Route", () => {
     });
 
     const StubZarr = stubSingleFile("test/path/to/data.zarr");
-    const { container } = render(
-      <StubZarr initialEntries={["/connections/aws-test-bucket/test/path/to/data.zarr"]} />,
-    );
+    render(<StubZarr initialEntries={["/connections/aws-test-bucket/test/path/to/data.zarr"]} />);
 
     await waitFor(() => {
-      expect(container.querySelector("canvas#deckgl-overlay")).toBeInTheDocument();
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
     });
-    expect(screen.queryByTestId("plugin-viewer")).not.toBeInTheDocument();
   });
 
   test("falls back to the built-in viewer when a plugin's canHandle resolves false", async () => {

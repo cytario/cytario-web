@@ -210,6 +210,54 @@ describe("getAllSessionCredentials", () => {
     expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
+  test("a public connection never mints, records no error, and prunes a stale credential", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({ id: "pc-mock", isPublic: true }),
+          mock.providerConnection({ id: "pc-private" }),
+        ],
+        providerRoles: [
+          mock.providerRole({ providerConnectionId: "pc-private", accessLevel: "read-write" }),
+        ],
+      }),
+    );
+    const sessionData = {
+      ...mockSessionData,
+      credentials: {
+        "public-conn": mock.credentials(),
+        // A sibling private connection with an expired credential re-mints.
+        "private-conn": mock.credentials({
+          Expiration: new Date(Date.now() - 60 * 1000),
+        }),
+      },
+    };
+
+    const result = await getAllSessionCredentials(sessionData, [
+      mock.connectionConfig({
+        id: "public-conn",
+        name: "public-conn",
+        grants: [mock.connectionGrant({ accessLevel: "read-only" })],
+      }),
+      mock.connectionConfig({
+        id: "private-conn",
+        name: "private-conn",
+        providerConnectionId: "pc-private",
+      }),
+    ]);
+
+    // The private sibling re-minted once; the public connection did not.
+    expect(Object.keys(result.errors)).toEqual([]);
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(result.credentials["public-conn"]).toBeUndefined();
+    expect(result.errors["public-conn"]).toBeUndefined();
+    expect(result.providers["public-conn"]).toMatchObject({
+      isPublic: true,
+      accessLevel: "read-only",
+      allowsSharing: false,
+    });
+  });
+
   test("fetches credentials for connections with expired credentials", async () => {
     const sessionData = {
       ...mockSessionData,

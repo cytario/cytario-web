@@ -140,8 +140,8 @@ describe("probeBucketCors", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test("host_not_allowed: refuses to fetch an http:// URL", async () => {
-    const result = await probeBucketCors("http://localhost:9000/my-bucket", CYTARIO_ORIGIN);
+  test("host_not_allowed: refuses to fetch a non-loopback http:// URL", async () => {
+    const result = await probeBucketCors("http://minio.example.com/my-bucket", CYTARIO_ORIGIN);
 
     expect(result.ok).toBe(false);
     expect(result.reason).toBe("host_not_allowed");

@@ -68,6 +68,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
         bucketName: data.bucketName,
         providerConnectionId: data.providerConnectionId,
         prefix: data.prefix,
+        publicEndpoint: null,
       },
       data.grants,
     );

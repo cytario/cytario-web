@@ -21,11 +21,12 @@ export interface ConnectionProbeResult {
 /**
  * Per-connection health probe. One bounded `ListObjectsV2` verifies the bucket
  * is reachable and, as a side benefit, surfaces the first image as a preview
- * candidate. `CorsLikelyError` is reported as a reachability failure.
+ * candidate. A null credential (a public connection) probes unsigned.
+ * `CorsLikelyError` is reported as a reachability failure.
  */
 export async function probeConnection(
   config: ConnectionConfig,
-  credentials: Credentials,
+  credentials: Credentials | null,
   provider?: ProbeProvider,
   signal?: AbortSignal,
 ): Promise<ConnectionProbeResult> {

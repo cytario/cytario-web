@@ -8,6 +8,7 @@ import { applyBucketPolicy } from "~/.server/storage/bucketPolicyApply.server";
 import { type RustfsBucketPolicyGrant } from "~/.server/storage/rustfsBucketPolicy";
 import {
   applyBucketGrantSet,
+  applyGrantsAndRecordStatus,
   assembleBucketGrants,
   grantForConnection,
   resolveApplyTarget,
@@ -332,6 +333,42 @@ describe("validateProviderRefs", () => {
   });
 });
 
+describe("validateProviderRefs (public provider)", () => {
+  const publicCatalog = mock.providerCatalog({
+    providerConnections: [mock.providerConnection({ id: "pc-public", isPublic: true })],
+    providerRoles: [],
+  });
+
+  test("accepts a read-only grant with no storage role row at all", () => {
+    const result = validateProviderRefs(publicCatalog, {
+      providerConnectionId: "pc-public",
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "read-only", scope: "lab/team-a" }],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.providerRoles).toEqual([]);
+      expect(result.providerConnection.isPublic).toBe(true);
+    }
+  });
+
+  test("rejects any non-read-only grant level", () => {
+    for (const accessLevel of ["annotate", "read-write", "admin"]) {
+      const result = validateProviderRefs(publicCatalog, {
+        providerConnectionId: "pc-public",
+        bucketName: "mock-bucket",
+        grants: [{ accessLevel, scope: "lab/team-a" }],
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors["grants.0.accessLevel"]).toEqual([
+          "A public provider connection only supports the read-only access level",
+        ]);
+      }
+    }
+  });
+});
+
 describe("applyBucketGrantSet", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -455,6 +492,100 @@ describe("applyBucketGrantSet", () => {
   });
 });
 
+describe("public providers never apply a bucket policy", () => {
+  const publicCatalog = mock.providerCatalog({
+    providerConnections: [mock.providerConnection({ id: "pc-mock", isPublic: true })],
+    providerRoles: [],
+  });
+  const acting = {
+    user: mock.user(),
+    idToken: "tok",
+    accessToken: "acc",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog);
+  });
+
+  test("applyGrantsAndRecordStatus records externally_managed and never applies", async () => {
+    const config = mock.connectionConfig({
+      bucketName: "b",
+      providerConnectionId: "pc-mock",
+      grants: [mock.connectionGrant({ accessLevel: "read-only" })],
+    });
+
+    const outcome = await applyGrantsAndRecordStatus(config, acting);
+
+    expect(outcome.status).toBe("applied");
+    expect(applyBucketPolicy).not.toHaveBeenCalled();
+    expect(prisma.connectionConfig.findMany).not.toHaveBeenCalled();
+    expect(prisma.connectionConfig.update).toHaveBeenCalledWith({
+      where: { id: config.id },
+      data: { bucketPolicyStatus: "externally_managed" },
+    });
+  });
+
+  test("applyBucketGrantSet skips outright for a public apply connection", async () => {
+    const outcome = await applyBucketGrantSet(
+      { organization: "org1", providerConnectionId: "pc-mock", bucketName: "b" },
+      mock.connectionConfig({ bucketName: "b", providerConnectionId: "pc-mock" }),
+      acting,
+    );
+
+    expect(outcome.status).toBe("applied");
+    expect(applyBucketPolicy).not.toHaveBeenCalled();
+    expect(prisma.connectionConfig.findMany).not.toHaveBeenCalled();
+  });
+
+  test("applyBucketGrantSet skips when the bucket's own provider is public even if the apply connection is private", async () => {
+    const mixedCatalog = mock.providerCatalog({
+      providerConnections: [
+        mock.providerConnection({ id: "pc-mock", isPublic: true }),
+        mock.providerConnection({ id: "pc-private" }),
+      ],
+      providerRoles: [mock.providerRole({ providerConnectionId: "pc-private" })],
+    });
+    vi.mocked(getProviderCatalog).mockResolvedValue(mixedCatalog);
+    vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue([
+      mock.connectionConfig({ bucketName: "b", providerConnectionId: "pc-mock" }),
+    ]);
+
+    const outcome = await applyBucketGrantSet(
+      { organization: "org1", providerConnectionId: "pc-mock", bucketName: "b" },
+      mock.connectionConfig({ bucketName: "b", providerConnectionId: "pc-private" }),
+      acting,
+    );
+
+    expect(outcome.status).toBe("applied");
+    expect(applyBucketPolicy).not.toHaveBeenCalled();
+  });
+
+  test("an unrelated public provider does not widen a private bucket's query", async () => {
+    const mixedCatalog = mock.providerCatalog({
+      providerConnections: [
+        mock.providerConnection({ id: "pc-mock" }),
+        mock.providerConnection({ id: "pc-public", isPublic: true }),
+      ],
+      providerRoles: [mock.providerRole({ providerConnectionId: "pc-mock" })],
+    });
+    vi.mocked(getProviderCatalog).mockResolvedValue(mixedCatalog);
+    vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue([
+      mock.connectionConfig({ bucketName: "b", providerConnectionId: "pc-mock" }),
+    ]);
+
+    const bucket = { organization: "org1", providerConnectionId: "pc-mock", bucketName: "b" };
+    await applyBucketGrantSet(bucket, mock.connectionConfig(), acting);
+
+    // The provider narrowing is the tenant boundary here: dropping or widening it
+    // would recompute the set from other providers' rows on the same bucket name.
+    expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
+      where: bucket,
+      include: { grants: true },
+    });
+  });
+});
+
 describe("resolveApplyTarget", () => {
   test("prefers a sharing-capable grant's role for the write session even when a read-only grant comes first", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(shareableCatalog);
@@ -553,6 +684,39 @@ describe("validateBucketRef (C-343)", () => {
     expect(result.ok).toBe(false);
     if (!result.ok && "formError" in result) {
       expect(result.formError).toBe("portal down");
+    }
+  });
+
+  test("skips the registration check for a public provider connection (free-text bucket)", async () => {
+    vi.mocked(getBucketCatalog).mockClear();
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog({ buckets: [] }));
+    const result = await validateBucketRef(
+      "org1",
+      "tok",
+      { providerConnectionId: "pc-public", bucketName: "any-public-bucket" },
+      mock.providerConnection({ id: "pc-public", isPublic: true }),
+    );
+    expect(result.ok).toBe(true);
+    expect(getBucketCatalog).not.toHaveBeenCalled();
+  });
+
+  test("still refuses an unregistered bucket for a non-public provider connection", async () => {
+    vi.mocked(getBucketCatalog).mockResolvedValue(
+      mock.bucketCatalog({
+        buckets: [mock.bucketLookupRow({ providerConnectionId: "pc-1", bucketName: "my-bucket" })],
+      }),
+    );
+    const result = await validateBucketRef(
+      "org1",
+      "tok",
+      { providerConnectionId: "pc-1", bucketName: "other-bucket" },
+      mock.providerConnection({ id: "pc-1" }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok && "errors" in result) {
+      expect(result.errors.bucketName).toContainEqual(
+        "This bucket is not registered under the selected provider connection.",
+      );
     }
   });
 });

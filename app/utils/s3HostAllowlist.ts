@@ -14,14 +14,25 @@ const readProcessEnv = (): Record<string, string | undefined> => {
   return {};
 };
 
+const isLocalEnv = (env: Record<string, string | undefined>): boolean =>
+  env.NODE_ENV === "development" || env.NODE_ENV === "test";
+
 /**
  * Accept `https://host[:port]` and `https://*.host[:port]`. Only a leading
  * `*.` wildcard label is allowed — embedded `*` would smuggle a permissive
- * pattern past validation.
+ * pattern past validation. In local environments, `http://localhost[:port]`
+ * and `http://127.0.0.1[:port]` are also accepted so test/dev object stores
+ * work without TLS.
  */
-const isWellFormedAllowlistEntry = (entry: string): boolean => {
-  if (!entry.startsWith("https://")) return false;
-  const rest = entry.slice("https://".length);
+const isWellFormedAllowlistEntry = (
+  entry: string,
+  env: Record<string, string | undefined> = readProcessEnv(),
+): boolean => {
+  const isLoopbackHttp =
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(entry) && isLocalEnv(env);
+  if (!entry.startsWith("https://") && !isLoopbackHttp) return false;
+
+  const rest = entry.slice(isLoopbackHttp ? "http://".length : "https://".length);
   if (rest.length === 0) return false;
 
   // URL parser balks on `*.` patterns, so split manually.
@@ -63,7 +74,7 @@ export function getAllowedS3Hosts(
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
     .filter((entry) => {
-      if (isWellFormedAllowlistEntry(entry)) return true;
+      if (isWellFormedAllowlistEntry(entry, env)) return true;
       console.warn(`[s3HostAllowlist] Ignoring malformed CYTARIO_ALLOWED_S3_HOSTS entry: ${entry}`);
       return false;
     });
@@ -81,8 +92,10 @@ const hostnameMatchesPattern = (hostname: string, patternHostname: string): bool
 };
 
 /**
- * https-only by design — the schema's dev http carve-out for localhost
- * does not flow through here so the SSRF surface stays narrow.
+ * https-only, except loopback http (`http://localhost` / `http://127.0.0.1`),
+ * which is admitted only in local environments so dev/test object stores work
+ * without TLS — loopback cannot be an SSRF oracle against anyone else's
+ * network, and the surface stays otherwise https-only.
  */
 export function isAllowedS3Host(
   url: string,
@@ -93,6 +106,10 @@ export function isAllowedS3Host(
     parsed = new URL(url);
   } catch {
     return false;
+  }
+
+  if (parsed.protocol === "http:") {
+    return isLocalEnv(env) && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
   }
   if (parsed.protocol !== "https:") return false;
 

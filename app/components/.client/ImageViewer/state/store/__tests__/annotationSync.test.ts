@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attachAnnotationSync } from "../annotations/annotationSync";
 import type { createViewerStore } from "../createViewerStore";
 import { toastBridge } from "~/toast-bridge";
+import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import { deleteAnnotations } from "~/utils/db/deleteAnnotations";
 import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 import { readAllAnnotations } from "~/utils/db/getAnnotationsWasm";
@@ -80,6 +81,9 @@ describe("attachAnnotationSync", () => {
     writeMock.mockResolvedValue(undefined);
     deleteMock.mockReset();
     deleteMock.mockResolvedValue(undefined);
+    // The flush's read-only guard reads the connections store; seed the
+    // viewer's connection as annotatable so the write path is exercised.
+    seedViewerConnection("conn", "annotate");
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -178,6 +182,25 @@ describe("attachAnnotationSync", () => {
     );
   });
 
+  it("skips the flush entirely on a read-only connection", async () => {
+    seedViewerConnection("conn", "read-only");
+    const { store, state, fire } = makeFakeStore();
+    attachAnnotationSync(store);
+    await vi.runAllTimersAsync();
+
+    state.annotationSets = [makeSet("set-1", "user-1", [feature()])]; // edit
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(writeMock).not.toHaveBeenCalled();
+
+    state.annotationSets = []; // delete
+    fire();
+    await vi.runAllTimersAsync();
+
+    expect(deleteMock).not.toHaveBeenCalled();
+  });
+
   it("does not create a file for a new set's empty features (lazy create)", async () => {
     const { store, state, fire } = makeFakeStore();
     attachAnnotationSync(store);
@@ -232,6 +255,7 @@ describe("attachAnnotationSync — set deletion", () => {
     writeMock.mockResolvedValue(undefined);
     deleteMock.mockReset();
     deleteMock.mockResolvedValue(undefined);
+    seedViewerConnection("conn", "annotate");
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -326,6 +350,7 @@ describe("attachAnnotationSync — set rename", () => {
     writeMock.mockResolvedValue(undefined);
     deleteMock.mockReset();
     deleteMock.mockResolvedValue(undefined);
+    seedViewerConnection("conn", "annotate");
   });
   afterEach(() => {
     vi.useRealTimers();

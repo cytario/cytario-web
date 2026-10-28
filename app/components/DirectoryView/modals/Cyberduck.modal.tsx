@@ -13,6 +13,9 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
   const connectionConfig = useConnectionsStore(
     connectionId ? select.connectionConfig(connectionId) : () => undefined,
   );
+  const connection = useConnectionsStore(
+    connectionId ? select.connection(connectionId) : () => undefined,
+  );
 
   const handleClose = useCallback(() => {
     setSearchParams(
@@ -52,7 +55,11 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
           </li>
           <li>Download the connection profile below</li>
           <li>Double-click the downloaded profile to add it to Cyberduck</li>
-          <li>Connect and authenticate when prompted</li>
+          {connection?.provider?.isPublic ? (
+            <li>Connect and choose Anonymous Login when prompted (no credentials needed)</li>
+          ) : (
+            <li>Connect and authenticate when prompted</li>
+          )}
         </ol>
       </div>
 

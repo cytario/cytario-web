@@ -27,3 +27,19 @@ export function useCanAnnotate(): boolean {
   );
   return accessLevel !== "read-only";
 }
+
+/**
+ * Same writable check as {@link useCanAnnotate}, for consumers outside the
+ * viewer tree that already hold the resource id. Fails closed until the
+ * connections store hydrates.
+ */
+export function useCanWrite(resourceId: string): boolean {
+  // No parseResourceId: it throws on a connection-less id, which hooks must
+  // never do — an unparseable id simply fails closed.
+  const slashIndex = resourceId.indexOf("/");
+  const connectionId = slashIndex === -1 ? "" : resourceId.slice(0, slashIndex);
+  const accessLevel = useConnectionsStore(
+    (s) => s.connections[connectionId]?.provider?.accessLevel ?? "read-only",
+  );
+  return accessLevel !== "read-only";
+}

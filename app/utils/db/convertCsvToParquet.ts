@@ -54,7 +54,9 @@ export async function convertCsvToParquet(resourceId: string, config?: OverlayCo
 
     const { credentials, region, s3Uri } = resolveResourceId(resourceId);
 
-    await applyS3Credentials(conn, credentials);
+    if (credentials) {
+      await applyS3Credentials(conn, credentials);
+    }
     await conn.query(`SET s3_region='${escapeSqlString(region ?? "eu-central-1")}'`);
 
     const parquetDestination = `${s3Uri}.parquet`;

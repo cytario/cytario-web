@@ -11,7 +11,21 @@ import {
   validateConnectionAgainstCatalogs,
 } from "~/.server/connections/createConnection.server";
 import type { GrantInput } from "~/.server/connections/createConnection.server";
+import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
+import { cytarioConfig } from "~/config";
 import { canCreate } from "~/utils/authorization";
+import { getPrefix } from "~/utils/pathUtils";
+import { constructS3Url } from "~/utils/resourceId";
+import { isAllowedS3Host } from "~/utils/s3HostAllowlist";
+
+/** https://, or loopback http in a local environment — the same carve-out the
+ * S3-host allowlist applies, so the probe can never be pointed at a plaintext
+ * intranet host before the allowlist check even runs. */
+function isValidPublicEndpointScheme(endpoint: string): boolean {
+  const parsed = new URL(endpoint);
+  if (parsed.protocol === "https:") return true;
+  return isAllowedS3Host(endpoint);
+}
 
 /** A connection config field set for `createConnectionRecord`. */
 export type {
@@ -45,6 +59,105 @@ export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestErro
   };
 }
 
+/** Outcome of the create-time probe of a public provider's bucket: a refusal
+ * blocks the create; a missing CORS rule is a warning the admin must fix on the
+ * bucket — Cytario holds no credential and cannot write the rule itself. */
+interface PublicBucketProbeOutcome {
+  formError?: string;
+  corsWarning?: string;
+}
+
+async function probePublicBucket(
+  organization: string,
+  accessToken: string,
+  refs: {
+    providerConnectionId: string;
+    bucketName: string;
+    prefix: string;
+    publicEndpoint?: string | null;
+  },
+): Promise<PublicBucketProbeOutcome> {
+  let catalog;
+  try {
+    catalog = await getProviderCatalog(organization, accessToken);
+  } catch (error) {
+    return {
+      formError: error instanceof Error ? error.message : "Provider catalog is unavailable.",
+    };
+  }
+  const providerConnection = catalog.providerConnections.find(
+    (c) => c.id === refs.providerConnectionId,
+  );
+  if (!providerConnection) {
+    return { formError: "Unknown provider connection" };
+  }
+
+  const prefix = getPrefix(refs.prefix) ?? "";
+  const query = new URLSearchParams({ "list-type": "2", "max-keys": "1" });
+  if (prefix) query.set("prefix", prefix);
+  const bucketUrl = constructS3Url(
+    {
+      bucketName: refs.bucketName,
+      region: providerConnection.region,
+      endpoint: refs.publicEndpoint ?? providerConnection.endpoint,
+    },
+    "",
+  );
+  // SSRF surface: the request host derives from the catalog endpoint (or the
+  // user-typed per-connection endpoint) plus the submitted bucket name — never
+  // a bare user-supplied URL — and is checked against the deployment allowlist
+  // so the probe cannot become a port-scan oracle against an internal host an
+  // org admin pointed it at.
+  if (!isAllowedS3Host(bucketUrl)) {
+    return {
+      formError: `The provider's endpoint for "${refs.bucketName}" is not an allowed storage host. Ask an administrator to add it to the allowed S3 hosts.`,
+    };
+  }
+  const url = `${bucketUrl}?${query.toString()}`;
+
+  let listResponse: Response;
+  try {
+    listResponse = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return {
+      formError: `The bucket "${refs.bucketName}" could not be reached anonymously — check the provider's endpoint and region.`,
+    };
+  }
+
+  if (!listResponse.ok) {
+    return {
+      formError: `The bucket "${refs.bucketName}" does not allow public listing (HTTP ${listResponse.status}). A public connection requires a bucket policy that grants everyone s3:ListBucket.`,
+    };
+  }
+
+  const origin = new URL(cytarioConfig.endpoints.webapp).origin;
+  let corsResponse: Response;
+  try {
+    corsResponse = await fetch(url, {
+      method: "GET",
+      headers: { Origin: origin },
+      redirect: "follow",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return {
+      corsWarning: `Browser reads may be blocked: the bucket "${refs.bucketName}" could not be probed for cross-origin access. It must allow GET/HEAD from ${origin} (or any origin).`,
+    };
+  }
+  const allowOrigin = corsResponse.headers.get("access-control-allow-origin");
+  if (!allowOrigin || (allowOrigin !== "*" && allowOrigin !== origin)) {
+    return {
+      corsWarning: `Browser reads will be blocked: the bucket "${refs.bucketName}" does not allow cross-origin reads from ${origin}. Add a CORS rule allowing GET/HEAD from this origin (or any origin).`,
+    };
+  }
+
+  return {};
+}
+
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user, authTokens } = context.get(authContext);
   if (!user.organization) {
@@ -58,6 +171,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
     providerConnectionId: String(formData.get("providerConnectionId") ?? ""),
     bucketName: String(formData.get("bucketName") ?? ""),
     prefix: String(formData.get("prefix") ?? ""),
+    publicEndpoint: String(formData.get("publicEndpoint") ?? ""),
     grants: parseGrants(formData),
   };
 
@@ -92,6 +206,41 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
     };
   }
 
+  // A public provider's bucket must be anonymously listable before the row is
+  // written — the connection would otherwise be created unusable.
+  const providerCatalog = await getProviderCatalog(user.organization, authTokens.accessToken).catch(
+    () => undefined,
+  );
+  const providerIsPublic = providerCatalog?.providerConnections.some(
+    (c) => c.id === data.providerConnectionId && c.isPublic,
+  );
+  // Stripped for a non-public provider: the endpoint override is meaningless
+  // there and must never persist.
+  const publicEndpoint = providerIsPublic ? (data.publicEndpoint ?? null) : null;
+  if (publicEndpoint && !isValidPublicEndpointScheme(publicEndpoint)) {
+    return {
+      errors: {
+        publicEndpoint: [
+          "The endpoint must be an https:// URL (loopback http://localhost[:port] or http://127.0.0.1[:port] is allowed in development and test).",
+        ],
+      },
+      status: "error" as const,
+    };
+  }
+  let publicProbeWarning: string | undefined;
+  if (providerIsPublic) {
+    const probe = await probePublicBucket(user.organization, authTokens.accessToken, {
+      providerConnectionId: data.providerConnectionId,
+      bucketName: data.bucketName,
+      prefix: data.prefix,
+      publicEndpoint,
+    });
+    if (probe.formError) {
+      return { formError: probe.formError, status: "error" as const };
+    }
+    publicProbeWarning = probe.corsWarning;
+  }
+
   const session = context.get(sessionContext);
 
   try {
@@ -103,6 +252,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
         bucketName: data.bucketName,
         providerConnectionId: data.providerConnectionId,
         prefix: data.prefix,
+        publicEndpoint,
       },
       data.grants,
     );
@@ -112,11 +262,16 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       accessToken: session.get("authTokens")?.accessToken ?? "",
     });
     session.set("notification", {
-      status: outcome.status === "applied" ? "success" : "warning",
+      status: outcome.status === "applied" && !publicProbeWarning ? "success" : "warning",
       message:
-        outcome.status === "applied"
+        outcome.status === "applied" && !publicProbeWarning
           ? "Connection added successfully."
-          : `Connection added. ${outcome.warning}`,
+          : `Connection added. ${[
+              outcome.status === "applied" ? undefined : outcome.warning,
+              publicProbeWarning,
+            ]
+              .filter(Boolean)
+              .join(" ")}`,
     });
 
     return redirect(`/connections/${created.id}`, {

@@ -23,6 +23,9 @@ export async function listConnections(user: UserProfile): Promise<ConnectionConf
   const organization = requireOrganization(user);
   const allConfigs = await prisma.connectionConfig.findMany({
     where: { organization },
+    // Deterministic order — Postgres returns unordered rows without this, and
+    // the sidebar's default-selected connection follows the first entry.
+    orderBy: { name: "asc" },
     include: { grants: true },
   });
   return filterVisible(user, allConfigs);

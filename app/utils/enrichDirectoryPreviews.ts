@@ -11,7 +11,7 @@ const PREVIEW_CONCURRENCY = 4;
 
 export interface EnrichDirectoryPreviewsArgs {
   connectionConfig: ConnectionConfig;
-  credentials: Credentials;
+  credentials: Credentials | null;
   connectionId: string;
   provider?: { region?: string | null; endpoint?: string | null };
   signal?: AbortSignal;

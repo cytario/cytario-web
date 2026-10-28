@@ -169,6 +169,32 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(body.connections).toHaveLength(0);
   });
 
+  test("a public connection lists with a null roleArn and read-only access", async () => {
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([
+      mock.connectionConfig({
+        grants: [mock.connectionGrant({ scope: "*", accessLevel: "read-only" })],
+      }),
+    ]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: "pc-mock", isPublic: true })],
+        providerRoles: [],
+      }),
+    );
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as {
+      connections: Array<{ roleArn: string | null; accessLevel: string | null }>;
+    };
+
+    expect(response.status).toBe(200);
+    // The synthesized grant is ARN-less: the CLI fails closed on it.
+    expect(body.connections[0]?.roleArn).toBeNull();
+    expect(body.connections[0]?.accessLevel).toBe("read-only");
+  });
+
   test("uses the bucket-catalog region over the provider region", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
     vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);

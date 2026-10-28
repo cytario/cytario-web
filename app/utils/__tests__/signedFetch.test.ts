@@ -474,6 +474,74 @@ describe("createSignedFetch", () => {
     __resetCredentialsRefresher();
   });
 
+  describe("unsigned (public connection) path", () => {
+    const anonymousFetch = () => createSignedFetch(() => null, mockConfig);
+
+    test("sends no Authorization or x-amz-* header and no response-cache-control param", async () => {
+      await anonymousFetch()("https://bucket.s3.eu-central-1.amazonaws.com/key");
+
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).not.toContain("response-cache-control");
+      const headers = init.headers as Record<string, string>;
+      expect(Object.keys(headers).some((name) => /^x-amz-/i.test(name))).toBe(false);
+      expect(Object.keys(headers).some((name) => /^authorization$/i.test(name))).toBe(false);
+      expect(JSON.stringify(headers)).not.toMatch(/AWS4-HMAC-SHA256/);
+    });
+
+    test("passes only CORS-safelisted headers through", async () => {
+      await anonymousFetch()("https://bucket.s3.eu-central-1.amazonaws.com/key", {
+        headers: {
+          Range: "bytes=0-1024",
+          Accept: "application/json",
+          "If-None-Match": '"etag"',
+          "Cache-Control": "no-cache",
+          Authorization: "Bearer evil",
+          "x-amz-acl": "public-read",
+        },
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      const headers = init.headers as Record<string, string>;
+      // Range/Accept survive; If-None-Match and Cache-Control are dropped (they
+      // would force a preflight); Authorization/x-amz-* never pass the sanitizer.
+      expect(headers).toEqual({
+        Range: "bytes=0-1024",
+        Accept: "application/json",
+      });
+    });
+
+    test("follows redirects instead of blocking them", async () => {
+      await anonymousFetch()("https://s3.amazonaws.com/bucket/key");
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(init.redirect).toBe("follow");
+    });
+
+    test("maps a TypeError fetch failure to CorsLikelyError", async () => {
+      mockFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+      await expect(
+        anonymousFetch()("https://bucket.s3.eu-central-1.amazonaws.com/key"),
+      ).rejects.toBeInstanceOf(CorsLikelyError);
+    });
+
+    test("keeps the no-store retry for cache-op failures", async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      mockFetch.mockResolvedValueOnce(new Response("tile-bytes"));
+
+      const res = await anonymousFetch()("https://bucket.s3.eu-central-1.amazonaws.com/key");
+      expect(await res.text()).toBe("tile-bytes");
+      const [retryUrl, retryInit] = mockFetch.mock.calls[1];
+      expect(retryInit.cache).toBe("no-store");
+      expect(retryUrl).not.toContain("response-cache-control");
+    });
+
+    test("preserves caller-supplied query params", async () => {
+      await anonymousFetch()("https://bucket.s3.eu-central-1.amazonaws.com/key?versionId=foo");
+      const [url] = mockFetch.mock.calls[0];
+      expect(url).toContain("versionId=foo");
+    });
+  });
+
   test("SDS-CY-010405: Authorization.SignedHeaders lists every host-injected header", async () => {
     // Decode the SigV4 Authorization header and assert that every
     // host-injected header is present in the SignedHeaders=... list.

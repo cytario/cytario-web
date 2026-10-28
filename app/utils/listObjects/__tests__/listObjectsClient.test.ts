@@ -205,6 +205,25 @@ describe("listObjectsClient", () => {
     expect(url.startsWith("http://localhost:9000/minio-bucket?")).toBe(true);
   });
 
+  test("a null credential lists unsigned: no Authorization, no host-port headers, redirects followed", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(xml(`<IsTruncated>false</IsTruncated>${contentsXml(["a.tif"])}`), {
+        status: 200,
+      }),
+    );
+
+    const result = await listObjectsClient(mock.connectionConfig(), null, { prefix: "x/" });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("list-type=2");
+    expect(url).toContain("prefix=x%2F");
+    expect(init.redirect).toBe("follow");
+    const headers = (init.headers ?? {}) as Record<string, string>;
+    expect(headers.authorization).toBeUndefined();
+    expect(Object.keys(headers).some((name) => /^x-amz-/i.test(name))).toBe(false);
+    expect(result.contents.map((o) => o.Key)).toEqual(["a.tif"]);
+  });
+
   test("signed request carries Authorization header", async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(xml(`<IsTruncated>false</IsTruncated>`), { status: 200 }),

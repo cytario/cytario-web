@@ -152,6 +152,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   const connectionItems: SelectItem[] = useMemo(
     () =>
       (catalog?.providerConnections ?? []).map((c) => {
+        if (c.isPublic) return { id: c.id, name: c.name };
         const detail = c.endpoint
           ? `${c.region} (${c.endpoint})`
           : `${c.providerType.toUpperCase()} ${c.region}`;
@@ -166,6 +167,11 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
         .filter((b) => b.providerConnectionId === providerConnectionId)
         .map((b) => ({ id: b.bucketName, name: b.bucketName })),
     [bucketCatalog, providerConnectionId],
+  );
+  const selectedProviderIsPublic = useMemo(
+    () =>
+      (catalog?.providerConnections ?? []).some((c) => c.id === providerConnectionId && c.isPublic),
+    [catalog, providerConnectionId],
   );
   const userEditedName = useRef(isEditMode);
   const isAutoUpdatingName = useRef(false);
@@ -184,7 +190,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   }, [bucketName, prefix, setValue]);
 
   const fieldsPerStep: Record<number, Array<keyof ConnectBucketFormData>> = {
-    0: ["providerConnectionId", "bucketName", "prefix", "name"],
+    0: ["providerConnectionId", "bucketName", "publicEndpoint", "prefix", "name"],
     1: ["grants"],
   };
 
@@ -194,6 +200,9 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     formData.append("providerConnectionId", data.providerConnectionId);
     formData.append("bucketName", data.bucketName);
     formData.append("prefix", data.prefix ?? "");
+    if (selectedProviderIsPublic && data.publicEndpoint) {
+      formData.append("publicEndpoint", data.publicEndpoint);
+    }
     data.grants.forEach((grant, index) => {
       formData.append(`grants[${index}].scope`, grant.scope);
       formData.append(`grants[${index}].accessLevel`, grant.accessLevel);
@@ -247,6 +256,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
 
   const bucketHasRoles = useMemo(
     () =>
+      selectedProviderIsPublic ||
       bucketSource !== "portal" ||
       (!!bucketRowId &&
         (catalog?.providerRoles ?? []).some(
@@ -254,7 +264,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
             role.providerConnectionId === providerConnectionId &&
             role.bucketIds.includes(bucketRowId),
         )),
-    [catalog, providerConnectionId, bucketRowId, bucketSource],
+    [catalog, providerConnectionId, bucketRowId, bucketSource, selectedProviderIsPublic],
   );
 
   const grantSummary = useMemo(
@@ -320,7 +330,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                 name="bucketName"
                 control={control}
                 render={({ field, fieldState }) =>
-                  bucketSource === "portal" ? (
+                  bucketSource === "portal" && !selectedProviderIsPublic ? (
                     bucketCatalogError ? (
                       <Banner variant="danger" title="Bucket catalog unavailable">
                         {bucketCatalogError} You cannot compose a new connection until the bucket
@@ -354,6 +364,26 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
                   )
                 }
               />
+
+              {selectedProviderIsPublic && (
+                <Controller
+                  name="publicEndpoint"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Input
+                      label="Endpoint"
+                      description="Optional. The S3 endpoint of the public backend — leave empty for AWS."
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      placeholder="https://s3.us-east-1.amazonaws.com"
+                      size="lg"
+                      errorMessage={fieldState.error?.message}
+                    />
+                  )}
+                />
+              )}
 
               <Controller
                 name="prefix"

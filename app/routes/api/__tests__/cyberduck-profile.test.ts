@@ -162,4 +162,57 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
 
     expect(response.status).toBe(404);
   });
+
+  describe("public provider connection", () => {
+    function publicCatalog() {
+      return mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ isPublic: true })],
+        providerRoles: [],
+      });
+    }
+
+    function publicConnection() {
+      return mock.connectionConfig({
+        grants: [
+          mock.connectionGrant({ scope: "*", accessLevel: "read-only" }),
+          mock.connectionGrant({ scope: "org1/internal", accessLevel: "admin" }),
+        ],
+      });
+    }
+
+    test("member gets an anonymous-login profile with no OAuth, STS or rolearn", async () => {
+      vi.mocked(getConnection).mockResolvedValue(publicConnection());
+      vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog());
+      const user = mock.user({ groups: ["org1/internal"], adminScopes: [] });
+
+      const response = (await loader(buildArgs(user))) as Response;
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("application/xml");
+      const xml = await response.text();
+      expect(xml).toContain("<key>Anonymous Configurable</key>\n        <true/>");
+      expect(xml).not.toContain("OAuth Client ID");
+      expect(xml).not.toContain("STS Endpoint");
+      expect(xml).not.toContain("s3.assumerole.rolearn");
+      expect(xml).toContain("<key>s3.hostname.default</key>");
+      expect(xml).toContain("<key>Default Path</key>");
+    });
+
+    test("non-member is still refused with 403", async () => {
+      vi.mocked(getConnection).mockResolvedValue(
+        mock.connectionConfig({
+          grants: [mock.connectionGrant({ scope: "org1/private-team", accessLevel: "read-only" })],
+        }),
+      );
+      vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog());
+      const user = mock.user({ groups: [], adminScopes: [] });
+
+      const response = (await loader(buildArgs(user))) as Response;
+
+      expect(response.status).toBe(403);
+      expect(await response.text()).toBe(
+        "You are not a member of any group granted access to this connection.",
+      );
+    });
+  });
 });

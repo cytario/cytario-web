@@ -57,6 +57,22 @@ export const bucketNameSchema = z
     "Bucket name must be lowercase alphanumeric with dots or hyphens, no leading/trailing separator",
   );
 
+/** Maximum length of a URL accepted as a per-connection public endpoint. */
+export const MAX_PUBLIC_ENDPOINT_LENGTH = 2048;
+
+/** Optional and loose here (parse as a URL only) — the create action enforces
+ * scheme + the S3-host allowlist server-side, where the field can be trusted
+ * to have passed a boundary. */
+export const publicEndpointSchema = z
+  .string()
+  .trim()
+  .max(
+    MAX_PUBLIC_ENDPOINT_LENGTH,
+    `Endpoint must be at most ${MAX_PUBLIC_ENDPOINT_LENGTH} characters`,
+  )
+  .refine((val) => val === "" || URL.canParse(val), "Endpoint must be a valid URL")
+  .transform((val) => (val === "" ? undefined : val));
+
 /** A single grant: a group scope paired with an access level. The concrete
  * storage role for the level on the connection's bucket is resolved server-side
  * from the catalog — its IAM role ARN becomes the Principal of a managed
@@ -76,6 +92,7 @@ export const connectionSchema = z
     providerConnectionId: z.string().min(1, "A provider connection is required"),
     bucketName: bucketNameSchema,
     prefix: prefixSchema.default(""),
+    publicEndpoint: publicEndpointSchema.optional(),
     grants: z.array(grantSchema).min(1, "At least one grant is required"),
   })
   .refine((data) => new Set(data.grants.map((g) => g.scope)).size === data.grants.length, {
@@ -114,6 +131,7 @@ export const defaultFormValues: ConnectBucketFormData = {
   providerConnectionId: "",
   bucketName: "",
   prefix: "",
+  publicEndpoint: "",
   grants: [{ scope: "", accessLevel: "read-only" as const }],
 };
 

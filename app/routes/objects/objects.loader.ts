@@ -48,10 +48,9 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   const { bucketName, name: connectionName } = connectionConfig;
 
   const credentials = connectionsCredentials[connectionId] ?? null;
-  const connectionError = credentials
-    ? undefined
-    : (credentialErrors[connectionId] ??
-      "No credentials available for this connection. Verify the connection's role configuration.");
+  // A credential-less connection with no recorded mint error is public —
+  // credential-less by design, not broken.
+  const connectionError = credentials ? undefined : credentialErrors[connectionId];
 
   const rawUrlPath = params["*"] ?? "";
 

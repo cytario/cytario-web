@@ -166,4 +166,26 @@ describe("createConnectionWithCatalogValidation", () => {
     expect(result.ok).toBe(true);
     expect(getBucketCatalog).not.toHaveBeenCalled();
   });
+
+  test("persists the typed public endpoint, null when absent", async () => {
+    const created = mock.connectionConfig({ organization: "org1" });
+    vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created as never);
+
+    await createConnectionWithCatalogValidation(
+      "org1",
+      "admin-portal",
+      { ...payload, publicEndpoint: "https://s3.us-east-1.amazonaws.com" },
+      "",
+    );
+    expect(prisma.connectionConfig.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publicEndpoint: "https://s3.us-east-1.amazonaws.com" }),
+      }),
+    );
+
+    await createConnectionWithCatalogValidation("org1", "admin-portal", payload, "");
+    expect(prisma.connectionConfig.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ publicEndpoint: null }) }),
+    );
+  });
 });

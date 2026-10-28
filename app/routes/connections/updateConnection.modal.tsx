@@ -22,7 +22,8 @@ export default function UpdateConnectionModal({
 
   if (!user || !connectionId || !connectionConfig) return null;
 
-  const { name, bucketName, prefix, providerConnectionId, grants } = connectionConfig;
+  const { name, bucketName, prefix, publicEndpoint, providerConnectionId, grants } =
+    connectionConfig;
 
   const initialData = {
     connectionId,
@@ -30,6 +31,7 @@ export default function UpdateConnectionModal({
     providerConnectionId,
     bucketName,
     prefix,
+    publicEndpoint: publicEndpoint ?? "",
     grants: (grants ?? []).map((g) => ({
       scope: g.scope,
       accessLevel: isAccessLevel(g.accessLevel) ? g.accessLevel : "read-only",

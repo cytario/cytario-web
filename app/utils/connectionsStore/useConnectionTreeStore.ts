@@ -11,7 +11,7 @@ import { resolveConnectionPrefix } from "~/utils/pathUtils";
 
 export interface LoadConnectionLevelArgs {
   connectionConfig: ConnectionConfig;
-  credentials: Credentials;
+  credentials: Credentials | null;
   connectionId: string;
   connectionName: string;
   /** Resolved non-secret provider address (region/endpoint) from the catalog. */
@@ -35,7 +35,7 @@ export interface RawLevel {
 export interface LoadRawLevelArgs {
   connectionId: string;
   connectionConfig: ConnectionConfig;
-  credentials: Credentials;
+  credentials: Credentials | null;
   provider?: { region?: string | null; endpoint?: string | null };
   /** Resolved S3 prefix (connection prefix included). */
   prefix: string;

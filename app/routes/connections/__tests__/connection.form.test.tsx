@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -26,6 +27,15 @@ const catalog = {
       endpoint: null,
       region: "eu-central-1",
       status: "connected",
+    },
+    {
+      id: "pc-public",
+      name: "Public",
+      providerType: "aws",
+      endpoint: "https://s3.us-east-1.amazonaws.com",
+      region: "us-east-1",
+      status: "connected",
+      isPublic: true,
     },
   ],
   providerRoles: [
@@ -61,6 +71,15 @@ function renderForm(adminScopes: string[] = []) {
   return render(<Stub initialEntries={["/"]} />);
 }
 
+async function openProviderSelect() {
+  const user = userEvent.setup();
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /Provider connection/ })).toBeInTheDocument();
+  });
+  await user.click(screen.getByRole("button", { name: /Provider connection/ }));
+  return user;
+}
+
 describe("ConnectionForm — FK selectors (SRS-CY-32118)", () => {
   test("renders the provider selectors, not free-text role/endpoint inputs", async () => {
     renderForm();
@@ -83,5 +102,69 @@ describe("ConnectionForm — FK selectors (SRS-CY-32118)", () => {
     await waitFor(() => {
       expect(screen.getByText("Unknown access level")).toBeInTheDocument();
     });
+  });
+});
+
+describe("ConnectionForm — built-in public provider bucket input", () => {
+  test("the bucket is free text when the selected provider connection is public", async () => {
+    renderForm(["lab"]);
+    const user = await openProviderSelect();
+    await user.click(screen.getByRole("option", { name: "Public" }));
+
+    const bucketInput = (await screen.findByLabelText(/Bucket/)) as HTMLInputElement;
+    expect(bucketInput.tagName).toBe("INPUT");
+    expect(bucketInput.placeholder).toBe("my-bucket");
+
+    await user.type(bucketInput, "any-public-bucket");
+    expect(bucketInput.value).toBe("any-public-bucket");
+  });
+
+  test("no bucket-catalog banner shows for the public provider even when the catalog is down", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("bucket-catalog")) {
+          return { json: async () => ({ source: "portal", error: "Bucket catalog down." }) };
+        }
+        return { json: async () => ({ catalog }) } as unknown as Response;
+      }),
+    );
+    renderForm(["lab"]);
+    const user = await openProviderSelect();
+    await user.click(screen.getByRole("option", { name: "Public" }));
+
+    await screen.findByLabelText(/Bucket/);
+    expect(screen.queryByText("Bucket catalog unavailable")).toBeNull();
+    expect((screen.getByLabelText(/Bucket/) as HTMLInputElement).tagName).toBe("INPUT");
+  });
+
+  test("the public provider option label is exactly its name", async () => {
+    renderForm(["lab"]);
+    const user = await openProviderSelect();
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "Public" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("option", { name: "Public" }));
+    await screen.findByLabelText(/Endpoint/);
+  });
+
+  test("the endpoint input appears for a public provider and accepts an optional value", async () => {
+    renderForm(["lab"]);
+    const user = await openProviderSelect();
+    await user.click(screen.getByRole("option", { name: "Public" }));
+
+    const endpointInput = (await screen.findByLabelText(/Endpoint/)) as HTMLInputElement;
+    expect(endpointInput.placeholder).toBe("https://s3.us-east-1.amazonaws.com");
+    await user.type(endpointInput, "http://localhost:9000");
+    expect(endpointInput.value).toBe("http://localhost:9000");
+  });
+
+  test("the endpoint input is absent for a non-public provider", async () => {
+    renderForm(["lab"]);
+    const user = await openProviderSelect();
+    await user.click(screen.getByRole("option", { name: /Prod/ }));
+
+    expect(screen.queryByLabelText(/Endpoint/)).toBeNull();
   });
 });

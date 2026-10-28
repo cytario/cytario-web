@@ -93,6 +93,45 @@ describe("getAllowedS3Hosts", () => {
       "https://minio.example.com",
     ]);
   });
+
+  test("keeps loopback http entries in local environments", () => {
+    for (const nodeEnv of ["test", "development"]) {
+      const hosts = getAllowedS3Hosts({
+        NODE_ENV: nodeEnv,
+        CYTARIO_ALLOWED_S3_HOSTS: "http://localhost:9000,http://127.0.0.1:9000",
+      });
+      expect(hosts).toEqual(["http://localhost:9000", "http://127.0.0.1:9000"]);
+    }
+  });
+
+  test("drops loopback http entries outside local environments with a console.warn", () => {
+    for (const env of [{ NODE_ENV: "production" }, {}]) {
+      const hosts = getAllowedS3Hosts({
+        ...env,
+        CYTARIO_ALLOWED_S3_HOSTS: "http://localhost:9000,http://127.0.0.1:9000",
+      });
+      expect(hosts).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      warnSpy.mockClear();
+    }
+  });
+
+  test("loopback https entries stay valid outside local environments", () => {
+    const hosts = getAllowedS3Hosts({
+      NODE_ENV: "production",
+      CYTARIO_ALLOWED_S3_HOSTS: "https://localhost:9000",
+    });
+    expect(hosts).toEqual(["https://localhost:9000"]);
+  });
+
+  test("non-loopback http entries stay malformed in local environments", () => {
+    const hosts = getAllowedS3Hosts({
+      NODE_ENV: "test",
+      CYTARIO_ALLOWED_S3_HOSTS: "http://minio.example.com,http://10.0.0.1:9000",
+    });
+    expect(hosts).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("isAllowedS3Host", () => {
@@ -159,5 +198,30 @@ describe("isAllowedS3Host", () => {
   test("rejects an unparseable URL", () => {
     expect(isAllowedS3Host("not a url", {})).toBe(false);
     expect(isAllowedS3Host("", {})).toBe(false);
+  });
+
+  test("accepts loopback http only in local environments", () => {
+    for (const nodeEnv of ["test", "development"]) {
+      expect(isAllowedS3Host("http://localhost:9000", { NODE_ENV: nodeEnv })).toBe(true);
+      expect(isAllowedS3Host("http://127.0.0.1:9000", { NODE_ENV: nodeEnv })).toBe(true);
+      expect(isAllowedS3Host("http://localhost", { NODE_ENV: nodeEnv })).toBe(true);
+      expect(isAllowedS3Host("http://127.0.0.1", { NODE_ENV: nodeEnv })).toBe(true);
+    }
+  });
+
+  test("rejects loopback http outside local environments", () => {
+    for (const env of [{ NODE_ENV: "production" }, { NODE_ENV: "staging" }, {}]) {
+      expect(isAllowedS3Host("http://localhost:9000", env)).toBe(false);
+      expect(isAllowedS3Host("http://127.0.0.1:9000", env)).toBe(false);
+    }
+  });
+
+  test("the loopback http carve-out stays narrow", () => {
+    const localEnv = { NODE_ENV: "test" };
+    expect(isAllowedS3Host("http://minio.example.com", localEnv)).toBe(false);
+    expect(isAllowedS3Host("http://10.0.0.1:9000", localEnv)).toBe(false);
+    expect(isAllowedS3Host("http://localhost.evil.com", localEnv)).toBe(false);
+    expect(isAllowedS3Host("http://localhost:9000/bucket", localEnv)).toBe(true);
+    expect(isAllowedS3Host("ftp://localhost", localEnv)).toBe(false);
   });
 });
