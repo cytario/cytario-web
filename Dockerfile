@@ -62,7 +62,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # Runs as the nonroot user (UID 65532) — the server writes nothing to
 # the filesystem at runtime (sessions in Redis, data in Postgres).
 #
-FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:78f07ef1b5ea71ad7c055df15d0dd8997f2d288f9158623c4d4ae3d765b7d50d
+FROM gcr.io/distroless/nodejs24-debian13:nonroot@sha256:a6c34457f6da4295807e051411c7783739c65b997a324fed14e4fa292615ae91
 
 WORKDIR /app
 COPY package.json package-lock.json prisma.config.ts ./
