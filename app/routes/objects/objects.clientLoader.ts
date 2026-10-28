@@ -30,7 +30,12 @@ export const clientLoader = async ({
   }
 
   try {
-    const provider = useConnectionsStore.getState().connections[resolved.connectionId]?.provider;
+    // Prefer the loader-supplied projection — on first navigation after a
+    // create, the store has not been seeded with the new connection yet and a
+    // store-only read would list against the default AWS endpoint.
+    const provider =
+      resolved.provider ??
+      useConnectionsStore.getState().connections[resolved.connectionId]?.provider;
     const { nodes, isCapped } = await loadConnectionLevel({
       connectionConfig: resolved.connectionConfig,
       credentials: resolved.credentials,

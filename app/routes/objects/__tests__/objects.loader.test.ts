@@ -25,12 +25,14 @@ vi.mock("~/utils/listObjects/listObjectsClient", () => ({
 const { authContext } = await import("~/.server/auth/authMiddleware");
 const { getConnection } = await import("~/routes/connections/connections.server");
 
-const buildContext = () => ({
+const buildContext = (providers: Record<string, unknown> = {}) => ({
   get: vi.fn((ctx) => {
     if (ctx === authContext) {
       return {
         user: mock.user(),
         credentials: { "test-conn": mock.credentials() },
+        credentialErrors: {},
+        connectionProviders: providers,
       };
     }
     return undefined;
@@ -62,6 +64,109 @@ describe("objects loader (C-193)", () => {
     expect(result.isSingleFile).toBe(true);
     expect(result.nodes).toEqual([]);
     expect(result.pendingClientLoad).toBe(true);
+  });
+
+  test("server loader returns the connection's provider projection from the auth context", async () => {
+    const request = new Request("http://localhost/connections/test-conn");
+    const response = await loader({
+      request,
+      params: { id: "test-conn", "*": "" },
+      context: buildContext({
+        "test-conn": { region: "us-east-1", endpoint: "https://minio.example.com" },
+      }) as never,
+      pattern: "",
+      url: new URL(request.url),
+    });
+
+    expect(response.provider).toEqual({
+      region: "us-east-1",
+      endpoint: "https://minio.example.com",
+    });
+  });
+
+  test("server loader returns a null provider when the auth context has none", async () => {
+    const request = new Request("http://localhost/connections/test-conn");
+    const response = await loader({
+      request,
+      params: { id: "test-conn", "*": "" },
+      context: buildContext() as never,
+      pattern: "",
+      url: new URL(request.url),
+    });
+
+    expect(response.provider).toBeNull();
+  });
+
+  test("clientLoader lists against the loader-supplied provider on first load, before the store is seeded", async () => {
+    const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
+      connectionName: "test-conn",
+      bucketName: "allencell",
+      urlPath: "",
+      pathName: "",
+      name: "test-conn",
+      credentials: mock.credentials(),
+      provider: { region: "us-east-1", endpoint: "https://s3.example.org" },
+      connectionConfig: mock.connectionConfig({ prefix: "" }),
+      serverDeterminedSingleFile: false,
+      pendingClientLoad: true,
+    });
+
+    listObjectsClient.mockResolvedValueOnce({ contents: [], commonPrefixes: [], isCapped: false });
+
+    const request = new Request("http://localhost/connections/test-conn");
+    await clientLoader({
+      request,
+      params: { id: "test-conn", "*": "" },
+      serverLoader,
+    } as never);
+
+    expect(listObjectsClient.mock.calls[0][0].endpoint).toBe("https://s3.example.org");
+    expect(listObjectsClient.mock.calls[0][0].region).toBe("us-east-1");
+  });
+
+  test("clientLoader falls back to the store provider when the loader payload has none", async () => {
+    const serverLoader = vi.fn().mockResolvedValue({
+      connectionId: "test-conn",
+      connectionName: "test-conn",
+      bucketName: "b",
+      urlPath: "",
+      pathName: "",
+      name: "test-conn",
+      credentials: mock.credentials(),
+      provider: null,
+      connectionConfig: mock.connectionConfig({ prefix: "" }),
+      serverDeterminedSingleFile: false,
+      pendingClientLoad: true,
+    });
+
+    const { useConnectionsStore } = await import("~/utils/connectionsStore/useConnectionsStore");
+    useConnectionsStore.getState().setConnections(
+      [mock.connectionConfig({ id: "test-conn", name: "test-conn", prefix: "" })],
+      { "test-conn": mock.credentials() },
+      {},
+      {
+        "test-conn": {
+          region: "ap-southeast-2",
+          endpoint: "https://minio.ap.example.com",
+          allowsSharing: false,
+          accessLevel: "read-only",
+          isPublic: false,
+        },
+      },
+    );
+
+    listObjectsClient.mockResolvedValueOnce({ contents: [], commonPrefixes: [], isCapped: false });
+
+    const request = new Request("http://localhost/connections/test-conn");
+    await clientLoader({
+      request,
+      params: { id: "test-conn", "*": "" },
+      serverLoader,
+    } as never);
+
+    expect(listObjectsClient.mock.calls[0][0].endpoint).toBe("https://minio.ap.example.com");
+    expect(listObjectsClient.mock.calls[0][0].region).toBe("ap-southeast-2");
   });
 
   test("throws 400 Response when urlPath contains '..' segments", async () => {

@@ -3,6 +3,7 @@ import { type LoaderFunctionArgs } from "react-router";
 
 import { ConnectionConfig } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
+import type { ClientConnectionProvider } from "~/.server/auth/getSessionCredentials";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { type NotificationInput } from "~/components/Notification/Notification.store";
 import { getConnection } from "~/routes/connections/connections.server";
@@ -22,6 +23,9 @@ export interface BucketRouteServerLoaderResponse {
   pathName: string;
   name: string;
   credentials: Credentials | null;
+  /** The connection's provider projection, so the first listing does not
+   * depend on client-store seeding timing. */
+  provider: ClientConnectionProvider | null;
   connectionConfig: ConnectionConfig;
   serverDeterminedSingleFile: boolean;
   pendingClientLoad: boolean;
@@ -35,7 +39,12 @@ export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderRespon
 }
 
 export const loader = async ({ params, context }: LoaderFunctionArgs) => {
-  const { user, credentials: connectionsCredentials, credentialErrors } = context.get(authContext);
+  const {
+    user,
+    credentials: connectionsCredentials,
+    credentialErrors,
+    connectionProviders,
+  } = context.get(authContext);
   const { id: connectionId } = params;
 
   if (!connectionId) throw new Error("Connection id is required");
@@ -81,6 +90,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     pathName,
     name,
     credentials,
+    provider: connectionProviders[connectionId] ?? null,
     connectionConfig,
     serverDeterminedSingleFile,
     pendingClientLoad: connectionError ? false : true,
