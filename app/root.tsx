@@ -29,7 +29,6 @@ import { TourProvider } from "./components/Tour/TourProvider";
 import { cytarioConfig } from "./config";
 import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
-import { useFileStore } from "./utils/localFilesStore/useFileStore";
 import { toToastVariant, type NotificationInput } from "./utils/notifications";
 
 import "./styles.css";
@@ -125,10 +124,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     () => true,
     () => false,
   );
-
-  useEffect(() => {
-    useFileStore.getState().hydrate();
-  }, []);
 
   // Move focus to main content on route change (skip initial render).
   useEffect(() => {
