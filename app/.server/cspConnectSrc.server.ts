@@ -97,6 +97,11 @@ function endpointToCspSource(endpoint: string | null, region: string): string | 
         console.warn(`[csp] dropping non-https provider endpoint: ${parsed.host}`);
         return null;
       }
+      // Mirror constructS3Url: an *.amazonaws.com endpoint is AWS, and the
+      // region — not the endpoint — decides the origin the browser fetches.
+      if (/\.amazonaws\.com$/i.test(parsed.hostname)) {
+        return `https://s3.${region}.amazonaws.com`;
+      }
       return parsed.origin;
     } catch {
       console.warn(`[csp] dropping unparseable provider endpoint: ${endpoint}`);
