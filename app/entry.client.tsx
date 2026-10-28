@@ -10,7 +10,6 @@ import { clientRouteRegistry } from "./lib/clientRouteRegistry";
 import { imageMetadata } from "./lib/imageMetadata";
 import { storagePicker } from "./lib/storagePicker";
 import { bootstrapPlugins } from "./plugins.generated";
-import { startMemoryWatchdog } from "./utils/memoryWatchdog";
 
 // Await bootstrap before hydrating so registry-derived gates (e.g. the
 // `getFileCategory` viewer gate) see plugin-contributed formats on the first
@@ -37,18 +36,4 @@ await bootstrapPlugins(
 
 startTransition(() => {
   hydrateRoot(document, <HydratedRouter />);
-});
-
-// No-op on browsers without Chromium heap stats.
-startMemoryWatchdog({
-  onPressure: () => {
-    import("./toast-bridge").then(({ toastBridge }) => {
-      toastBridge.emit({
-        variant: "info",
-        message:
-          "Memory pressure detected — cached image data was released to keep the tab responsive. It will reload on demand.",
-      });
-      import("./utils/db/cacheTrim").then(({ trimCaches }) => trimCaches());
-    });
-  },
 });

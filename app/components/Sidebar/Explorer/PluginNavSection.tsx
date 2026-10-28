@@ -1,10 +1,9 @@
-import type { IconValue } from "@cytario/design";
+import { useToast, type IconValue } from "@cytario/design";
 
 import { usePluginNavEntries } from "./usePluginNavEntries";
 import type { SidebarNavEntry } from "@cytario/plugin-api";
 import { ClientOnly } from "~/components/ClientOnly";
 import { SectionHeaderRow } from "~/components/Section/SectionHeaderRow";
-import { toastBridge } from "~/toast-bridge";
 
 /**
  * Renders the plugin-contributed navigation section (§3.2.4 element 11,
@@ -48,6 +47,7 @@ function PluginNavEntry({
   entry: SidebarNavEntry;
   activationContext: Parameters<NonNullable<SidebarNavEntry["onActivate"]>>[0];
 }) {
+  const { toast } = useToast();
   const handleActivate = () => {
     if (!entry.onActivate) return;
     let result: unknown;
@@ -55,7 +55,7 @@ function PluginNavEntry({
       result = entry.onActivate(activationContext);
     } catch (err) {
       console.error(`[sidebarNavRegistry] plugin entry "${entry.id}" onActivate threw`, err);
-      toastBridge.emit({
+      toast({
         variant: "error",
         message: `Plugin action "${entry.label}" failed`,
       });
@@ -64,7 +64,7 @@ function PluginNavEntry({
     if (result && typeof (result as Promise<unknown>).then === "function") {
       (result as Promise<unknown>).catch((err) => {
         console.error(`[sidebarNavRegistry] plugin entry "${entry.id}" onActivate rejected`, err);
-        toastBridge.emit({
+        toast({
           variant: "error",
           message: `Plugin action "${entry.label}" failed`,
         });

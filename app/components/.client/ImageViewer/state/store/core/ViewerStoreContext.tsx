@@ -1,3 +1,4 @@
+import { useToast } from "@cytario/design";
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useStore } from "zustand";
 
@@ -30,10 +31,13 @@ export const ViewerStoreProvider = ({
   children,
 }: ViewerStoreProviderProps) => {
   const registerViewer = useViewerRegistryStore((s) => s.registerViewer);
+  const { toast } = useToast();
 
+  // toast (= addToast) is referentially stable; an unstable emitter here would
+  // recreate every viewer store on each render.
   const store = useMemo(
-    () => registerViewer(resourceId, signedFetch, userId),
-    [resourceId, signedFetch, userId, registerViewer],
+    () => registerViewer(resourceId, signedFetch, userId, toast),
+    [resourceId, signedFetch, userId, registerViewer, toast],
   );
 
   const metadata = useStore(store, select.metadata);

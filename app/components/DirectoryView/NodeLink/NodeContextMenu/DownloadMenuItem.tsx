@@ -1,7 +1,6 @@
-import { Icon, MenuItem, Tooltip } from "@cytario/design";
+import { Icon, MenuItem, Tooltip, useToast } from "@cytario/design";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
-import { toastBridge } from "~/toast-bridge";
 import { getUint8ArrayForResourceId } from "~/utils/db/getBlobFromObjectNode";
 
 const MAX_DOWNLOADABLE_SIZE = 256 * 1024 * 1024;
@@ -12,6 +11,8 @@ export function downloadFilenameFor(name: string, pathName: string): string {
 }
 
 export function DownloadMenuItem({ node }: { node: TreeNode }) {
+  const { toast } = useToast();
+
   if (node.type !== "file") return null;
 
   const fileSize = node._Object?.Size;
@@ -58,10 +59,10 @@ export function DownloadMenuItem({ node }: { node: TreeNode }) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toastBridge.emit({ variant: "success", message: `Downloaded ${downloadName}` });
+      toast({ variant: "success", message: `Downloaded ${downloadName}` });
     } catch (error) {
       console.error("Download failed", error);
-      toastBridge.emit({ variant: "error", message: `Could not download ${node.name}` });
+      toast({ variant: "error", message: `Could not download ${node.name}` });
     }
   }
 }
