@@ -175,19 +175,27 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   );
   const userEditedName = useRef(isEditMode);
   const isAutoUpdatingName = useRef(false);
+  const suggestedNameRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Skip while the name input is focused: a state write here races an
     // in-progress edit (React restores the DOM value mid-keystroke, so the
-    // typed text ends up appended to the suggestion).
+    // typed text ends up appended to the suggestion). Skip also once the
+    // name diverges from the last suggestion — the user edited it — so a
+    // late catalog fetch cannot clobber the typed name and concatenate the
+    // two (the userEditedName flag alone misses a fill's clear+insert window).
     const el = document.activeElement;
     const nameFocused = el instanceof HTMLInputElement && el.name === "name";
-    if (!userEditedName.current && bucketName && !nameFocused) {
+    const nextSuggestion = bucketName ? suggestName(bucketName, prefix ?? "") : "";
+    const nameIsUntouched =
+      !nameValue || (suggestedNameRef.current !== null && nameValue === suggestedNameRef.current);
+    if (!userEditedName.current && !nameFocused && nameIsUntouched) {
       isAutoUpdatingName.current = true;
-      setValue("name", suggestName(bucketName, prefix ?? ""));
+      suggestedNameRef.current = nextSuggestion;
+      setValue("name", nextSuggestion);
       isAutoUpdatingName.current = false;
     }
-  }, [bucketName, prefix, setValue]);
+  }, [bucketName, prefix, nameValue, setValue]);
 
   const fieldsPerStep: Record<number, Array<keyof ConnectBucketFormData>> = {
     0: ["providerConnectionId", "bucketName", "publicEndpoint", "prefix", "name"],

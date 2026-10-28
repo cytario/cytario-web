@@ -168,3 +168,31 @@ describe("ConnectionForm — built-in public provider bucket input", () => {
     expect(screen.queryByLabelText(/Endpoint/)).toBeNull();
   });
 });
+
+describe("ConnectionForm — name suggestion", () => {
+  test("a late suggestion never clobbers a name the user already typed", async () => {
+    renderForm(["lab"]);
+    const user = await openProviderSelect();
+    await user.click(screen.getByRole("option", { name: /Prod/ }));
+
+    // The public-provider fixtures render the bucket as free text; Prod also
+    // does in the test catalog (no bucket rows in the mocked catalog fetch).
+    const bucketInput = (await screen.findByLabelText(/Bucket/)) as HTMLInputElement;
+    await user.type(bucketInput, "my-bucket");
+
+    // The suggestion lands for the bucket…
+    await waitFor(() => {
+      expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("my-bucket");
+    });
+
+    // …then the user types their own name and the prefix changes afterwards,
+    // firing the suggestion effect again after the edit.
+    const nameInput = screen.getByLabelText("Name") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "My-Connection");
+    const prefixInput = screen.getByLabelText("Prefix") as HTMLInputElement;
+    await user.type(prefixInput, "some/prefix");
+
+    expect(nameInput.value).toBe("My-Connection");
+  });
+});
