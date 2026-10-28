@@ -150,7 +150,7 @@ function useDirectoryPreviews(nodes: TreeNode[], kind: DirectoryKind): TreeNode[
     if (pendingDirs.length === 0) return;
     const connectionId = pendingDirs[0].connectionId;
     const conn = useConnectionsStore.getState().connections[connectionId];
-    if (!conn?.credentials) return;
+    if (!conn || (!conn.credentials && !conn.provider?.isPublic)) return;
 
     const controller = new AbortController();
     let cancelled = false;

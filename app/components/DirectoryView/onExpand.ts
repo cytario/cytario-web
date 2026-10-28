@@ -9,7 +9,7 @@ export async function onExpand(parent: TreeNode): Promise<TreeNode[]> {
   if (parent.isLeaf || parent.type === "file") return [];
 
   const conn = select.connection(parent.connectionId)(useConnectionsStore.getState());
-  if (!conn?.credentials) return [];
+  if (!conn || (!conn.credentials && !conn.provider?.isPublic)) return [];
 
   const { nodes, isCapped } = await loadConnectionLevel({
     connectionConfig: conn.connectionConfig,
