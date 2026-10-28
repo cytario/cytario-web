@@ -13,6 +13,7 @@ export interface CreateConnectionInput {
   providerConnectionId: string;
   prefix: string;
   publicEndpoint: string | null;
+  publicRegion?: string | null;
 }
 
 export interface GrantInput {
@@ -159,6 +160,9 @@ export async function createConnectionWithCatalogValidation(
     skipCatalogValidation?: boolean;
     /** Recorded atomically with the create (the managed-externally path). */
     initialBucketPolicyStatus?: string;
+    /** Bucket region discovered server-side by the form action's probe; not a
+     * form field, so it rides the options rather than the schema-parsed payload. */
+    publicRegion?: string | null;
   },
 ): Promise<CreateConnectionResult> {
   const parsed = connectionSchema.safeParse(payload);
@@ -199,6 +203,7 @@ export async function createConnectionWithCatalogValidation(
         providerConnectionId: data.providerConnectionId,
         prefix: data.prefix,
         publicEndpoint: data.publicEndpoint ?? null,
+        publicRegion: options?.publicRegion ?? null,
       },
       data.grants,
       options?.initialBucketPolicyStatus,

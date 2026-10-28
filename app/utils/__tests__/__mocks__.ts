@@ -33,6 +33,7 @@ const mock = {
     providerConnectionId: "pc-mock",
     prefix: "",
     publicEndpoint: null,
+    publicRegion: null,
     bucketPolicyStatus: "none",
     grants: data.grants ?? [mock.connectionGrant()],
     ...(data as Omit<typeof data, "grants">),

@@ -205,6 +205,7 @@ export function resolveConnectionProviderWithGrants(
     providerConnectionId: string;
     bucketName: string;
     publicEndpoint?: string | null;
+    publicRegion?: string | null;
     grants: Array<{ scope: string; accessLevel: string }>;
   },
   bucketCatalog?: BucketCatalog,
@@ -229,7 +230,10 @@ export function resolveConnectionProviderWithGrants(
     return {
       providerType: providerConnection.providerType,
       endpoint: connection.publicEndpoint ?? providerConnection.endpoint,
-      region: providerConnection.region,
+      // A public bucket may live in another region than the provider's
+      // default; the region discovered at creation (from the provider's
+      // wrong-region redirect) addresses it correctly.
+      region: connection.publicRegion ?? providerConnection.region,
       allowsSharing: false,
       grants,
       isPublic: true,
