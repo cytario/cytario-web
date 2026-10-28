@@ -71,6 +71,22 @@ function renderForm(adminScopes: string[] = []) {
   return render(<Stub initialEntries={["/"]} />);
 }
 
+function renderFormAt(path: string, adminScopes: string[] = [], defaultScope?: string) {
+  const Stub = createRoutesStub([
+    {
+      path: "/connections",
+      Component: () => (
+        <ConnectionForm
+          adminScopes={adminScopes}
+          userId="test-user-id"
+          defaultScope={defaultScope}
+        />
+      ),
+    },
+  ]);
+  return render(<Stub initialEntries={[path]} />);
+}
+
 async function openProviderSelect() {
   const user = userEvent.setup();
   await waitFor(() => {
@@ -196,5 +212,42 @@ describe("ConnectionForm — name suggestion", () => {
     await user.type(prefixInput, "some/prefix");
 
     expect(nameInput.value).toBe("My-Connection");
+  });
+});
+
+describe("ConnectionForm — submit target", () => {
+  test("submits to the connections action preserving the modal search param", async () => {
+    // An explicit action path resolves without the current search params, so a
+    // submit from inside a modal must carry them explicitly — otherwise the
+    // modal unmounts on submit and a server error banner never renders.
+    renderFormAt("/connections?modal=add-connection", ["lab"], "lab");
+    const user = await openProviderSelect();
+    await user.click(screen.getByRole("option", { name: /Prod/ }));
+
+    const bucketInput = (await screen.findByLabelText(/Bucket/)) as HTMLInputElement;
+    await user.type(bucketInput, "my-bucket");
+    const nameInput = (await screen.findByLabelText("Name")) as HTMLInputElement;
+    await user.type(nameInput, "My-Connection");
+
+    // Step 0 → 1: the default grant row is pre-filled with the first admin
+    // scope, so the grants step validates as-is.
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    // Step 1 → 2: confirm — the last step's button carries the submit label.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /^Next$/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Add Connection/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /Add Connection/i }));
+
+    await waitFor(() => {
+      expect(mockSubmit).toHaveBeenCalled();
+    });
+    expect(mockSubmit.mock.calls[0][1]).toMatchObject({
+      method: "post",
+      action: "/connections?modal=add-connection",
+    });
   });
 });

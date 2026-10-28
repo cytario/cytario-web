@@ -2,7 +2,7 @@ import { Banner, Button, Fieldset, Input, Select, SelectItem } from "@cytario/de
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { useActionData, useNavigation, useSubmit } from "react-router";
+import { useActionData, useLocation, useNavigation, useSubmit } from "react-router";
 
 import { GrantLevelHint, grantLevelHint, levelsForGrant } from "./grantLevels";
 import { type ShareFolderFormData, shareFolderSchema } from "./shareFolder.schema";
@@ -53,6 +53,7 @@ export const ShareFolderForm = ({
   const serverErrors = actionData?.status === "error" ? actionData.errors : undefined;
   const formError = actionData?.status === "error" ? actionData.formError : undefined;
   const isSubmitting = navigation.state === "submitting";
+  const location = useLocation();
 
   const { control, handleSubmit, setError } = useForm<ShareFolderFormData>({
     resolver: zodResolver(shareFolderSchema),
@@ -101,7 +102,10 @@ export const ShareFolderForm = ({
       formData.append(`grants[${index}].scope`, grant.scope);
       formData.append(`grants[${index}].accessLevel`, grant.accessLevel);
     });
-    submit(formData, { method: "post", action: "/connections" });
+    // An explicit action path resolves without the current search params, so
+    // the modal's `?modal=` param would be dropped and the dialog unmounted
+    // mid-submit — its error banner would never render. Preserve the search.
+    submit(formData, { method: "post", action: `/connections${location.search}` });
   };
 
   return (

@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import { useActionData, useNavigation, useSubmit } from "react-router";
+import { useActionData, useLocation, useNavigation, useSubmit } from "react-router";
 
 import {
   type ConnectBucketFormData,
@@ -83,6 +83,7 @@ interface ConnectionFormProps {
 export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: ConnectionFormProps) => {
   const isEditMode = !!initialData;
   const submit = useSubmit();
+  const location = useLocation();
   const actionData = useActionData<{
     errors?: Record<string, string[]>;
     formError?: string;
@@ -217,10 +218,14 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     });
     if (isEditMode) {
       formData.append("connectionId", String(initialData.connectionId));
-      submit(formData, { method: "PATCH", action: "/connections" });
-    } else {
-      submit(formData, { method: "post", action: "/connections" });
     }
+    // An explicit action path resolves without the current search params, so
+    // the modal's `?modal=` param would be dropped and the dialog unmounted
+    // mid-submit — its error banner would never render. Preserve the search.
+    submit(formData, {
+      method: isEditMode ? "patch" : "post",
+      action: `/connections${location.search}`,
+    });
   };
 
   const handleNext = async () => {

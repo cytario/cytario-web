@@ -258,6 +258,32 @@ describe("getAllSessionCredentials", () => {
     });
   });
 
+  test("a public connection's discovered region outranks the provider's default", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({ id: "pc-mock", isPublic: true, region: "us-east-1" }),
+        ],
+        providerRoles: [],
+      }),
+    );
+
+    const result = await getAllSessionCredentials(mockSessionData, [
+      mock.connectionConfig({
+        id: "public-conn",
+        name: "public-conn",
+        providerConnectionId: "pc-mock",
+        publicRegion: "us-west-2",
+        grants: [mock.connectionGrant({ accessLevel: "read-only" })],
+      }),
+    ]);
+
+    expect(result.providers["public-conn"]).toMatchObject({
+      isPublic: true,
+      region: "us-west-2",
+    });
+  });
+
   test("fetches credentials for connections with expired credentials", async () => {
     const sessionData = {
       ...mockSessionData,

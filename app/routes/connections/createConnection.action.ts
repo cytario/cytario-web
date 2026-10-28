@@ -23,6 +23,10 @@ function isValidPublicEndpointScheme(endpoint: string): boolean {
   return isProbingAllowedEndpoint(endpoint);
 }
 
+/** Distinguishes the egress guard's refusal from a transport failure inside
+ * the probe's single try/catch, so only the first becomes a form error. */
+class ProbingRefusedError extends Error {}
+
 /** A connection config field set for `createConnectionRecord`. */
 export type {
   CreateConnectionInput,
@@ -57,10 +61,15 @@ export function uniqueViolationErrors(error: Prisma.PrismaClientKnownRequestErro
 
 /** Outcome of the create-time probe of a public provider's bucket: a refusal
  * blocks the create; a missing CORS rule is a warning the admin must fix on the
- * bucket — Cytario holds no credential and cannot write the rule itself. */
+ * bucket — Cytario holds no credential and cannot write the rule itself. The
+ * discovered region is persisted so every later request addresses the bucket
+ * directly instead of following a wrong-region redirect each time. */
 interface PublicBucketProbeOutcome {
   formError?: string;
   corsWarning?: string;
+  /** The bucket's own region when it differs from the provider's default —
+   * taken from the provider's wrong-region redirect, null when they match. */
+  discoveredRegion?: string | null;
 }
 
 async function probePublicBucket(
@@ -91,32 +100,54 @@ async function probePublicBucket(
   const prefix = getPrefix(refs.prefix) ?? "";
   const query = new URLSearchParams({ "list-type": "2", "max-keys": "1" });
   if (prefix) query.set("prefix", prefix);
-  const bucketUrl = constructS3Url(
-    {
-      bucketName: refs.bucketName,
-      region: providerConnection.region,
-      endpoint: refs.publicEndpoint ?? providerConnection.endpoint,
-    },
-    "",
-  );
-  // The request host derives from the catalog endpoint plus the bucket name, so
-  // the probe can never be aimed at an arbitrary host; the guard still
-  // refuses private/network literals.
-  if (!isProbingAllowedEndpoint(bucketUrl)) {
-    return {
-      formError: `The provider's endpoint for "${refs.bucketName}" is not an allowed storage host — it must be a publicly reachable https endpoint.`,
-    };
-  }
-  const url = `${bucketUrl}?${query.toString()}`;
 
-  let listResponse: Response;
-  try {
-    listResponse = await fetch(url, {
+  // The probe follows the provider's wrong-region redirect: AWS answers a
+  // cross-region anonymous listing with a 301 whose region is only in the
+  // `x-amz-bucket-region` header (no Location to follow), so the redirect is
+  // handled here and the region retried directly — and remembered for the
+  // connection so no later request repeats the round trip.
+  const listAnonymous = async (
+    region: string,
+    headers?: Record<string, string>,
+  ): Promise<Response> => {
+    const bucketUrl = constructS3Url(
+      {
+        bucketName: refs.bucketName,
+        region,
+        endpoint: refs.publicEndpoint ?? providerConnection.endpoint,
+      },
+      "",
+    );
+    if (!isProbingAllowedEndpoint(bucketUrl)) {
+      throw new ProbingRefusedError(
+        `The provider's endpoint for "${refs.bucketName}" is not an allowed storage host — it must be a publicly reachable https endpoint.`,
+      );
+    }
+    return fetch(`${bucketUrl}?${query.toString()}`, {
       method: "GET",
+      headers,
       redirect: "follow",
       signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  };
+
+  let discoveredRegion: string | null = null;
+  let effectiveRegion = providerConnection.region;
+  let listResponse: Response;
+  try {
+    listResponse = await listAnonymous(effectiveRegion);
+    if (listResponse.status === 301) {
+      const bucketRegion = listResponse.headers.get("x-amz-bucket-region");
+      if (bucketRegion && bucketRegion !== providerConnection.region) {
+        discoveredRegion = bucketRegion;
+        effectiveRegion = bucketRegion;
+        listResponse = await listAnonymous(bucketRegion);
+      }
+    }
+  } catch (error) {
+    if (error instanceof ProbingRefusedError) {
+      return { formError: error.message };
+    }
     return {
       formError: `The bucket "${refs.bucketName}" could not be reached anonymously — check the provider's endpoint and region.`,
     };
@@ -131,12 +162,7 @@ async function probePublicBucket(
   const origin = new URL(cytarioConfig.endpoints.webapp).origin;
   let corsResponse: Response;
   try {
-    corsResponse = await fetch(url, {
-      method: "GET",
-      headers: { Origin: origin },
-      redirect: "follow",
-      signal: AbortSignal.timeout(10_000),
-    });
+    corsResponse = await listAnonymous(effectiveRegion, { Origin: origin });
   } catch {
     return {
       corsWarning: `Browser reads may be blocked: the bucket "${refs.bucketName}" could not be probed for cross-origin access. It must allow GET/HEAD from ${origin} (or any origin).`,
@@ -149,7 +175,7 @@ async function probePublicBucket(
     };
   }
 
-  return {};
+  return { discoveredRegion };
 }
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
@@ -222,6 +248,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
     };
   }
   let publicProbeWarning: string | undefined;
+  let discoveredRegion: string | null = null;
   if (providerIsPublic) {
     const probe = await probePublicBucket(user.organization, authTokens.accessToken, {
       providerConnectionId: data.providerConnectionId,
@@ -233,6 +260,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       return { formError: probe.formError, status: "error" as const };
     }
     publicProbeWarning = probe.corsWarning;
+    discoveredRegion = probe.discoveredRegion ?? null;
   }
 
   const session = context.get(sessionContext);
@@ -247,6 +275,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
         providerConnectionId: data.providerConnectionId,
         prefix: data.prefix,
         publicEndpoint,
+        publicRegion: discoveredRegion,
       },
       data.grants,
     );

@@ -276,6 +276,67 @@ describe("createAction — public provider connections", () => {
     );
   });
 
+  test("discovers the bucket's region from a wrong-region 301 and persists it", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog);
+    const body =
+      '<?xml version="1.0"?><ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>';
+    // AWS answers a wrong-region anonymous listing with a 301 whose region is
+    // only in x-amz-bucket-region — no Location header to follow.
+    fetchMock.mockResolvedValueOnce(
+      new Response("PermanentRedirect", {
+        status: 301,
+        headers: { "x-amz-bucket-region": "us-west-2" },
+      }),
+    );
+    fetchMock.mockResolvedValue(
+      new Response(body, { status: 200, headers: { "access-control-allow-origin": "*" } }),
+    );
+    const created = mock.connectionConfig({
+      id: "conn-public",
+      providerConnectionId: "pc-public",
+    });
+    vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
+
+    const result = await createAction(buildArgs(publicForm));
+
+    expect(result).toBeInstanceOf(Response);
+    // First against the provider's region, then retried against the bucket's.
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://s3.us-east-1.amazonaws.com/open-bucket?list-type=2&max-keys=1",
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://s3.us-west-2.amazonaws.com/open-bucket?list-type=2&max-keys=1",
+      expect.anything(),
+    );
+    expect(prisma.connectionConfig.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ publicRegion: "us-west-2" }) }),
+    );
+  });
+
+  test("persists no region override when the bucket matches the provider's region", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog);
+    const body =
+      '<?xml version="1.0"?><ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>';
+    fetchMock.mockResolvedValue(
+      new Response(body, { status: 200, headers: { "access-control-allow-origin": "*" } }),
+    );
+    const created = mock.connectionConfig({
+      id: "conn-public",
+      providerConnectionId: "pc-public",
+    });
+    vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
+
+    const result = await createAction(buildArgs(publicForm));
+
+    expect(result).toBeInstanceOf(Response);
+    expect(prisma.connectionConfig.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ publicRegion: null }) }),
+    );
+  });
+
   test("strips a submitted endpoint on a non-public provider (persists null)", async () => {
     const privateCatalog = mock.providerCatalog({
       providerConnections: [mock.providerConnection({ id: "pc-mock" })],

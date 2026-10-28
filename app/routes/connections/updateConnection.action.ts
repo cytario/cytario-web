@@ -76,6 +76,16 @@ export async function updateConnection(
   const previousBucketName = config.bucketName;
   const previousProviderConnectionId = config.providerConnectionId;
 
+  // The discovered bucket region only applies to the bucket it was discovered
+  // for: a different bucket, provider, or endpoint makes it stale. The update
+  // path does not re-probe — the next browse follows the provider's redirect
+  // again and the health probe re-surfaces any mismatch.
+  const regionStillApplies =
+    updates.bucketName === previousBucketName &&
+    updates.providerConnectionId === previousProviderConnectionId &&
+    (updates.publicEndpoint ?? null) === (config.publicEndpoint ?? null);
+  const publicRegion = regionStillApplies ? config.publicRegion : null;
+
   const updated = await prisma.connectionConfig.update({
     where: { id: config.id },
     data: {
@@ -84,6 +94,7 @@ export async function updateConnection(
       prefix: updates.prefix,
       providerConnectionId: updates.providerConnectionId,
       publicEndpoint: updates.publicEndpoint,
+      publicRegion,
       grants: {
         deleteMany: {},
         createMany: {
