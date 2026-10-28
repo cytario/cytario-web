@@ -107,4 +107,53 @@ describe("calculateViewStateToFit", () => {
     expect(result.zoom).toBeCloseTo(Math.log2(expectedZoomScale), 4);
     expect(result.target).toEqual([metadata.Pixels.SizeX / 2, metadata.Pixels.SizeY / 2]);
   });
+
+  test.each([
+    {
+      description: "falls back to pixel dimensions when both physical sizes are missing",
+      metadata: mock.metadata({
+        Pixels: mock.pixels({
+          SizeX: 1000,
+          SizeY: 500,
+          PhysicalSizeX: undefined,
+          PhysicalSizeY: undefined,
+          PhysicalSizeXUnit: "",
+          PhysicalSizeYUnit: "",
+        }),
+      }),
+      viewport: { width: 800, height: 600 },
+      expectedZoomScale: Math.min(800 / 1000, 600 / 500),
+    },
+    {
+      description: "falls back when only PhysicalSizeX is missing",
+      metadata: mock.metadata({
+        Pixels: mock.pixels({
+          SizeX: 1000,
+          SizeY: 1000,
+          PhysicalSizeX: undefined,
+          PhysicalSizeXUnit: "",
+        }),
+      }),
+      viewport: { width: 500, height: 500 },
+      expectedZoomScale: 0.5,
+    },
+    {
+      description: "falls back when only PhysicalSizeY is missing",
+      metadata: mock.metadata({
+        Pixels: mock.pixels({
+          SizeX: 1000,
+          SizeY: 1000,
+          PhysicalSizeY: undefined,
+          PhysicalSizeYUnit: "",
+        }),
+      }),
+      viewport: { width: 500, height: 500 },
+      expectedZoomScale: 0.5,
+    },
+  ])("$description", ({ metadata, viewport, expectedZoomScale }) => {
+    const result = calculateViewStateToFit(metadata, viewport, { padding: 0 });
+
+    expect(result.zoom).toBeCloseTo(Math.log2(expectedZoomScale), 4);
+    expect(result.target).toEqual([metadata.Pixels.SizeX / 2, metadata.Pixels.SizeY / 2]);
+  });
 });

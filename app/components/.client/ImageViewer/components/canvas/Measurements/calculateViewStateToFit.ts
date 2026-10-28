@@ -12,19 +12,16 @@ export function calculateViewStateToFit(
 ): ViewState {
   const { SizeX, SizeY, PhysicalSizeX, PhysicalSizeY } = metadata.Pixels;
 
-  if (!PhysicalSizeX || !PhysicalSizeY) {
-    throw new Error("Physical pixel size is missing from metadata.");
-  }
-
   const padding = options?.padding ?? 0;
 
-  const physicalWidth = SizeX * PhysicalSizeX; // µm
-  const physicalHeight = SizeY * PhysicalSizeY; // µm
+  // Physical extents when the metadata declares them; pixel dimensions otherwise.
+  const fitWidthX = PhysicalSizeX || 1;
+  const fitHeightY = PhysicalSizeY || 1;
 
   const adjustedWidth = Math.max(viewport.width - 2 * padding, 1);
   const adjustedHeight = Math.max(viewport.height - 2 * padding, 1);
 
-  const imageAspectRatio = physicalWidth / physicalHeight;
+  const imageAspectRatio = (SizeX * fitWidthX) / (SizeY * fitHeightY);
   const viewportAspectRatio = adjustedWidth / adjustedHeight;
 
   const scale =
