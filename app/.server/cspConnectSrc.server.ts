@@ -1,10 +1,12 @@
 import { getSession, getSessionData } from "./auth/getSession";
 import type { UserProfile } from "./auth/getUserInfo";
 import { createLabel } from "./logging";
+import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
   getProviderCatalog,
   resolveConnectionProviderWithGrants,
 } from "./providers/providerCatalog.server";
+import { cytarioConfig } from "~/config";
 import { listConnections } from "~/routes/connections/connections.server";
 
 const label = createLabel("csp", "magenta");
@@ -35,16 +37,31 @@ export async function resolveConnectSrcHosts(request: Request): Promise<string[]
     const catalog = await getProviderCatalog(organization, accessToken);
     const hosts = new Set<string>();
 
-    // Catalog endpoints cover not-yet-connected providers; the row pass below
-    // covers per-connection endpoint overrides the catalog cannot see.
+    // Catalog endpoints cover not-yet-connected providers; the bucket and row
+    // passes below cover per-bucket and per-connection regions and endpoint
+    // overrides the provider rows cannot see.
     for (const connection of catalog.providerConnections) {
       const source = endpointToCspSource(connection.endpoint, connection.region);
       if (source) hosts.add(source);
     }
 
+    // A bucket may live in a region other than its provider's default; admit
+    // every registered bucket's regional origin so a not-yet-connected bucket
+    // in another region is never blocked.
+    const bucketCatalog = await fetchBucketCatalog(organization, accessToken);
+    if (bucketCatalog) {
+      for (const bucket of bucketCatalog.buckets) {
+        hosts.add(`https://s3.${bucket.region}.amazonaws.com`);
+      }
+    }
+
     const connectionConfigs = await listConnections(user);
     for (const connectionConfig of connectionConfigs) {
-      const resolved = resolveConnectionProviderWithGrants(catalog, connectionConfig);
+      const resolved = resolveConnectionProviderWithGrants(
+        catalog,
+        connectionConfig,
+        bucketCatalog,
+      );
       if (!resolved) continue;
       const source = endpointToCspSource(resolved.endpoint, resolved.region);
       if (source) hosts.add(source);
@@ -57,6 +74,17 @@ export async function resolveConnectSrcHosts(request: Request): Promise<string[]
       error,
     );
     return [];
+  }
+}
+
+/** The bucket catalog, or undefined when the build has no portal lookup or
+ * the lookup fails — the provider-default regions still cover the org. */
+async function fetchBucketCatalog(organization: string, accessToken: string) {
+  if (cytarioConfig.providers.source !== "portal") return undefined;
+  try {
+    return await getBucketCatalog(organization, accessToken);
+  } catch {
+    return undefined;
   }
 }
 
