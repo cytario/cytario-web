@@ -1,5 +1,5 @@
 import { H1, RouterProvider, ToastProvider, useToast } from "@cytario/design";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { lazy, useEffect, useRef, useSyncExternalStore } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -34,6 +34,14 @@ import { toToastVariant, type NotificationInput } from "./utils/notifications";
 
 import "./styles.css";
 import "rc-slider/assets/index.css";
+
+// Lazy like the other `.client` imports — a static import compiles to `void 0`
+// in the SSR bundle and crashes the first render.
+const MemoryWatchdog = lazy(() =>
+  import("./components/.client/MemoryWatchdog").then((module) => ({
+    default: module.MemoryWatchdog,
+  })),
+);
 
 export const links: LinksFunction = () => [
   {
@@ -178,6 +186,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </ClientOnly>
           </RouterProvider>
           <SessionNotification notification={data?.notification} />
+          <ClientOnly>
+            <MemoryWatchdog />
+          </ClientOnly>
         </ToastProvider>
 
         <ScrollRestoration />
