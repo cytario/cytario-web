@@ -48,8 +48,7 @@ app.use(express.static("public", { maxAge: "1h" }));
 
 app.use(morgan("tiny"));
 
-app.all(
-  "*",
+app.use(
   createRequestHandler({
     build: buildModule,
     mode: process.env.NODE_ENV,

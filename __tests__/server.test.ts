@@ -113,7 +113,7 @@ describe("/healthz endpoint", () => {
     const compressionIndex = serverSource.indexOf("app.use(compression()");
     const morganIndex = serverSource.indexOf('app.use(morgan("tiny")');
     const staticIndex = serverSource.indexOf("app.use(express.static");
-    const catchAllIndex = serverSource.indexOf('app.all(\n  "*"');
+    const catchAllIndex = serverSource.indexOf("app.use(\n  createRequestHandler");
 
     // All indices must be found
     expect(healthzIndex).toBeGreaterThan(-1);
