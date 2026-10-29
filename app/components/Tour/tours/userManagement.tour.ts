@@ -1,20 +1,29 @@
 import { USER_MANAGEMENT_TOUR_ID, type TourContext, type TourDefinition } from "../tourRegistry";
+import { organizationFromPath } from "~/utils/orgPath";
+
+/** `path` inside the organization the tour is currently running in. */
+function orgScopedPath({ pathname }: TourContext, path: string): string {
+  const organization = organizationFromPath(pathname);
+  return organization ? `/o/${organization}${path}` : path;
+}
 
 /** The user-management screen for the admin's first scope — what the user menu links to. */
-function adminUsersUrl(context: Pick<TourContext, "adminScopes">): string {
+function adminUsersUrl(context: TourContext): string {
   const scope = context.adminScopes[0] ?? "";
-  return `/admin/users?scope=${encodeURIComponent(scope)}`;
+  return orgScopedPath(context, `/admin/users?scope=${encodeURIComponent(scope)}`);
 }
 
 /** A connections screen with shareable rows — the share step navigates here first. */
-const CONNECTIONS_URL = "/connections";
+function connectionsUrl(context: TourContext): string {
+  return orgScopedPath(context, "/connections");
+}
 
 /**
  * A connection row in the content area. The sidebar tree holds the same link
  * shape, so an unscoped `main a[…]` would highlight the navigation panel
- * instead of the browsed listing.
+ * instead of the browsed listing. `*=` because the href carries the org prefix.
  */
-const CONTENT_CONNECTION_ROW = 'main section a[href^="/connections/"]';
+const CONTENT_CONNECTION_ROW = 'main section a[href*="/connections/"]';
 
 /**
  * Walks an organization admin through bringing teammates in: reaching the
@@ -68,7 +77,7 @@ export const userManagementTour: TourDefinition = {
         "An invited user sees nothing until a connection is shared with their " +
         "group. Right-click a row and choose Share; the access level you pick " +
         "there is what the group gets.",
-      data: { navigateToFromContext: () => CONNECTIONS_URL },
+      data: { navigateToFromContext: connectionsUrl },
     },
     {
       target: 'button[aria-label="Help"]',

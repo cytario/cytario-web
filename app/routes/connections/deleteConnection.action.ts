@@ -8,6 +8,7 @@ import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
+import { orgPath } from "~/utils/orgPath";
 
 export async function deleteConnection(
   user: UserProfile,
@@ -50,7 +51,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   } catch (error) {
     if (error instanceof Error) {
       session.set("notification", { status: "error", message: error.message });
-      return redirect("/connections", {
+      return redirect(orgPath(user.organization, "/connections"), {
         headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
       });
     }
@@ -91,7 +92,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   session.set("notification", notification);
 
-  return redirect("/connections", {
+  return redirect(orgPath(user.organization, "/connections"), {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });
 };

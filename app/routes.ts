@@ -1,4 +1,4 @@
-import { type RouteConfig, layout } from "@react-router/dev/routes";
+import { type RouteConfig, layout, prefix, route } from "@react-router/dev/routes";
 
 /** OIDC authentication flow — server-side redirects, no rendered UI, no layout needed. */
 const authRoutes = [
@@ -24,8 +24,13 @@ const authRoutes = [
   },
 ];
 
-/** Main application routes — authenticated, wrapped in protected layout. */
-const appRoutes = [
+/**
+ * Main application routes. Paths are relative to `/o/:org` — the organization a
+ * view belongs to is part of its URL, so a link is shareable and a tenant switch
+ * is a navigation. `org.layout.tsx` reconciles the alias with the session before
+ * any of these render.
+ */
+const orgAppRoutes = [
   {
     path: "/",
     file: "routes/home/home.route.tsx",
@@ -60,8 +65,8 @@ const appRoutes = [
   },
 ];
 
-/** Admin routes — scope-gated via adminMiddleware, wrapped in protected layout alongside appRoutes. */
-const adminRoutes = [
+/** Admin routes — scope-gated via adminMiddleware, wrapped in the admin layout. */
+const orgAdminRoutes = [
   layout("routes/layouts/admin.layout.tsx", [
     {
       path: "/admin/users",
@@ -88,7 +93,7 @@ const adminRoutes = [
   ]),
 ];
 
-/** Data endpoints — authenticated, no layout (JSON responses). */
+/** Data endpoints — authenticated, no layout (JSON responses). Org comes from the session. */
 const apiRoutes = [
   {
     path: "/api/cyberduck-profile/:id",
@@ -128,9 +133,39 @@ const apiRoutes = [
   },
 ];
 
+/**
+ * Un-prefixed app URLs predate the `/o/:org` prefix: bookmarks, docs and plugin
+ * links still carry them. Each moved route root gets its own wildcard so the
+ * redirect answers only for paths that actually moved — anything else keeps
+ * falling through to the 404 fallback instead of bouncing. They sit inside the
+ * protected layout because the target org comes from the session.
+ */
+const legacyFile = "routes/layouts/legacyRedirect.layout.ts";
+
+// One file, several routes: each needs its own id or RR rejects the duplicate.
+const legacyRoute = (path: string) =>
+  route(path, legacyFile, { id: `routes/layouts/legacyRedirect${path.replace(/[/*]/g, "-")}` });
+
+const legacyRedirectRoutes = [
+  legacyRoute("/"),
+  legacyRoute("/o"),
+  legacyRoute("/recent/*"),
+  legacyRoute("/favorites/*"),
+  legacyRoute("/config/*"),
+  legacyRoute("/connections/*"),
+  legacyRoute("/plugin/*"),
+  legacyRoute("/agent/*"),
+  legacyRoute("/admin/*"),
+];
+
 export default [
   ...authRoutes,
-  layout("routes/layouts/protected.layout.tsx", [...appRoutes, ...adminRoutes]),
+  layout("routes/layouts/protected.layout.tsx", [
+    layout("routes/layouts/org.layout.tsx", [
+      ...prefix("/o/:org", [...orgAppRoutes, ...orgAdminRoutes]),
+    ]),
+    ...legacyRedirectRoutes,
+  ]),
   ...apiRoutes,
 
   {

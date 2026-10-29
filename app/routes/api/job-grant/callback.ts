@@ -14,8 +14,11 @@ import { withHostRequestContext } from "~/.server/hostRequestContext";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
+import { orgPath } from "~/utils/orgPath";
 
 const label = createLabel("job-grant", "magenta");
+
+const JOBS_PATH = "/plugin/jobs";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -33,21 +36,25 @@ export const loader = async (args: LoaderFunctionArgs) => {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
+  // The jobs view lives under the URL's organization prefix; this callback is
+  // an API route, so the session is the only source for which one.
+  const jobsPath = (search = "") =>
+    `${orgPath(context.get(authContext).activeOrganization, JOBS_PATH)}${search}`;
 
   if (error) {
     console.error(`${label} Authorization error:`, error);
-    return redirect("/plugin/jobs?error=grant_denied");
+    return redirect(jobsPath("?error=grant_denied"));
   }
 
   if (!code || !state) {
     console.error(`${label} Missing code or state parameter`);
-    return redirect("/plugin/jobs?error=grant_failed");
+    return redirect(jobsPath("?error=grant_failed"));
   }
 
   const pending = await consumePendingSubmission(state);
   if (!pending) {
     console.error(`${label} Invalid or expired state`);
-    return redirect("/plugin/jobs?error=grant_expired");
+    return redirect(jobsPath("?error=grant_expired"));
   }
 
   const redirectUri = `${new URL(request.url).origin}/api/job-grant/callback`;
@@ -64,12 +71,17 @@ export const loader = async (args: LoaderFunctionArgs) => {
   // authMiddleware (in the middleware array) has already refreshed the
   // session tokens and populated authContext — read from there instead of
   // calling getSession again.
-  const { authTokens } = context.get(authContext);
+  const { authTokens, activeOrganization, user: sessionUser } = context.get(authContext);
   if (!authTokens) {
     console.error(`${label} No auth tokens in session`);
-    return redirect("/plugin/jobs?error=no_session");
+    return redirect(jobsPath("?error=no_session"));
   }
-  const userProfile = await getUserInfo(authTokens.accessToken);
+  // Re-read the claims so a group change made since login is visible, but stay
+  // in the org the user is working in rather than re-picking one.
+  const userProfile = await getUserInfo(
+    authTokens.accessToken,
+    activeOrganization ?? sessionUser?.organization,
+  );
   const identity = toIdentity(userProfile);
 
   // The batch's OAuth material is written here — the one point where the
@@ -77,7 +89,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
   const { refreshToken, accessToken, accessTokenExpiresAt } = grant;
   if (!refreshToken || !accessToken || !accessTokenExpiresAt) {
     console.error(`${label} Auth code exchange returned no credential material`);
-    return redirect("/plugin/jobs?error=grant_failed");
+    return redirect(jobsPath("?error=grant_failed"));
   }
 
   try {
@@ -92,7 +104,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "credential record failed";
     console.error(`${label} Failed to store batch credentials:`, message);
-    return redirect("/plugin/jobs?error=submit_failed");
+    return redirect(jobsPath("?error=submit_failed"));
   }
 
   const requestData = {
@@ -130,7 +142,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
       });
 
       console.info(`${label} Job submission completed for batch ${pending.batchId}`);
-      return redirect(pending.returnPath);
+      return redirect(orgPath(activeOrganization, pending.returnPath));
     } catch (err) {
       const message = err instanceof Error ? err.message : "submission failed";
       console.error(`${label} Job submission failed:`, message);
@@ -147,7 +159,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
       });
       const params = new URLSearchParams({ error: "submit_failed" });
       if (err instanceof Error && err.message) params.set("message", err.message);
-      return redirect(`/plugin/jobs?${params.toString()}`);
+      return redirect(jobsPath(`?${params.toString()}`));
     }
   });
 };

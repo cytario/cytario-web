@@ -186,7 +186,10 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     adminClientSecret: KC_ADMIN_CLIENT_SECRET!,
     jobBrokerClientId: KC_JOB_BROKER_CLIENT_ID!,
     jobBrokerClientSecret: KC_JOB_BROKER_CLIENT_SECRET!,
-    scopes: ["openid", "profile", "organization"],
+    // `organization:*` resolves every membership into the token's multi-key
+    // `organization` claim; the active tenant is chosen in the session, and a
+    // per-org token is minted by token exchange (see .server/auth/orgTokenExchange).
+    scopes: ["openid", "profile", "organization:*"],
   },
   redis: {
     port: Number(REDIS_PORT) || 6379,

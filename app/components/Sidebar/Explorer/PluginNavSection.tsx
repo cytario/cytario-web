@@ -4,6 +4,7 @@ import { usePluginNavEntries } from "./usePluginNavEntries";
 import type { SidebarNavEntry } from "@cytario/plugin-api";
 import { ClientOnly } from "~/components/ClientOnly";
 import { SectionHeaderRow } from "~/components/Section/SectionHeaderRow";
+import { useOrgPath } from "~/hooks/useOrgPath";
 
 /**
  * Renders the plugin-contributed navigation section (§3.2.4 element 11,
@@ -48,6 +49,8 @@ function PluginNavEntry({
   activationContext: Parameters<NonNullable<SidebarNavEntry["onActivate"]>>[0];
 }) {
   const { toast } = useToast();
+  const orgPath = useOrgPath();
+
   const handleActivate = () => {
     if (!entry.onActivate) return;
     let result: unknown;
@@ -74,7 +77,7 @@ function PluginNavEntry({
 
   return (
     <SectionHeaderRow
-      to={entry.to}
+      to={orgPath(entry.to)}
       // The plugin API types icons as plain string; Icon renders a fallback
       // for unknown names, so the cast only crosses that boundary.
       icon={entry.icon as IconValue}

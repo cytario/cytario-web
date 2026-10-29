@@ -1,10 +1,11 @@
 import { MenuItem, MenuSeparator } from "@cytario/design";
 
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { useActiveOrg } from "~/hooks/useOrgPath";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 export function NavigationMenuItems({ node, isCurrent }: { node: TreeNode; isCurrent: boolean }) {
-  const to = buildConnectionPath(node.connectionId, node.pathName);
+  const to = buildConnectionPath(node.connectionId, node.pathName, useActiveOrg());
 
   return (
     <>

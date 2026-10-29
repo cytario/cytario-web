@@ -7,11 +7,13 @@ import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSw
 import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
 import { SearchInput } from "~/components/SearchInput";
 import { Section } from "~/components/Section/Section";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export function ConnectionsSection() {
   const connections = useConnectionsStore(select.connections);
+  const orgPath = useOrgPath();
   const params = useParams();
   const routeId = params.id;
   const connectionIds = useMemo(() => Object.keys(connections), [connections]);
@@ -42,7 +44,7 @@ export function ConnectionsSection() {
         <>
           <ShowHiddenFilesToggleButton />
           <IconButtonLink
-            href="/connections"
+            href={orgPath("/connections")}
             icon="ArrowRight"
             label="View all connections"
             variant="ghost"

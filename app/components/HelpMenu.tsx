@@ -6,6 +6,7 @@ import { isResourcePath, leafNameOf, type TourDefinition } from "~/components/To
 import { tourRegistry } from "~/components/Tour/tours/registry";
 import { useTourController, useTourControllerStore } from "~/components/Tour/useTourController";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useOrgPath } from "~/hooks/useOrgPath";
 
 interface HelpMenuProps {
   version: string;
@@ -26,8 +27,10 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
   const connectionCount = protectedData?.connectionConfigs?.length ?? 0;
   const user = useCurrentUser();
   const adminScopes = user?.adminScopes ?? [];
+  const organizationCount = Object.keys(user?.organizations ?? {}).length;
 
   const helpButtonRef = useRef<HTMLButtonElement>(null);
+  const orgPath = useOrgPath();
 
   // The design Menu is uncontrolled, so the getting-started finale reveals it
   // by clicking its trigger — the same path a user takes.
@@ -45,6 +48,7 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
       leafName: isResourcePath(pathname) ? leafNameOf(pathname) : "",
       connectionCount,
       adminScopes,
+      organizationCount,
     }),
   );
 
@@ -77,7 +81,7 @@ export function HelpMenu({ version, docsUrl, supportEmail }: HelpMenuProps) {
               ))}
             </MenuSection>
           )}
-          <MenuItem id="version" href="/config">
+          <MenuItem id="version" href={orgPath("/config")}>
             Version {version}
           </MenuItem>
         </>

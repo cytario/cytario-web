@@ -15,6 +15,7 @@ import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { cytarioConfig } from "~/config";
 import { canCreate } from "~/utils/authorization";
 import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
+import { orgPath } from "~/utils/orgPath";
 import { getPrefix } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
 
@@ -297,7 +298,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
               .join(" ")}`,
     });
 
-    return redirect(`/connections/${created.id}`, {
+    return redirect(orgPath(user.organization, `/connections/${created.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

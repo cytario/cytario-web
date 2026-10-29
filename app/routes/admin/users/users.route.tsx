@@ -26,6 +26,7 @@ import { Container, Section, SectionHeader } from "~/components/Container";
 import { BucketPolicyStatusPill } from "~/components/Pills/BucketPolicyStatusPill";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { useModal } from "~/hooks/useModal";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { compareGroupPaths } from "~/utils/groupPath";
 
 export const meta: MetaFunction = () => [{ title: "Admin — Users" }];
@@ -193,6 +194,8 @@ export default function AdminUsersRoute() {
   }>();
 
   const { openModal } = useModal();
+  const orgPath = useOrgPath();
+  const adminPath = (path: string) => orgPath(`${path}?scope=${encodeURIComponent(scope)}`);
   const tableId = `admin-users-${scope}`;
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const selectedCount = Object.keys(rowSelection).length;
@@ -233,21 +236,17 @@ export default function AdminUsersRoute() {
           {data.length} {data.length === 1 ? "user" : "users"}
         </span>
         <ButtonLink
-          href={`/admin/users/create-group?scope=${encodeURIComponent(scope)}`}
+          href={adminPath("/admin/users/create-group")}
           variant="secondary"
           iconLeft="FolderPlus"
         >
           Create Group
         </ButtonLink>
-        <ButtonLink
-          href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`}
-          variant="secondary"
-          iconLeft="UserPlus"
-        >
+        <ButtonLink href={adminPath("/admin/users/invite")} variant="secondary" iconLeft="UserPlus">
           Invite User
         </ButtonLink>
         <ButtonLink
-          href={`/admin/users/bulk-invite?scope=${encodeURIComponent(scope)}`}
+          href={adminPath("/admin/users/bulk-invite")}
           variant="secondary"
           iconLeft="UsersRound"
         >
@@ -268,7 +267,7 @@ export default function AdminUsersRoute() {
               {connections.map((conn) => (
                 <li key={conn.name}>
                   <Link
-                    to={`/connections/${encodeURIComponent(conn.name)}`}
+                    to={orgPath(`/connections/${encodeURIComponent(conn.name)}`)}
                     className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:border-border hover:bg-white transition-colors"
                   >
                     <span className="h-2 w-2 rounded-full bg-success shrink-0" />
@@ -303,7 +302,7 @@ export default function AdminUsersRoute() {
             title="No users yet"
             description="Invite team members to get started."
             action={
-              <ButtonLink href={`/admin/users/invite?scope=${encodeURIComponent(scope)}`} size="lg">
+              <ButtonLink href={adminPath("/admin/users/invite")} size="lg">
                 Invite User
               </ButtonLink>
             }

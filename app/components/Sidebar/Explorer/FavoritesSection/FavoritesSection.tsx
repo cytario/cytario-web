@@ -4,6 +4,7 @@ import { useRouteLoaderData } from "react-router";
 
 import { SidebarNodeList } from "../SidebarNodeList";
 import { Section } from "~/components/Section/Section";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -13,6 +14,7 @@ const MAX_SIDEBAR_ITEMS = 8;
 
 export function FavoritesSection() {
   const connections = useConnectionsStore(select.connections);
+  const orgPath = useOrgPath();
   const layoutData = useRouteLoaderData<typeof protectedLayoutLoader>(
     "routes/layouts/protected.layout",
   );
@@ -34,7 +36,7 @@ export function FavoritesSection() {
       badge={String(nodes.length)}
       actions={
         <IconButtonLink
-          href="/favorites"
+          href={orgPath("/favorites")}
           icon="ArrowRight"
           label="View all favorites"
           variant="ghost"

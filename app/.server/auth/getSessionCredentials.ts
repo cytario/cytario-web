@@ -1,5 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
+import { getOrExchangeOrgToken } from "./orgTokenExchange";
 import { buildRustfsSessionPolicy } from "./rustfsSessionPolicy";
 import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
@@ -42,8 +43,10 @@ interface SessionCredentialRequest {
   // The bucket catalog is the per-bucket source — a bucket may live in a
   // different region than its provider connection's default.
   bucketRegion?: string;
-  sessionData: SessionData;
   roleSessionName: string;
+  // Per-org token exchange in progress; resolved once per request, not per
+  // connection.
+  webIdentityToken: Promise<string>;
 }
 
 /** The AWS mint requires a concrete role ARN — null (a RustFS role) fails closed. */
@@ -61,14 +64,13 @@ const fetchTemporaryCredentials = async ({
   grant,
   connectionProvider,
   bucketRegion,
-  sessionData,
   roleSessionName,
+  webIdentityToken,
 }: SessionCredentialRequest): Promise<Credentials> => {
   const { bucketName, prefix } = connectionConfig;
   const { roleArn, accessLevel } = grant;
   const region = bucketRegion ?? connectionProvider.region;
   const { endpoint, providerType } = connectionProvider;
-  const { idToken } = sessionData.authTokens;
 
   const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
 
@@ -101,7 +103,7 @@ const fetchTemporaryCredentials = async ({
   const command = new AssumeRoleWithWebIdentityCommand({
     RoleArn: providerConfig.sendsRoleArn ? requireAwsRoleArn(roleArn, grant.scope) : undefined,
     RoleSessionName: roleSessionName,
-    WebIdentityToken: idToken,
+    WebIdentityToken: await webIdentityToken,
     DurationSeconds: 60 * 60 * 1, // 1 hour
     ...(Policy ? { Policy } : {}),
   });
@@ -175,13 +177,14 @@ export interface SessionCredentialsResult {
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
   connectionConfigs: ConnectionConfigWithGrants[],
+  sessionId: string,
 ): Promise<SessionCredentialsResult> => {
   if (connectionConfigs.length === 0) {
     return { credentials: sessionData.credentials, errors: {}, providers: {} };
   }
 
   const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
-  const organization = sessionData.user.organization ?? "";
+  const organization = sessionData.activeOrganization ?? sessionData.user.organization ?? "";
 
   let catalog: ProviderCatalog | undefined;
   let catalogError: string | undefined;
@@ -274,6 +277,22 @@ export const getAllSessionCredentials = async (
     `${label} Fetching credentials for ${connectionsNeedingRefresh.length} connection(s)`,
   );
 
+  // One narrow token for every connection of this request. Resolved lazily so a
+  // request whose credentials are all still valid never pays the exchange.
+  const webIdentityToken = (async (): Promise<string> => {
+    if (!organization) {
+      throw new Error(
+        "No active organization on the session — refusing to mint credentials (fail closed).",
+      );
+    }
+    const exchanged = await getOrExchangeOrgToken(
+      sessionId,
+      organization,
+      sessionData.authTokens.accessToken,
+    );
+    return exchanged.accessToken;
+  })();
+
   const credentialResults = await Promise.allSettled(
     connectionsNeedingRefresh.map(async (connectionConfig) => {
       if (!catalog) {
@@ -303,8 +322,8 @@ export const getAllSessionCredentials = async (
           grant,
           connectionProvider,
           bucketRegion: bucketRegionOf(connectionConfig),
-          sessionData,
           roleSessionName,
+          webIdentityToken,
         }),
       };
     }),

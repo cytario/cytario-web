@@ -1,18 +1,24 @@
-import { GETTING_STARTED_TOUR_ID, isImageViewerRoute, type TourDefinition } from "../tourRegistry";
+import {
+  GETTING_STARTED_TOUR_ID,
+  ORG_SWITCHER_SELECTOR,
+  isImageViewerRoute,
+  type TourDefinition,
+} from "../tourRegistry";
 
 /**
  * The connection root row in the sidebar tree. Present on every protected
  * route (the sidebar selects the route's connection, or the first one), so it
- * is the reliable "step into a connection" target.
+ * is the reliable "step into a connection" target. The `*=` match keeps it
+ * prefix-agnostic: connection links live under the URL's organization.
  */
-const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href^="/connections/"]';
+const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href*="/connections/"]';
 
 /**
  * A folder or file inside the browsed connection. Scoped to the content
  * area's <section>: the sidebar tree holds the same link shape, so an
  * unscoped `main a[…]` resolves to the navigation panel instead.
  */
-const CONTENT_ENTRY_LINK = 'main section a[href^="/connections/"]';
+const CONTENT_ENTRY_LINK = 'main section a[href*="/connections/"]';
 
 export const gettingStartedTour: TourDefinition = {
   id: GETTING_STARTED_TOUR_ID,
@@ -60,6 +66,17 @@ export const gettingStartedTour: TourDefinition = {
     {
       target: 'nav[aria-label="Breadcrumb"]',
       content: "Breadcrumbs show where you are. Click any crumb to jump back up the folder tree.",
+    },
+    {
+      // The switcher is the breadcrumb's org root, rendered only when a second
+      // org exists; the registry drops this step for single-org users.
+      target: ORG_SWITCHER_SELECTOR,
+      placement: "bottom",
+      title: "Switch organization",
+      content:
+        "You belong to more than one organization. This is the active one — " +
+        "switch here to work in another; everything you see follows.",
+      data: { requiresMultipleOrgs: true },
     },
     {
       target: '[role="radiogroup"][aria-label="View mode"]',

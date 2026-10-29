@@ -3,6 +3,7 @@ import { redirect } from "react-router";
 import { authMiddleware, authContext } from "../authMiddleware";
 import { getSessionData } from "../getSession";
 import { getAllSessionCredentials } from "../getSessionCredentials";
+import { getPreferredOrg } from "../orgPreference.server";
 import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
@@ -17,6 +18,10 @@ vi.mock("../getSession", () => ({
 
 vi.mock("../getSessionCredentials", () => ({
   getAllSessionCredentials: vi.fn(),
+}));
+
+vi.mock("../orgPreference.server", () => ({
+  getPreferredOrg: vi.fn(),
 }));
 
 vi.mock("../refreshAuthTokens", () => ({
@@ -83,6 +88,7 @@ describe("authMiddleware", () => {
 
   const mockSessionData = {
     user: mock.user(),
+    activeOrganization: "org1",
     authTokens: {
       accessToken: mock.idToken(),
       idToken: "valid-id-token",
@@ -135,6 +141,7 @@ describe("authMiddleware", () => {
     });
     // No plugin loaded by default → gates short-circuit to continue.
     vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
+    vi.mocked(getPreferredOrg).mockResolvedValue(null);
   });
 
   describe("Session Context", () => {
@@ -191,6 +198,7 @@ describe("authMiddleware", () => {
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
         mockConnectionConfigs,
+        mockSession.id,
       );
     });
 
@@ -235,6 +243,66 @@ describe("authMiddleware", () => {
       await expect(
         authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow("STS service unavailable");
+    });
+  });
+
+  describe("Active organization", () => {
+    const multiOrgUser = () =>
+      mock.user({
+        organization: "alpha",
+        organizations: {
+          alpha: { groups: ["lab"], attributes: {} },
+          zeta: { groups: ["research"], attributes: {} },
+        },
+        groups: ["lab"],
+      });
+
+    test("a stored active org the token still carries is kept", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        activeOrganization: "zeta",
+        user: multiOrgUser(),
+      });
+
+      const args = createMiddlewareArgs();
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(getPreferredOrg).not.toHaveBeenCalled();
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ activeOrganization: "zeta" }),
+      );
+    });
+
+    test("re-resolves a stale stored org to the persisted preference", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        activeOrganization: "revoked",
+        user: multiOrgUser(),
+      });
+      vi.mocked(getPreferredOrg).mockResolvedValue("zeta");
+
+      const args = createMiddlewareArgs();
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(mockSession.set).toHaveBeenCalledWith("activeOrganization", "zeta");
+      expect(mockSession.set).toHaveBeenCalledWith(
+        "user",
+        expect.objectContaining({ organization: "zeta", groups: ["research"] }),
+      );
+    });
+
+    test("re-resolves a session with no active org to the first alias", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        activeOrganization: undefined,
+        user: multiOrgUser(),
+      });
+
+      const args = createMiddlewareArgs();
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(mockSession.set).toHaveBeenCalledWith("activeOrganization", "alpha");
     });
   });
 
@@ -330,6 +398,7 @@ describe("authMiddleware", () => {
           }),
         }),
         mockConnectionConfigs,
+        mockSession.id,
       );
     });
 
@@ -407,7 +476,8 @@ describe("authMiddleware", () => {
     test("redirects zero-org sessions to /onboarding before fetching credentials", async () => {
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
-        user: mock.user({ organization: undefined }),
+        activeOrganization: undefined,
+        user: mock.user({ organization: undefined, organizations: {} }),
       });
 
       const args = createMiddlewareArgs();
@@ -572,7 +642,8 @@ describe("authMiddleware", () => {
       vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
-        user: mock.user({ organization: undefined }),
+        activeOrganization: undefined,
+        user: mock.user({ organization: undefined, organizations: {} }),
       });
 
       const args = createMiddlewareArgs();

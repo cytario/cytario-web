@@ -12,6 +12,7 @@ import { ShareMenuItem } from "./ShareMenuItem";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { PluginContextMenuItems } from "~/components/DirectoryView/NodeLink/PluginContextMenuItems";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -31,6 +32,7 @@ export function useNodeContextMenu({
 }): NodeContextMenuResult | null {
   const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
+  const connectionsPath = useOrgPath()("/connections");
 
   // Confirm-flow state: owned here (always mounted), never inside the popover.
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -72,10 +74,10 @@ export function useNodeContextMenu({
   const dialogs =
     node.type === "bucket" ? (
       <>
-        <Form method="delete" action="/connections" ref={formRef} className="hidden">
+        <Form method="delete" action={connectionsPath} ref={formRef} className="hidden">
           <input type="hidden" name="connectionId" value={connectionConfig.id} />
         </Form>
-        <Form method="post" action="/connections" ref={reapplyFormRef} className="hidden">
+        <Form method="post" action={connectionsPath} ref={reapplyFormRef} className="hidden">
           <input type="hidden" name="_intent" value="reapply" />
           <input type="hidden" name="connectionId" value={connectionConfig.id} />
         </Form>

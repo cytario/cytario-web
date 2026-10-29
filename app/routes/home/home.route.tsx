@@ -10,6 +10,7 @@ import {
 import { DashboardSection } from "~/components/DashboardSection";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useModal } from "~/hooks/useModal";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { type LoaderData } from "~/routes/connections/connections.loader";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
 import { getFileCategory } from "~/utils/fileType";
@@ -51,6 +52,7 @@ export default function HomeRoute() {
   );
 
   const { openModal } = useModal();
+  const orgPath = useOrgPath();
 
   const allRecentItems = useMemo(
     () =>
@@ -98,7 +100,7 @@ export default function HomeRoute() {
         nodes={nodes}
         viewMode="grid"
         maxItems={MAX_CONNECTIONS}
-        to="/connections"
+        to={orgPath("/connections")}
       />
 
       <DashboardSection
@@ -106,7 +108,7 @@ export default function HomeRoute() {
         nodes={recentImages}
         viewMode="grid"
         maxItems={MAX_RECENT_IMAGES}
-        to="/recent"
+        to={orgPath("/recent")}
       />
 
       <DashboardSection
@@ -114,7 +116,7 @@ export default function HomeRoute() {
         nodes={favoriteNodes}
         viewMode="list"
         maxItems={MAX_FAVORITES}
-        to="/favorites"
+        to={orgPath("/favorites")}
       />
 
       <DashboardSection
@@ -122,7 +124,7 @@ export default function HomeRoute() {
         nodes={recentDirs}
         viewMode="list"
         maxItems={MAX_RECENT_DIRS}
-        to="/recent"
+        to={orgPath("/recent")}
       />
 
       <DashboardSection
@@ -130,7 +132,7 @@ export default function HomeRoute() {
         nodes={recentFiles}
         viewMode="grid"
         maxItems={MAX_RECENT_FILES}
-        to="/recent"
+        to={orgPath("/recent")}
       />
     </>
   );

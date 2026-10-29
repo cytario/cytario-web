@@ -6,6 +6,7 @@ import { twMerge } from "tailwind-merge";
 import { useNodeContextMenu } from "./NodeContextMenu/useNodeContextMenu";
 import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { useActiveOrg } from "~/hooks/useOrgPath";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -75,7 +76,8 @@ export function NodeLink({
   onContextMenuTarget,
   highlightQuery,
 }: NodeLinkProps) {
-  const to = buildConnectionPath(node.connectionId, node.pathName);
+  const activeOrg = useActiveOrg();
+  const to = buildConnectionPath(node.connectionId, node.pathName, activeOrg);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
   const clickable = isClickable(node) && !isCurrent;
   const ctx = useNodeContextMenu({ node, isCurrent, extraItems: contextMenuItems });

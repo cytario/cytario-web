@@ -7,6 +7,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { assertGrantScope } from "~/routes/admin/assertAdminScope";
 import { canModify } from "~/utils/authorization";
+import { orgPath } from "~/utils/orgPath";
 
 /** Re-apply a connection's bucket-policy grant so a drifted or errored
  * connection converges back to `applied` (or warns when the write is denied).
@@ -51,7 +52,7 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
         : `Could not re-apply the bucket policy. ${outcome.warning}`,
   });
 
-  return redirect("/connections", {
+  return redirect(orgPath(user.organization, "/connections"), {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });
 };

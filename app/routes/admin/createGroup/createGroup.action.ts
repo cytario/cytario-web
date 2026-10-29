@@ -8,9 +8,10 @@ import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { addUserToOrganizationGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 
 export const createGroupAction: ActionFunction = async ({ request, context }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user, authTokens, activeOrganization } = context.get(authContext);
   const { org, adminUrl, scope } = context.get(adminContext);
 
   const formData = await request.formData();
@@ -27,10 +28,13 @@ export const createGroupAction: ActionFunction = async ({ request, context }) =>
 
     await addUserToOrganizationGroup(orgId, adminsGroupId, user.sub);
 
-    const refreshedUser = await getUserInfo(authTokens.accessToken);
+    const refreshedUser = await getUserInfo(
+      authTokens.accessToken,
+      activeOrganization ?? user.organization,
+    );
     session.set("user", refreshedUser);
 
-    const newScopeUrl = `/admin/users?scope=${encodeURIComponent(path)}`;
+    const newScopeUrl = adminUsersPath(org.alias, path);
 
     session.set("notification", {
       status: "success",

@@ -26,6 +26,7 @@ import { GrantLevelHint, grantLevelHint, levelsForGrant } from "./grantLevels";
 import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
 const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
@@ -84,6 +85,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   const isEditMode = !!initialData;
   const submit = useSubmit();
   const location = useLocation();
+  const connectionsPath = useOrgPath()("/connections");
   const actionData = useActionData<{
     errors?: Record<string, string[]>;
     formError?: string;
@@ -224,7 +226,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
     // mid-submit — its error banner would never render. Preserve the search.
     submit(formData, {
       method: isEditMode ? "patch" : "post",
-      action: `/connections${location.search}`,
+      action: `${connectionsPath}${location.search}`,
     });
   };
 

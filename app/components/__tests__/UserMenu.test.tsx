@@ -48,6 +48,7 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
     policy: [],
     groups: [],
     adminScopes: [],
+    organizations: {},
     organizationAttributes: {},
     ...overrides,
   };

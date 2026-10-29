@@ -9,6 +9,7 @@ import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { assertGrantScope } from "~/routes/admin/assertAdminScope";
+import { orgPath } from "~/utils/orgPath";
 
 /** Create a folder share and apply its bucket-policy grant. Order of
  * enforcement is load-bearing: authorize every SUBMITTED target scope
@@ -87,7 +88,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
           : `Share created. ${outcome.warning}`,
     });
 
-    return redirect(`/connections/${share.id}`, {
+    return redirect(orgPath(user.organization, `/connections/${share.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

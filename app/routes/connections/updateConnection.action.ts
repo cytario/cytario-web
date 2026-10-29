@@ -18,6 +18,7 @@ import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
 import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
+import { orgPath } from "~/utils/orgPath";
 
 export interface UpdateConnectionInput {
   name: string;
@@ -247,7 +248,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
             .join(" ")}`,
     });
 
-    return redirect(`/connections/${updatedConfig.id}`, {
+    return redirect(orgPath(user.organization, `/connections/${updatedConfig.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

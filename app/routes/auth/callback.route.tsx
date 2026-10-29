@@ -4,6 +4,7 @@ import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { getSession } from "~/.server/auth/getSession";
 import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { validateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
+import { getPreferredOrg, setPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import { createLabel } from "~/.server/logging";
@@ -86,21 +87,44 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     console.info(`${label} Fetching user info`);
-    const user = await getUserInfo(tokens.access_token);
+    const session = await getSession(request);
+
+    // The org already on the session wins: a silent re-auth must land the user
+    // back in the org they picked, not the one recorded at an earlier login. A
+    // preference lookup is an optimisation only — an unavailable database must
+    // not turn a valid login into a failure.
+    const userSub = idTokenPayload.sub;
+    const preferredOrg = session.get("activeOrganization") ?? session.get("user")?.organization;
+    const persistedOrg =
+      !preferredOrg && typeof userSub === "string"
+        ? await getPreferredOrg(userSub).catch((error: unknown) => {
+            console.warn(`${label} Org preference lookup failed:`, error);
+            return null;
+          })
+        : null;
+    const user = await getUserInfo(tokens.access_token, preferredOrg ?? persistedOrg ?? undefined);
 
     const notification: NotificationInput = {
       status: "success",
       message: `Welcome, ${user.email}!`,
     };
 
-    const session = await getSession(request);
     session.set("user", user);
+    session.set("activeOrganization", user.organization);
     session.set("authTokens", {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       idToken: tokens.id_token,
     });
     session.set("notification", notification);
+
+    // Records the login's resolved org as the next login's starting point. A
+    // failure here only costs the preference, never the session.
+    if (user.organization) {
+      await setPreferredOrg(user.sub, user.organization).catch((error: unknown) =>
+        console.warn(`${label} Storing the org preference failed:`, error),
+      );
+    }
 
     const redirectTo = validateRedirectTo(stateData.redirectTo);
     console.info(`${label} Authentication successful, redirecting to:`, redirectTo);

@@ -9,6 +9,7 @@ import {
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 interface UserMenuProps {
@@ -40,7 +41,7 @@ export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps)
                   <MenuItem
                     key={scope}
                     id={`admin-${scope}`}
-                    href={`/admin/users?scope=${encodeURIComponent(scope)}`}
+                    href={adminUsersPath(user.organization, scope)}
                   >
                     <ScopePill scope={scope} />
                   </MenuItem>

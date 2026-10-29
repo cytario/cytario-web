@@ -1,5 +1,4 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { useNavigate } from "react-router";
 import { vi } from "vitest";
 
 import type { Identity } from "@cytario/plugin-api";
@@ -31,7 +30,7 @@ describe("usePluginNavEntries", () => {
     mockNavigate.mockClear();
   });
 
-  test("threads navigate from useNavigate into the activation context", async () => {
+  test("threads a router navigate into the activation context", async () => {
     sidebarNavRegistry.scopedFor("test-plugin").register("nav", {
       id: "jobs",
       label: "Jobs",
@@ -46,7 +45,11 @@ describe("usePluginNavEntries", () => {
 
     const ctx = result.current[0]!.activationContext;
     expect(typeof ctx.navigate).toBe("function");
-    expect(ctx.navigate).toBe(useNavigate());
+
+    // The host wraps navigate so a plugin's app-relative path lands inside the
+    // active organization; no organization in this fixture leaves it as-is.
+    ctx.navigate("/jobs/123");
+    expect(mockNavigate).toHaveBeenCalledWith("/jobs/123");
   });
 
   test("onActivate can call navigate to override the static to", async () => {
