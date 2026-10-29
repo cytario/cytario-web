@@ -35,6 +35,10 @@ export interface BucketRouteServerLoaderResponse {
 export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderResponse {
   nodes: TreeNode[];
   isSingleFile?: boolean;
+  /** Set when the client loader recognized an extensionless zarr store
+   *  directory by its root markers — the route then dispatches to the image
+   *  viewer path regardless of the extension-less name's file category. */
+  isStoreDirectory?: boolean;
   notification?: NotificationInput;
 }
 

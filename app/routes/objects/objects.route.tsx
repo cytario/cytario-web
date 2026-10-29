@@ -192,6 +192,7 @@ export default function ObjectsRoute() {
     nodes,
     urlPath,
     isSingleFile,
+    isStoreDirectory,
     notification,
     pendingClientLoad,
     connectionError,
@@ -232,7 +233,9 @@ export default function ObjectsRoute() {
   }
 
   if (isSingleFile) {
-    const category = getFileCategory(resourceId);
+    // An extensionless store directory has no extension to derive a category
+    // from; the loader's marker check already recognized it as a store.
+    const category = isStoreDirectory ? "image" : getFileCategory(resourceId);
 
     if (category === "text" || category === "markdown") {
       const signedFetch = createSignedFetch(

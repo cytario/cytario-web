@@ -205,6 +205,57 @@ describe("Bucket Route", () => {
     ]);
   }
 
+  test("renders the viewer path for an extensionless store directory flagged by the client loader", async () => {
+    seedConnection("aws-test-bucket");
+    viewerRegistry.__reset();
+    let receivedProps: { resourceId: string } | undefined;
+    viewerRegistry.scopedFor("spatialdata-plugin").register({
+      match: () => false,
+      canHandle: (resourceId) =>
+        Promise.resolve(resourceId.replace(/\/$/, "").endsWith("combined_spatialdata_zarr")),
+      component: (props: { resourceId: string }) => {
+        receivedProps = props;
+        return <div data-testid="plugin-viewer" />;
+      },
+    });
+
+    const StubStore = createRoutesStub([
+      {
+        path: "/connections/:id/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: () => {
+          return {
+            connectionId: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
+            credentials: mock.credentials(),
+            connectionConfig: mock.connectionConfig(),
+            user: mock.user(),
+            nodes: [],
+            pathName: "caudate/combined_spatialdata_zarr/",
+            urlPath: "caudate/combined_spatialdata_zarr/",
+            bucketName: "test-bucket",
+            name: "combined_spatialdata_zarr",
+            isSingleFile: true,
+            isStoreDirectory: true,
+          };
+        },
+      },
+    ]);
+    render(
+      <StubStore
+        initialEntries={["/connections/aws-test-bucket/caudate/combined_spatialdata_zarr/"]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+    });
+    expect(receivedProps).toMatchObject({
+      resourceId: "aws-test-bucket/caudate/combined_spatialdata_zarr/",
+    });
+  });
+
   test("renders a plugin viewer claiming the resource synchronously with the resolved url", async () => {
     seedConnection("aws-test-bucket");
     let receivedProps: { resourceId: string; httpsUrl: string } | undefined;

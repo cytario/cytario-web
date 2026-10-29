@@ -1,6 +1,7 @@
 import {
   companionDirectoryPrefixes,
   hasCompanionDirectory,
+  hasZarrStoreRootMarker,
   isInsideHiddenPrefix,
   isInsideLeafDirectory,
   isLeafDirectory,
@@ -183,5 +184,30 @@ describe("builtin zarr registration still resolves after reset", () => {
     __resetBuiltinFormats();
     registerBuiltinFormats();
     expect(isLeafDirectory("data.zarr")).toBe(true);
+  });
+});
+
+describe("hasZarrStoreRootMarker", () => {
+  test("detects a v2 store root via .zgroup", () => {
+    expect(hasZarrStoreRootMarker([".zgroup", ".zattrs", "zmetadata"])).toBe(true);
+  });
+
+  test("detects a v2 array-rooted store via .zarray", () => {
+    expect(hasZarrStoreRootMarker([".zarray", "0"])).toBe(true);
+  });
+
+  test("detects a v3 store root via zarr.json", () => {
+    expect(hasZarrStoreRootMarker(["zarr.json", "images"])).toBe(true);
+  });
+
+  test("a plain directory without markers is not a store root", () => {
+    expect(hasZarrStoreRootMarker(["README.md", "data", "notes.txt"])).toBe(false);
+    expect(hasZarrStoreRootMarker([])).toBe(false);
+  });
+
+  test("markers inside subdirectories do not count — only the directory's own level", () => {
+    // The caller passes the direct child names; a nested zarr store is a
+    // subdirectory, not this directory's root.
+    expect(hasZarrStoreRootMarker(["nested_store"])).toBe(false);
   });
 });
