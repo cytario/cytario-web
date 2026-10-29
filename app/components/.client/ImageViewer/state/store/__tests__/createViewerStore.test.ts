@@ -903,6 +903,53 @@ describe("createViewerStore", () => {
     expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(false);
   });
 
+  test("setChannelVisibility() surfaces an unsupported-compression failure via toast", async () => {
+    const showToast = vi.fn();
+    const store = createViewerStore("test-viewer-20e", "", showToast);
+
+    vi.mocked(getSelectionStats).mockRejectedValue(
+      new Error("Unknown compression method identifier: 34712"),
+    );
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
+      layersStates: [createMockLayersState()],
+    });
+
+    await store.getState().setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
+
+    expect(showToast).toHaveBeenCalledWith({
+      variant: "error",
+      message: "Cannot decode this image: TIFF compression 34712 is not supported.",
+    });
+    expect(store.getState().layersStates[0].channels["Green"].isVisible).toBe(false);
+  });
+
+  test("setChannelVisibility() toasts a generic stats failure without inventing a compression", async () => {
+    const showToast = vi.fn();
+    const store = createViewerStore("test-viewer-20f", "", showToast);
+
+    vi.mocked(getSelectionStats).mockRejectedValue(new Error("S3 throttled"));
+
+    store.setState({
+      imagePanelIndex: 0,
+      imagePanels: [0],
+      loader: [{}] as unknown as Loader,
+      channels: createMockChannels(),
+      layersStates: [createMockLayersState()],
+    });
+
+    await store.getState().setChannelVisibility("Green" as keyof ChannelsStateColumns, true);
+
+    expect(showToast).toHaveBeenCalledWith({
+      variant: "error",
+      message: "Cannot compute channel statistics: S3 throttled",
+    });
+  });
+
   test("setChannelColor()", () => {
     const store = createViewerStore("test-viewer-21");
 

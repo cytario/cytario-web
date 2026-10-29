@@ -79,6 +79,7 @@ export const createViewerStore = (
   );
 
   (store as unknown as { __temporalState?: TemporalState }).__temporalState = temporalState;
+  (store as unknown as { __showToast?: typeof showToast }).__showToast = showToast;
 
   return store;
 };

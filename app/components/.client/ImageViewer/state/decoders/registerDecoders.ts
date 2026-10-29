@@ -11,6 +11,7 @@ let registered = false;
 export function registerDecoders(): void {
   if (registered) return;
   addDecoder(5, () => LZWDecoder);
-  addDecoder(33005, () => JP2KDecoder);
+  // All three are raw J2K codestreams: 33003/33005 (Aperio/slideio), 34712 (JPEG 2000 per ISO/IEC 15444-1 — tifffile, GDAL, Bio-Formats).
+  addDecoder([33003, 33005, 34712], () => JP2KDecoder);
   registered = true;
 }
