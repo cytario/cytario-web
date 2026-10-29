@@ -1,3 +1,4 @@
+import type { ToastData } from "@cytario/design";
 import { castDraft } from "immer";
 
 import { getInitialChannelsState } from "./getInitialChannelsState";
@@ -29,8 +30,20 @@ export interface ChannelsSlice {
   setChannelsOpacity: (opacity: number) => void;
 }
 
+function describeStatsError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const compression = /compression method identifier:\s*(\d+)/.exec(message);
+  if (compression) {
+    return `Cannot decode this image: TIFF compression ${compression[1]} is not supported.`;
+  }
+  return `Cannot compute channel statistics: ${message}`;
+}
+
 /** Channel state: channel data, contrast, visibility, color, opacity, stats. */
-export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
+export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get, api) => {
+  const getShowToast = (): ((toast: Omit<ToastData, "id">) => void) | undefined =>
+    (api as unknown as { __showToast?: typeof getShowToast }).__showToast;
+
   const initChannelStats = async (key: string): Promise<boolean> => {
     const state = get();
     if (!state.loader) return false;
@@ -64,7 +77,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
         "initChannelStats/success",
       );
       return true;
-    } catch {
+    } catch (error) {
       set(
         (viewerStore) => {
           viewerStore.channels[key].isLoading = false;
@@ -72,6 +85,7 @@ export const createChannelsSlice: ViewerSlice<ChannelsSlice> = (set, get) => {
         false,
         "initChannelStats/error",
       );
+      getShowToast()?.({ variant: "error", message: describeStatsError(error) });
       return false;
     }
   };
