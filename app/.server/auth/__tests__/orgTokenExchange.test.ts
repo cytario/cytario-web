@@ -2,6 +2,7 @@ import {
   OrgTokenExchangeError,
   __resetOrgTokenCache,
   exchangeOrgToken,
+  getOrExchangeOrgAccessToken,
   getOrExchangeOrgToken,
 } from "../orgTokenExchange";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
@@ -28,6 +29,15 @@ const tokenResponse = (accessToken: string) => ({
     Promise.resolve({
       access_token: accessToken,
       issued_token_type: "urn:ietf:params:oauth:token-type:id_token",
+    }),
+});
+
+const accessTokenResponse = (accessToken: string) => ({
+  ok: true,
+  json: () =>
+    Promise.resolve({
+      access_token: accessToken,
+      issued_token_type: "urn:ietf:params:oauth:token-type:access_token",
     }),
 });
 
@@ -116,7 +126,7 @@ describe("exchangeOrgToken", () => {
 
     await expect(
       exchangeOrgToken({ alias: "vericura", subjectToken: "session-token" }),
-    ).rejects.toThrow(/expected an ID token/);
+    ).rejects.toThrow(/expected urn:ietf:params:oauth:token-type:id_token/);
   });
 
   test("fails closed when the response is not JSON", async () => {
@@ -205,5 +215,52 @@ describe("getOrExchangeOrgToken", () => {
     await expect(getOrExchangeOrgToken("session-1", "vericura", "session-token")).rejects.toThrow(
       OrgTokenExchangeError,
     );
+  });
+});
+
+describe("getOrExchangeOrgAccessToken", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetOrgTokenCache();
+    vi.mocked(getWellKnownEndpoints).mockResolvedValue({
+      token_endpoint: "https://auth.example.com/token",
+      authorization_endpoint: "https://auth.example.com/auth",
+      revocation_endpoint: "https://auth.example.com/revoke",
+      end_session_endpoint: "https://auth.example.com/logout",
+      userinfo_endpoint: "https://auth.example.com/userinfo",
+      jwks_uri: "https://auth.example.com/certs",
+      issuer: "https://auth.example.com/realms/test",
+    });
+  });
+
+  test("requests an access token and never collides with the ID-token cache", async () => {
+    const idToken = mintedToken(3600);
+    const accessToken = mintedToken(3600);
+    mockFetch
+      .mockResolvedValueOnce(tokenResponse(idToken))
+      .mockResolvedValueOnce(accessTokenResponse(accessToken));
+
+    const idExchanged = await getOrExchangeOrgToken("s1", "vericura", "session-token");
+    const accessExchanged = await getOrExchangeOrgAccessToken("s1", "vericura", "session-token");
+
+    expect(accessExchanged.accessToken).toBe(accessToken);
+    expect(idExchanged.accessToken).toBe(accessToken);
+
+    // Two distinct exchanges: one per requested type.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const accessBody = mockFetch.mock.calls[1][1].body as URLSearchParams;
+    expect(accessBody.get("requested_token_type")).toBe(
+      "urn:ietf:params:oauth:token-type:access_token",
+    );
+  });
+
+  test("reuses the cached access token without a second exchange", async () => {
+    const accessToken = mintedToken(3600);
+    mockFetch.mockResolvedValue(accessTokenResponse(accessToken));
+
+    await getOrExchangeOrgAccessToken("s1", "vericura", "session-token");
+    await getOrExchangeOrgAccessToken("s1", "vericura", "session-token");
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

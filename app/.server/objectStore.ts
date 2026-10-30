@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import type { ConnectionConfigWithGrants } from "./auth/authMiddleware";
+import { getOrExchangeOrgAccessToken } from "./auth/orgTokenExchange";
 import { hostRequestStorage } from "./hostRequestContext";
 import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
@@ -53,7 +54,7 @@ async function resolveWritableConnection(
   accessLevel: AccessLevel;
   providerType: "aws" | "rustfs";
 }> {
-  const { user, authTokens } = requireRequestData();
+  const { user, authTokens, sessionId } = requireRequestData();
   const configs = await listConnections(user);
   const config = configs.find((c) => c.id === connectionId);
   if (!config) {
@@ -63,8 +64,13 @@ async function resolveWritableConnection(
     throw new Error(`Connection "${connectionId}" not found or not visible to the user`);
   }
 
-  const catalog = await getProviderCatalog(user.organization!, authTokens.accessToken);
-  const bucketCatalog = await getBucketCatalog(user.organization!, authTokens.accessToken).catch(
+  // Portal lookups present a narrow per-org access token (the portal rejects
+  // the multi-membership session token a multi-org user carries).
+  const portalToken = (
+    await getOrExchangeOrgAccessToken(sessionId, user.organization!, authTokens.accessToken)
+  ).accessToken;
+  const catalog = await getProviderCatalog(user.organization!, portalToken);
+  const bucketCatalog = await getBucketCatalog(user.organization!, portalToken).catch(
     () => undefined,
   );
   const connectionProvider = resolveConnectionProviderWithGrants(catalog, config, bucketCatalog);

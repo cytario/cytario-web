@@ -1,6 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
-import { getOrExchangeOrgToken } from "./orgTokenExchange";
+import { getOrExchangeOrgAccessToken, getOrExchangeOrgToken } from "./orgTokenExchange";
 import { buildRustfsSessionPolicy } from "./rustfsSessionPolicy";
 import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
@@ -186,10 +186,32 @@ export const getAllSessionCredentials = async (
   const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
   const organization = sessionData.activeOrganization ?? sessionData.user.organization ?? "";
 
+  // Portal lookups present a narrow per-org access token: the portal's own
+  // exchange rejects the multi-membership session token a multi-org user
+  // carries.
+  const portalAccessToken = await (async () => {
+    if (!organization || cytarioConfig.providers.source !== "portal") return undefined;
+    try {
+      return (
+        await getOrExchangeOrgAccessToken(
+          sessionId,
+          organization,
+          sessionData.authTokens.accessToken,
+        )
+      ).accessToken;
+    } catch (error) {
+      console.warn(
+        `${label} Portal token exchange failed, catalog lookups will fail closed:`,
+        error,
+      );
+      return undefined;
+    }
+  })();
+
   let catalog: ProviderCatalog | undefined;
   let catalogError: string | undefined;
   try {
-    catalog = await getProviderCatalog(organization, sessionData.authTokens.accessToken);
+    catalog = await getProviderCatalog(organization, portalAccessToken);
   } catch (error) {
     catalogError =
       error instanceof Error
@@ -205,7 +227,7 @@ export const getAllSessionCredentials = async (
   let bucketCatalog: Awaited<ReturnType<typeof getBucketCatalog>> | undefined;
   if (cytarioConfig.providers.source === "portal") {
     try {
-      bucketCatalog = await getBucketCatalog(organization, sessionData.authTokens.accessToken);
+      bucketCatalog = await getBucketCatalog(organization, portalAccessToken);
     } catch {
       bucketCatalog = undefined;
     }

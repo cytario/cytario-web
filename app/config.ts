@@ -38,6 +38,13 @@ interface CytarioConfig {
     jobBrokerClientId: string;
     jobBrokerClientSecret: string;
     scopes: string[];
+    /**
+     * The external S3 client's scope set: unlike the browser session it
+     * requests the plain `organization` scope, so the identity service binds
+     * exactly one organization at sign-in (its picker) and the session-tag
+     * mapper emits the ORG tag Cyberduck's STS mint depends on.
+     */
+    externalClientScopes: string[];
   };
   redis: {
     /** Redis/Valkey server port (default: 6379) */
@@ -190,6 +197,7 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     // `organization` claim; the active tenant is chosen in the session, and a
     // per-org token is minted by token exchange (see .server/auth/orgTokenExchange).
     scopes: ["openid", "profile", "organization:*"],
+    externalClientScopes: ["openid", "profile", "organization"],
   },
   redis: {
     port: Number(REDIS_PORT) || 6379,

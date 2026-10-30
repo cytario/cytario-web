@@ -22,6 +22,8 @@ export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfigWithGrants[];
   credentialErrors: Record<string, string>;
   connectionProviders: Record<string, ClientConnectionProvider>;
+  /** Identifies the cached narrow exchange tokens for this request's session. */
+  sessionId: string;
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -217,6 +219,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
         connectionConfigs,
         credentialErrors,
         connectionProviders,
+        sessionId: session.id,
       });
       return withHostRequestContext(
         {
@@ -264,6 +267,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
           connectionConfigs,
           credentialErrors,
           connectionProviders,
+          sessionId: session.id,
         });
         return withHostRequestContext(
           {

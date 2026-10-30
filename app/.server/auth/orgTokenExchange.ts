@@ -27,6 +27,14 @@ const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 // ID token, matching the shape the mint presented before the multi-org change.
 const ID_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:id_token";
 
+/** Which narrow token an exchange mints, per consumer's requirements. */
+export type OrgTokenType = "id-token" | "access-token";
+
+const REQUESTED_TYPE_FOR: Record<OrgTokenType, string> = {
+  "id-token": ID_TOKEN_TYPE,
+  "access-token": ACCESS_TOKEN_TYPE,
+};
+
 // The alias is interpolated into the exchange `scope` as `organization:<alias>`,
 // so this guard blocks values (spaces, colons, control chars) that could inject
 // extra scope tokens. Keycloak still rejects an alias the user is not a member
@@ -58,7 +66,8 @@ const tokenCache = new LRUCache<string, ExchangedOrgToken>({
   ttlAutopurge: true,
 });
 
-const cacheKey = (sessionId: string, alias: string): string => `${sessionId}:${alias}`;
+const cacheKey = (sessionId: string, alias: string, type: OrgTokenType): string =>
+  `${type}:${sessionId}:${alias}`;
 
 const requireAlias = (alias: string): string => {
   if (!ORG_ALIAS_PATTERN.test(alias)) {
@@ -96,14 +105,17 @@ const readExpiry = (accessToken: string): number => {
 export async function exchangeOrgToken({
   alias,
   subjectToken,
+  tokenType,
 }: {
   alias: string;
   subjectToken: string;
+  tokenType?: OrgTokenType;
 }): Promise<ExchangedOrgToken> {
   const organization = requireAlias(alias);
   if (!subjectToken) {
     throw new OrgTokenExchangeError("A subject token is required for the token exchange.");
   }
+  const requestedType = REQUESTED_TYPE_FOR[tokenType ?? "id-token"];
 
   const { token_endpoint } = await getWellKnownEndpoints();
   const { clientId, clientSecret } = cytarioConfig.auth;
@@ -118,7 +130,7 @@ export async function exchangeOrgToken({
       grant_type: TOKEN_EXCHANGE_GRANT,
       subject_token: subjectToken,
       subject_token_type: ACCESS_TOKEN_TYPE,
-      requested_token_type: ID_TOKEN_TYPE,
+      requested_token_type: requestedType,
       scope: `openid organization:${organization}`,
     }),
   });
@@ -143,9 +155,9 @@ export async function exchangeOrgToken({
   if (!parsed.success) {
     throw new OrgTokenExchangeError("The organization token exchange returned no token.");
   }
-  if (parsed.data.issued_token_type && parsed.data.issued_token_type !== ID_TOKEN_TYPE) {
+  if (parsed.data.issued_token_type && parsed.data.issued_token_type !== requestedType) {
     throw new OrgTokenExchangeError(
-      `The organization token exchange issued ${parsed.data.issued_token_type}, expected an ID token.`,
+      `The organization token exchange issued ${parsed.data.issued_token_type}, expected ${requestedType}.`,
     );
   }
 
@@ -157,20 +169,45 @@ export async function exchangeOrgToken({
 }
 
 /**
- * The narrow token for `(sessionId, alias)`, minted on first use and reused
- * until its expiry margin runs out. Throws rather than returning the subject
- * token: a credential mint must never fall back to a token carrying other orgs.
+ * The narrow ID token for `(sessionId, alias)` — the mint shape. Throws
+ * rather than returning the subject token: a credential mint must never fall
+ * back to a token carrying other orgs.
  */
 export async function getOrExchangeOrgToken(
   sessionId: string,
   alias: string,
   subjectToken: string,
 ): Promise<ExchangedOrgToken> {
-  const key = cacheKey(sessionId, alias);
+  return getOrExchangeOrgScopedToken(sessionId, alias, subjectToken, "id-token");
+}
+
+/**
+ * The narrow access token for `(sessionId, alias)` — the shape the admin
+ * portal consumes. Its /org endpoints present the bearer token as an
+ * RFC 8693 `subject_token` of type access-token and re-exchange it
+ * server-side; a multi-membership session token is ambiguous there (the
+ * portal rejects >1 organization entry), so catalog lookups send this
+ * narrow token and resolve exactly the active org like a single-org user.
+ */
+export async function getOrExchangeOrgAccessToken(
+  sessionId: string,
+  alias: string,
+  subjectToken: string,
+): Promise<ExchangedOrgToken> {
+  return getOrExchangeOrgScopedToken(sessionId, alias, subjectToken, "access-token");
+}
+
+async function getOrExchangeOrgScopedToken(
+  sessionId: string,
+  alias: string,
+  subjectToken: string,
+  tokenType: OrgTokenType,
+): Promise<ExchangedOrgToken> {
+  const key = cacheKey(sessionId, alias, tokenType);
   const cached = tokenCache.get(key);
   if (cached) return cached;
 
-  const exchanged = await exchangeOrgToken({ alias, subjectToken });
+  const exchanged = await exchangeOrgToken({ alias, subjectToken, tokenType });
   const ttl = exchanged.expiresAt - Date.now() - EXPIRY_BUFFER_MS;
   if (ttl > 0) {
     tokenCache.set(key, exchanged, { ttl });

@@ -7,6 +7,14 @@ import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/.server/db/prisma", () => ({ prisma: {} }));
 vi.mock("~/.server/db/redis", () => ({ redis: {} }));
+vi.mock("~/.server/auth/orgTokenExchange", () => ({
+  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
+    accessToken: "narrow-token",
+    expiresAt: Date.now() + 300_000,
+    organization: "cytario",
+  }),
+}));
+
 vi.mock("~/.server/providers/providerCatalog.server", async () => {
   const actual = await vi.importActual<typeof import("~/.server/providers/providerCatalog.server")>(
     "~/.server/providers/providerCatalog.server",
@@ -16,7 +24,11 @@ vi.mock("~/.server/providers/providerCatalog.server", async () => {
 
 function buildArgs(user: ReturnType<typeof mock.user>) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user, authTokens: { accessToken: "test-token", idToken: "test-id" } });
+  ctx.set(authContext, {
+    user,
+    sessionId: "session-1",
+    authTokens: { accessToken: "test-token", idToken: "test-id" },
+  });
   return {
     request: new Request("http://localhost/api/provider-catalog"),
     params: {},

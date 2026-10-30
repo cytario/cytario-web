@@ -91,7 +91,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
           authUrl: `${auth.baseUrl}/protocol/openid-connect/auth`,
           tokenUrl: `${auth.baseUrl}/protocol/openid-connect/token`,
           clientId: auth.cyberduckClientId,
-          scopes: auth.scopes,
+          scopes: auth.externalClientScopes,
           redirectUrl: "x-cyberduck-action:oauth",
         },
       });
