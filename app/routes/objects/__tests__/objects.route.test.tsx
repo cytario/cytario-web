@@ -205,6 +205,110 @@ describe("Bucket Route", () => {
     ]);
   }
 
+  test("renders the viewer path for a store directory flagged by the client loader, extensionless or dotted name", async () => {
+    seedConnection("aws-test-bucket");
+    viewerRegistry.__reset();
+    let receivedProps: { resourceId: string } | undefined;
+    viewerRegistry.scopedFor("spatialdata-plugin").register({
+      match: () => false,
+      canHandle: (resourceId) =>
+        Promise.resolve(resourceId.replace(/\/$/, "").endsWith("combined_spatialdata_zarr")),
+      component: (props: { resourceId: string }) => {
+        receivedProps = props;
+        return <div data-testid="plugin-viewer" />;
+      },
+    });
+
+    const StubStore = createRoutesStub([
+      {
+        path: "/connections/:id/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: () => {
+          return {
+            connectionId: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
+            credentials: mock.credentials(),
+            connectionConfig: mock.connectionConfig(),
+            user: mock.user(),
+            nodes: [],
+            pathName: "caudate/combined_spatialdata_zarr/",
+            urlPath: "caudate/combined_spatialdata_zarr/",
+            bucketName: "test-bucket",
+            name: "combined_spatialdata_zarr",
+            isSingleFile: true,
+            isStoreDirectory: true,
+          };
+        },
+      },
+    ]);
+    render(
+      <StubStore
+        initialEntries={["/connections/aws-test-bucket/caudate/combined_spatialdata_zarr/"]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+    });
+    expect(receivedProps).toMatchObject({
+      resourceId: "aws-test-bucket/caudate/combined_spatialdata_zarr/",
+    });
+  });
+
+  test("renders the viewer path for a dotted-name store directory flagged by the client loader", async () => {
+    // The loader's marker check is content-decided; a dot in the directory's
+    // name must not keep a zarr store in the listing view.
+    seedConnection("aws-test-bucket");
+    viewerRegistry.__reset();
+    let receivedProps: { resourceId: string } | undefined;
+    viewerRegistry.scopedFor("spatialdata-plugin").register({
+      match: () => false,
+      canHandle: (resourceId) =>
+        Promise.resolve(resourceId.replace(/\/$/, "").endsWith("H20.33.001.sdata-store")),
+      component: (props: { resourceId: string }) => {
+        receivedProps = props;
+        return <div data-testid="plugin-viewer" />;
+      },
+    });
+
+    const StubStore = createRoutesStub([
+      {
+        path: "/connections/:id/*",
+        Component: ObjectsRoute,
+        handle,
+        loader: () => {
+          return {
+            connectionId: "aws-test-bucket",
+            connectionName: "aws-test-bucket",
+            credentials: mock.credentials(),
+            connectionConfig: mock.connectionConfig(),
+            user: mock.user(),
+            nodes: [],
+            pathName: "caudate/H20.33.001.sdata-store/",
+            urlPath: "caudate/H20.33.001.sdata-store/",
+            bucketName: "test-bucket",
+            name: "H20.33.001.sdata-store",
+            isSingleFile: true,
+            isStoreDirectory: true,
+          };
+        },
+      },
+    ]);
+    render(
+      <StubStore
+        initialEntries={["/connections/aws-test-bucket/caudate/H20.33.001.sdata-store/"]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("plugin-viewer")).not.toBeNull();
+    });
+    expect(receivedProps).toMatchObject({
+      resourceId: "aws-test-bucket/caudate/H20.33.001.sdata-store/",
+    });
+  });
+
   test("renders a plugin viewer claiming the resource synchronously with the resolved url", async () => {
     seedConnection("aws-test-bucket");
     let receivedProps: { resourceId: string; httpsUrl: string } | undefined;

@@ -2,6 +2,7 @@ import { type ClientLoaderFunctionArgs } from "react-router";
 
 import type { BucketRouteLoaderResponse, loader } from "./objects.loader";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
+import { hasZarrStoreRootMarker } from "~/utils/leafDirectory";
 import { formatTruncationMessage } from "~/utils/listingLimits";
 import { loadConnectionLevel } from "~/utils/loadConnectionLevel";
 import { CorsLikelyError } from "~/utils/signedFetch";
@@ -45,6 +46,21 @@ export const clientLoader = async ({
       urlPath: resolved.urlPath,
       signal: request.signal,
     });
+
+    // A directory whose own level carries a zarr store root marker
+    // (`.zgroup`/`.zarray`/`zarr.json`) is one logical store, not a browsable
+    // folder — dispatch to the viewer path like the extension-named leaf
+    // directories already handled above. Content decides; the directory's
+    // name is irrelevant. The listing is already in hand; no extra S3
+    // request. Extension-named leaf/companion directories never reach this
+    // branch (serverDeterminedSingleFile short-circuited), so the check can
+    // only claim directories that are zarr stores by their own contents.
+    // `nodes` carries only this directory's direct children (buildLevelTree),
+    // so the file names are exactly the directory's own level.
+    const markerNames = nodes.filter((n) => n.type === "file").map((n) => n.name);
+    if (hasZarrStoreRootMarker(markerNames)) {
+      return { ...resolved, nodes: [], isSingleFile: true, isStoreDirectory: true };
+    }
 
     return {
       ...resolved,

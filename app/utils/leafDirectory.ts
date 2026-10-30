@@ -5,6 +5,24 @@ export function isLeafDirectory(name: string): boolean {
   return getFileTypeEntry(name)?.storageLayout === "leaf";
 }
 
+/**
+ * Zarr store root markers: a directory whose own level directly contains
+ * one of these is a zarr store, whatever its name says (extensionless
+ * SpatialData folders like the SEA-AD bucket's `combined_spatialdata_zarr`).
+ */
+const ZARR_STORE_ROOT_MARKERS = [".zgroup", ".zarray", "zarr.json"] as const;
+
+/**
+ * True when the directory's own listing level carries a zarr store root
+ * marker (`.zgroup` / `.zarray` / `zarr.json` as a direct child). Consumed
+ * with the file names of a level's direct `Contents` — no extra S3 request;
+ * the caller already fetched the listing it renders.
+ */
+export function hasZarrStoreRootMarker(directChildNames: readonly string[]): boolean {
+  const direct = new Set(directChildNames);
+  return ZARR_STORE_ROOT_MARKERS.some((marker) => direct.has(marker));
+}
+
 /** Any segment of `path` is a leaf directory (covers interior deep links). */
 export function isLeafDirectoryPath(path: string): boolean {
   return path.split("/").some((segment) => segment !== "" && isLeafDirectory(segment));
