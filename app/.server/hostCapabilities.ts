@@ -4,6 +4,7 @@ import {
   hashJobToken,
 } from "./auth/jobCredentialStore";
 import { keepAliveGrant as keepAliveGrantImpl } from "./auth/keepAliveGrant";
+import { getOrExchangeOrgAccessToken } from "./auth/orgTokenExchange";
 import { revokeGrant as revokeGrantImpl } from "./auth/revokeGrant";
 import { catalogFetch as connectionFetchImpl } from "./catalogFetch";
 import { assumeComputeRole as assumeComputeRoleImpl } from "./computeRole";
@@ -63,15 +64,26 @@ async function toConnectionProjection(
 
 class HostCapabilitiesImpl implements HostCapabilities {
   async connections(): Promise<readonly ConnectionProjection[]> {
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
     const configs = await listConnections(user);
-    return Promise.all(configs.map((c) => toConnectionProjection(c, authTokens.accessToken)));
+    // Portal lookups present a narrow per-org access token: the portal rejects
+    // the multi-membership session token a multi-org user carries.
+    const portalToken = user.organization
+      ? (await getOrExchangeOrgAccessToken(sessionId, user.organization, authTokens.accessToken))
+          .accessToken
+      : "";
+    return Promise.all(configs.map((c) => toConnectionProjection(c, portalToken)));
   }
 
   async computeConnections(): Promise<readonly ComputeConnectionProjection[]> {
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
     if (!user.organization) return [];
-    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    // Portal lookups present a narrow per-org access token: the portal rejects
+    // the multi-membership session token a multi-org user carries.
+    const portalToken = (
+      await getOrExchangeOrgAccessToken(sessionId, user.organization, authTokens.accessToken)
+    ).accessToken;
+    const catalog = await getProviderCatalog(user.organization, portalToken);
     return catalog.computeProviders
       .filter((p) => p.status === "connected")
       .map((p) => ({
@@ -83,9 +95,14 @@ class HostCapabilitiesImpl implements HostCapabilities {
   }
 
   async catalogConnections(): Promise<readonly CatalogConnectionProjection[]> {
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
     if (!user.organization) return [];
-    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    // Portal lookups present a narrow per-org access token: the portal rejects
+    // the multi-membership session token a multi-org user carries.
+    const portalToken = (
+      await getOrExchangeOrgAccessToken(sessionId, user.organization, authTokens.accessToken)
+    ).accessToken;
+    const catalog = await getProviderCatalog(user.organization, portalToken);
     return catalog.appCatalogs
       .filter((c) => c.enabled && c.status === "connected")
       .map((c) => ({

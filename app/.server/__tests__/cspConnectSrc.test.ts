@@ -2,6 +2,18 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { resolveConnectSrcHosts } from "~/.server/cspConnectSrc.server";
 
+vi.mock("~/.server/auth/orgTokenExchange", () => ({
+  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
+    accessToken: "narrow-access",
+    expiresAt: Date.now() + 300_000,
+    organization: "org1",
+  }),
+  getOrExchangeOrgToken: vi.fn().mockResolvedValue({
+    accessToken: "narrow-id",
+    expiresAt: Date.now() + 300_000,
+    organization: "org1",
+  }),
+}));
 const ORG = "vericura";
 const TOKEN = "test-access-token";
 
@@ -90,7 +102,7 @@ describe("resolveConnectSrcHosts", () => {
 
     const hosts = await resolveConnectSrcHosts(requestWithCookie());
     expect(hosts).toEqual(["https://s3.example.com"]);
-    expect(getProviderCatalogMock).toHaveBeenCalledWith(ORG, TOKEN);
+    expect(getProviderCatalogMock).toHaveBeenCalledWith(ORG, "narrow-access");
   });
 
   test("an AWS provider endpoint yields the regional origin, not the endpoint's own region", async () => {

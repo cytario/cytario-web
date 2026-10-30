@@ -11,6 +11,18 @@ import {
 import { updateAction } from "~/routes/connections/updateConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/orgTokenExchange", () => ({
+  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
+    accessToken: "narrow-access",
+    expiresAt: Date.now() + 300_000,
+    organization: "org1",
+  }),
+  getOrExchangeOrgToken: vi.fn().mockResolvedValue({
+    accessToken: "narrow-id",
+    expiresAt: Date.now() + 300_000,
+    organization: "org1",
+  }),
+}));
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
@@ -43,7 +55,11 @@ vi.mock("~/routes/connections/connectionGrant.server", async () => {
 
 function buildArgs(user: ReturnType<typeof mock.user>, form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user });
+  ctx.set(authContext, {
+    user,
+    sessionId: "session-1",
+    authTokens: { accessToken: "access-token" },
+  });
   ctx.set(sessionContext, mock.session({ authTokens: { idToken: "tok" } as never }));
   const request = new Request("http://localhost/connections", {
     method: "POST",
@@ -164,7 +180,11 @@ describe("updateAction — old-bucket revoke on move", () => {
     const user = mock.user({ adminScopes: ["org1/lab"] });
     const session = mock.session({ authTokens: { idToken: "tok" } as never });
     const ctx = new Map<unknown, unknown>();
-    ctx.set(authContext, { user });
+    ctx.set(authContext, {
+      user,
+      sessionId: "session-1",
+      authTokens: { accessToken: "access-token" },
+    });
     ctx.set(sessionContext, session);
     const request = new Request("http://localhost/connections", {
       method: "POST",
