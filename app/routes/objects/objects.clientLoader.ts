@@ -47,21 +47,18 @@ export const clientLoader = async ({
       signal: request.signal,
     });
 
-    // An extensionless directory whose own level carries a zarr store root
-    // marker (`.zgroup`/`.zarray`/`zarr.json`) is one logical store, not a
-    // browsable folder — dispatch to the viewer path like the extension-named
-    // leaf directories already handled above. The listing is already in
-    // hand; no extra S3 request. Extension-named leaf/companion directories
-    // never reach this branch (serverDeterminedSingleFile short-circuited).
+    // A directory whose own level carries a zarr store root marker
+    // (`.zgroup`/`.zarray`/`zarr.json`) is one logical store, not a browsable
+    // folder — dispatch to the viewer path like the extension-named leaf
+    // directories already handled above. Content decides; the directory's
+    // name is irrelevant. The listing is already in hand; no extra S3
+    // request. Extension-named leaf/companion directories never reach this
+    // branch (serverDeterminedSingleFile short-circuited), so the check can
+    // only claim directories that are zarr stores by their own contents.
     // `nodes` carries only this directory's direct children (buildLevelTree),
-    // so the file names are exactly the directory's own level. The check
-    // only applies to directories without a recognized file extension — a
-    // leaf-directory name never reaches here, but an extension-bearing
-    // directory name (e.g. a `data.csv/` folder) keeps its listing.
-    const leafSegment = resolved.pathName.replace(/\/$/, "").split("/").pop() ?? "";
-    const hasRecognizedExtension = leafSegment.includes(".");
+    // so the file names are exactly the directory's own level.
     const markerNames = nodes.filter((n) => n.type === "file").map((n) => n.name);
-    if (!hasRecognizedExtension && hasZarrStoreRootMarker(markerNames)) {
+    if (hasZarrStoreRootMarker(markerNames)) {
       return { ...resolved, nodes: [], isSingleFile: true, isStoreDirectory: true };
     }
 
