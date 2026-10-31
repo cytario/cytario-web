@@ -4,7 +4,7 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { legacyRedirectPath } from "~/utils/orgPath";
 
 /**
- * Un-prefixed app URLs predate the `/o/:org` prefix: bookmarks, docs and plugin
+ * Un-prefixed app URLs predate the `/:org` prefix: bookmarks, docs and plugin
  * links still carry them. Matches everything the specific routes do not, and
  * answers with a redirect into the session's active organization — an unknown
  * path stays a 404 through the root fallback instead.

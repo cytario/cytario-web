@@ -45,19 +45,19 @@ describe("legacy redirect loader", () => {
     const response = (await runLoader("/connections/abc/a/b")) as Response;
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/o/acme/connections/abc/a/b");
+    expect(response.headers.get("Location")).toBe("/acme/abc/a/b");
   });
 
   test("sends the un-prefixed root to the organization root", async () => {
     const response = (await runLoader("/")) as Response;
 
-    expect(response.headers.get("Location")).toBe("/o/acme");
+    expect(response.headers.get("Location")).toBe("/acme");
   });
 
   test("preserves the query string", async () => {
     const response = (await runLoader("/admin/users?scope=lab")) as Response;
 
-    expect(response.headers.get("Location")).toBe("/o/acme/admin/users?scope=lab");
+    expect(response.headers.get("Location")).toBe("/acme/admin/users?scope=lab");
   });
 
   test("answers 404 for a path that did not move", async () => {

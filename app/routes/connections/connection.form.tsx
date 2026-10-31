@@ -85,7 +85,7 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
   const isEditMode = !!initialData;
   const submit = useSubmit();
   const location = useLocation();
-  const connectionsPath = useOrgPath()("/connections");
+  const connectionsPath = useOrgPath()("/");
   const actionData = useActionData<{
     errors?: Record<string, string[]>;
     formError?: string;

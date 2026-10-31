@@ -26,7 +26,7 @@ export function useOrgPath(): (path: string) => string {
 /**
  * `navigate` for callers holding a tenant-relative app path — plugin
  * contributions, which are written against the routes as mounted inside
- * `/o/:org` and never see the alias. A relative path or a history delta is
+ * `/:org` and never see the alias. A relative path or a history delta is
  * forwarded untouched.
  */
 export function useOrgNavigate(): (to: string | number) => void {

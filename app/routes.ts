@@ -25,15 +25,23 @@ const authRoutes = [
 ];
 
 /**
- * Main application routes. Paths are relative to `/o/:org` — the organization a
- * view belongs to is part of its URL, so a link is shareable and a tenant switch
- * is a navigation. `org.layout.tsx` reconciles the alias with the session before
- * any of these render.
+ * Main application routes. Paths are relative to `/:org` — the organization a
+ * view belongs to is the first path segment, so a link is shareable and a
+ * tenant switch is a navigation. `org.layout.tsx` reconciles the alias with the
+ * session before any of these render. An org can never be named after a
+ * reserved top-level route (login, api, recent, …): alias creation refuses
+ * those names, and the reserved list in `utils/orgPath` keeps the layout's
+ * catch-all honest. The org root is the connection list; the object browser is
+ * `/:org/:connectionId/…`.
  */
 const orgAppRoutes = [
   {
     path: "/",
-    file: "routes/home/home.route.tsx",
+    file: "routes/connections/connections.route.tsx",
+  },
+  {
+    path: ":id/*",
+    file: "routes/objects/objects.route.tsx",
   },
   {
     path: "/recent",
@@ -46,14 +54,6 @@ const orgAppRoutes = [
   {
     path: "/config",
     file: "routes/config.route.tsx",
-  },
-  {
-    path: "/connections",
-    file: "routes/connections/connections.layout.tsx",
-    children: [
-      { index: true, file: "routes/connections/connections.route.tsx" },
-      { path: ":id/*", file: "routes/objects/objects.route.tsx" },
-    ],
   },
   {
     path: "/plugin/*",
@@ -134,11 +134,11 @@ const apiRoutes = [
 ];
 
 /**
- * Un-prefixed app URLs predate the `/o/:org` prefix: bookmarks, docs and plugin
- * links still carry them. Each moved route root gets its own wildcard so the
- * redirect answers only for paths that actually moved — anything else keeps
- * falling through to the 404 fallback instead of bouncing. They sit inside the
- * protected layout because the target org comes from the session.
+ * Un-prefixed app URLs predate the org-first scheme: bookmarks, docs and
+ * plugin links still carry them. Each moved route root gets its own wildcard
+ * so the redirect answers only for paths that actually moved — anything else
+ * keeps falling through to the 404 fallback instead of bouncing. They sit
+ * inside the protected layout because the target org comes from the session.
  */
 const legacyFile = "routes/layouts/legacyRedirect.layout.ts";
 
@@ -148,7 +148,6 @@ const legacyRoute = (path: string) =>
 
 const legacyRedirectRoutes = [
   legacyRoute("/"),
-  legacyRoute("/o"),
   legacyRoute("/recent/*"),
   legacyRoute("/favorites/*"),
   legacyRoute("/config/*"),
@@ -160,13 +159,13 @@ const legacyRedirectRoutes = [
 
 export default [
   ...authRoutes,
+  ...apiRoutes,
   layout("routes/layouts/protected.layout.tsx", [
     layout("routes/layouts/org.layout.tsx", [
-      ...prefix("/o/:org", [...orgAppRoutes, ...orgAdminRoutes]),
+      ...prefix("/:org", [...orgAppRoutes, ...orgAdminRoutes]),
     ]),
     ...legacyRedirectRoutes,
   ]),
-  ...apiRoutes,
 
   {
     path: "*",

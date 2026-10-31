@@ -66,9 +66,7 @@ export function buildConnectionPath(
   pathName: string,
   organization?: string,
 ): string {
-  const path = pathName
-    ? `/connections/${connectionId}/${pathName}`
-    : `/connections/${connectionId}`;
+  const path = pathName ? `/${connectionId}/${pathName}` : `/${connectionId}`;
   return organization ? orgPath(organization, path) : path;
 }
 

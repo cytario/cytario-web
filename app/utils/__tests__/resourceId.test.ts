@@ -50,17 +50,15 @@ describe("parseResourceId", () => {
 
 describe("buildConnectionPath", () => {
   test("returns connection path with empty pathName", () => {
-    expect(buildConnectionPath("my-conn", "")).toBe("/connections/my-conn");
+    expect(buildConnectionPath("my-conn", "")).toBe("/my-conn");
   });
 
   test("returns connection path with pathName", () => {
-    expect(buildConnectionPath("my-conn", "folder/file.txt")).toBe(
-      "/connections/my-conn/folder/file.txt",
-    );
+    expect(buildConnectionPath("my-conn", "folder/file.txt")).toBe("/my-conn/folder/file.txt");
   });
 
   test("preserves trailing slash", () => {
-    expect(buildConnectionPath("my-conn", "folder/")).toBe("/connections/my-conn/folder/");
+    expect(buildConnectionPath("my-conn", "folder/")).toBe("/my-conn/folder/");
   });
 });
 

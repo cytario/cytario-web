@@ -13,40 +13,40 @@ const match = (pathname: string): string[] | null => {
 const LEGACY_REDIRECT = "routes/layouts/legacyRedirect.layout.ts";
 
 describe("route table", () => {
-  test("organization-scoped views live under /o/:org", () => {
-    expect(match("/o/acme/connections")).toEqual([
+  test("organization-scoped views live under /:org", () => {
+    expect(match("/acme")).toEqual([
       "routes/layouts/protected.layout.tsx",
       "routes/layouts/org.layout.tsx",
-      "routes/connections/connections.layout.tsx",
       "routes/connections/connections.route.tsx",
     ]);
-    expect(match("/o/acme/connections/abc/a/b")).toContain("routes/objects/objects.route.tsx");
-    expect(match("/o/acme/admin/users")).toContain("routes/admin/users/users.route.tsx");
-    expect(match("/o/acme/plugin/jobs")).toContain("routes/plugin/plugin.$.tsx");
+    expect(match("/acme/abc/a/b")).toContain("routes/objects/objects.route.tsx");
+    expect(match("/acme/admin/users")).toContain("routes/admin/users/users.route.tsx");
+    expect(match("/acme/plugin/jobs")).toContain("routes/plugin/plugin.$.tsx");
+    expect(match("/acme/recent")).toContain("routes/recent/recent.route.tsx");
   });
 
   test("the organization layout carries the URL-to-session reconciliation", () => {
-    const matched = matchRoutes(routes as unknown as RouteObject[], "/o/acme/recent") ?? [];
+    const matched = matchRoutes(routes as unknown as RouteObject[], "/acme/recent") ?? [];
 
     expect(matched.map((m) => (m.route as unknown as { file: string }).file)).toContain(
       "routes/layouts/org.layout.tsx",
     );
   });
 
-  test("api routes stay un-prefixed — the org comes from the session", () => {
-    expect(match("/api/broker")).toEqual(["routes/api/broker.ts"]);
-    expect(match("/api/plugin/run")).toEqual(["routes/api/plugin.$.ts"]);
-  });
-
-  test("auth routes stay un-prefixed", () => {
+  test("reserved top-level routes stay platform routes, never organizations", () => {
     expect(match("/login")).toEqual(["routes/auth/login.route.tsx"]);
     expect(match("/onboarding")).toEqual(["routes/onboarding.route.tsx"]);
+    expect(match("/api/broker")).toEqual(["routes/api/broker.ts"]);
+    expect(match("/recent")).toContain(LEGACY_REDIRECT);
+  });
+
+  test("api routes stay un-prefixed — the org comes from the session", () => {
+    expect(match("/api/plugin/run")).toEqual(["routes/api/plugin.$.ts"]);
   });
 
   test("un-prefixed app paths reach the legacy redirect, not the 404 fallback", () => {
     for (const path of [
       "/",
-      "/o",
       "/connections",
       "/connections/abc/a/b",
       "/recent",
@@ -60,17 +60,16 @@ describe("route table", () => {
   });
 
   test("the legacy redirect never shadows an organization-scoped route", () => {
-    for (const path of [
-      "/o/acme",
-      "/o/acme/recent",
-      "/o/acme/admin/users",
-      "/o/acme/plugin/jobs",
-    ]) {
+    for (const path of ["/acme", "/acme/recent", "/acme/admin/users", "/acme/plugin/jobs"]) {
       expect(match(path)).not.toContain(LEGACY_REDIRECT);
     }
   });
 
-  test("an unrelated path stays a 404", () => {
-    expect(match("/nonsense")).toEqual(["routes/fallback.route.tsx"]);
+  test("an org path with no matching sub-route renders the object browser's 404 surface", () => {
+    // Every `/:org/:id/…` path is the object browser; the org layout is its
+    // mount, so an unknown org name is served by the org subtree (which
+    // reconciles the alias against the session and redirects), never the
+    // root fallback. The fallback stays for paths outside both namespaces.
+    expect(match("/nonsense/deeper/still")).not.toContain("routes/fallback.route.tsx");
   });
 });

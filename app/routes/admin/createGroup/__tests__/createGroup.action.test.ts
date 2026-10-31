@@ -98,7 +98,7 @@ describe("createGroupAction", () => {
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get("location")).toBe(
-      "/o/cytario/admin/users?scope=cytario%2Flab%2FUltivue",
+      "/cytario/admin/users?scope=cytario%2Flab%2FUltivue",
     );
 
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
@@ -160,6 +160,6 @@ describe("createGroupAction", () => {
 
     expect(createGroup).toHaveBeenCalledWith("*", "Lab", "cytario");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
-    expect((response as Response).headers.get("location")).toBe("/o/cytario/admin/users?scope=Lab");
+    expect((response as Response).headers.get("location")).toBe("/cytario/admin/users?scope=Lab");
   });
 });
