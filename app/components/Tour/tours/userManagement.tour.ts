@@ -4,7 +4,7 @@ import { organizationFromPath } from "~/utils/orgPath";
 /** `path` inside the organization the tour is currently running in. */
 function orgScopedPath({ pathname }: TourContext, path: string): string {
   const organization = organizationFromPath(pathname);
-  return organization ? `/o/${organization}${path}` : path;
+  return organization ? `/${organization}${path}` : path;
 }
 
 /** The user-management screen for the admin's first scope — what the user menu links to. */
@@ -15,15 +15,17 @@ function adminUsersUrl(context: TourContext): string {
 
 /** A connections screen with shareable rows — the share step navigates here first. */
 function connectionsUrl(context: TourContext): string {
-  return orgScopedPath(context, "/connections");
+  return orgScopedPath(context, "/");
 }
 
 /**
  * A connection row in the content area. The sidebar tree holds the same link
  * shape, so an unscoped `main a[…]` would highlight the navigation panel
- * instead of the browsed listing. `*=` because the href carries the org prefix.
+ * instead of the browsed listing. Connection links are `/<org>/<id>`, so the
+ * selector matches any in-app link and lets the `main` scoping choose the
+ * browsed listing.
  */
-const CONTENT_CONNECTION_ROW = 'main section a[href*="/connections/"]';
+const CONTENT_CONNECTION_ROW = 'main section a[href^="/"]';
 
 /**
  * Walks an organization admin through bringing teammates in: reaching the

@@ -13,7 +13,7 @@ export const ORG_SWITCHER_SELECTOR =
 
 /** Context the registry gets to decide whether a tour should auto-start. */
 export interface TourContext {
-  /** `location.pathname` — viewer pages are `/o/:org/connections/:id/...` files. */
+  /** `location.pathname` — viewer pages are `/:org/:id/...` files. */
   pathname: string;
   /** Last path segment, e.g. `slide.ome.tiff` — the resource's name. */
   leafName: string;

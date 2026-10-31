@@ -32,7 +32,7 @@ export function useNodeContextMenu({
 }): NodeContextMenuResult | null {
   const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
-  const connectionsPath = useOrgPath()("/connections");
+  const connectionsPath = useOrgPath()("/");
 
   // Confirm-flow state: owned here (always mounted), never inside the popover.
   const [confirmOpen, setConfirmOpen] = useState(false);

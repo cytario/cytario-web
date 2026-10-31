@@ -11,14 +11,14 @@ import {
  * is the reliable "step into a connection" target. The `*=` match keeps it
  * prefix-agnostic: connection links live under the URL's organization.
  */
-const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href*="/connections/"]';
+const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href^="/"][href*="/"]';
 
 /**
  * A folder or file inside the browsed connection. Scoped to the content
  * area's <section>: the sidebar tree holds the same link shape, so an
  * unscoped `main a[…]` resolves to the navigation panel instead.
  */
-const CONTENT_ENTRY_LINK = 'main section a[href*="/connections/"]';
+const CONTENT_ENTRY_LINK = 'main section a[href^="/"]';
 
 export const gettingStartedTour: TourDefinition = {
   id: GETTING_STARTED_TOUR_ID,

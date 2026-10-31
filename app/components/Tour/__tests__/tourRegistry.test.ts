@@ -189,9 +189,7 @@ describe("tourRegistry", () => {
 
     test("connection entries are scoped to the content section, not bare `main`", () => {
       expect(targets.filter((target) => /^main a\[/.test(target))).toEqual([]);
-      expect(
-        targets.some((target) => target.startsWith('main section a[href*="/connections/"')),
-      ).toBe(true);
+      expect(targets.some((target) => target.startsWith('main section a[href^="/"]'))).toBe(true);
     });
 
     test("the sidebar entry step and the content entry step differ", () => {

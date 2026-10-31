@@ -44,7 +44,7 @@ export function ConnectionsSection() {
         <>
           <ShowHiddenFilesToggleButton />
           <IconButtonLink
-            href={orgPath("/connections")}
+            href={orgPath("/")}
             icon="ArrowRight"
             label="View all connections"
             variant="ghost"
