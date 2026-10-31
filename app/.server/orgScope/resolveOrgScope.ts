@@ -9,7 +9,7 @@ export type OrgScopeResolution =
   | { kind: "redirect"; to: string };
 
 export interface OrgScopeInput {
-  /** Alias from the `/o/:org` URL segment, absent outside the prefix. */
+  /** Alias from the `/:org` URL segment, absent outside the prefix. */
   urlOrganization?: string;
   /** The session's tenant, already reconciled against the token's memberships. */
   activeOrganization?: string;

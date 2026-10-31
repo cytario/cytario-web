@@ -311,7 +311,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
               .join(" ")}`,
     });
 
-    return redirect(orgPath(user.organization, `/connections/${created.id}`), {
+    return redirect(orgPath(user.organization, `/${created.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

@@ -52,7 +52,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   } catch (error) {
     if (error instanceof Error) {
       session.set("notification", { status: "error", message: error.message });
-      return redirect(orgPath(user.organization, "/connections"), {
+      return redirect(orgPath(user.organization, "/"), {
         headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
       });
     }
@@ -98,7 +98,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   session.set("notification", notification);
 
-  return redirect(orgPath(user.organization, "/connections"), {
+  return redirect(orgPath(user.organization, "/"), {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });
 };

@@ -59,7 +59,7 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
         : `Could not re-apply the bucket policy. ${outcome.warning}`,
   });
 
-  return redirect(orgPath(user.organization, "/connections"), {
+  return redirect(orgPath(user.organization, "/"), {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });
 };

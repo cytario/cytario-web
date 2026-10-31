@@ -4,7 +4,7 @@ import { resolveOrgScope } from "../resolveOrgScope";
 
 const base = {
   organizations: ["acme", "beta"],
-  pathname: "/o/acme/connections/abc",
+  pathname: "/acme/abc",
 };
 
 describe("resolveOrgScope", () => {
@@ -41,26 +41,26 @@ describe("resolveOrgScope", () => {
         urlOrganization: "other",
         activeOrganization: "acme",
         organizations: ["acme", "beta"],
-        pathname: "/o/other/connections/abc/a",
+        pathname: "/other/abc/a",
         search: "?modal=add-connection",
       }),
     ).toEqual({
       kind: "redirect",
-      to: "/o/acme/connections/abc/a?modal=add-connection",
+      to: "/acme/abc/a?modal=add-connection",
     });
   });
 
   test("a non-membership org falls back to the first membership without an active org", () => {
     expect(
-      resolveOrgScope({ ...base, urlOrganization: "other", pathname: "/o/other/recent" }),
-    ).toEqual({ kind: "redirect", to: "/o/acme/recent" });
+      resolveOrgScope({ ...base, urlOrganization: "other", pathname: "/other/recent" }),
+    ).toEqual({ kind: "redirect", to: "/acme/recent" });
   });
 
   test("a non-membership org with no memberships sends the user to onboarding", () => {
     expect(
       resolveOrgScope({
         organizations: [],
-        pathname: "/o/other/recent",
+        pathname: "/other/recent",
         urlOrganization: "other",
       }),
     ).toEqual({ kind: "redirect", to: "/onboarding" });
@@ -74,7 +74,7 @@ describe("resolveOrgScope", () => {
         activeOrganization: "acme",
         canSwitch: false,
       }),
-    ).toEqual({ kind: "redirect", to: "/o/acme/connections/abc" });
+    ).toEqual({ kind: "redirect", to: "/acme/abc" });
   });
 
   test("a mutation in the active org proceeds", () => {

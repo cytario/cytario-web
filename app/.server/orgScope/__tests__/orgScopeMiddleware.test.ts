@@ -83,7 +83,7 @@ describe("orgScopeMiddleware", () => {
   });
 
   test("continues when the URL org is the session org", async () => {
-    const { args } = buildArgs("/o/acme/connections");
+    const { args } = buildArgs("/acme/connections");
 
     const response = await orgScopeMiddleware(
       { ...args, params: { org: "acme" } } as unknown as Parameters<MiddlewareFunction>[0],
@@ -95,7 +95,7 @@ describe("orgScopeMiddleware", () => {
   });
 
   test("switches the session and redirects when the URL names another membership", async () => {
-    const { args, session } = buildArgs("/o/beta/connections/abc");
+    const { args, session } = buildArgs("/beta/abc");
 
     const response = await orgScopeMiddleware(
       { ...args, params: { org: "beta" } } as unknown as Parameters<MiddlewareFunction>[0],
@@ -106,14 +106,14 @@ describe("orgScopeMiddleware", () => {
     expect(selectActiveOrganization).toHaveBeenCalledWith(session, expect.anything(), "beta");
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
-    expect((response as unknown as { url: string }).url).toBe("/o/beta/connections/abc");
+    expect((response as unknown as { url: string }).url).toBe("/beta/abc");
     expect((response as unknown as { init: { headers?: unknown } }).init?.headers).toEqual({
       "Set-Cookie": "session=beta",
     });
   });
 
   test("drops the previous org's credentials before the switch", async () => {
-    const { args, session } = buildArgs("/o/beta/connections");
+    const { args, session } = buildArgs("/beta/connections");
 
     await orgScopeMiddleware(
       { ...args, params: { org: "beta" } } as unknown as Parameters<MiddlewareFunction>[0],
@@ -124,7 +124,7 @@ describe("orgScopeMiddleware", () => {
   });
 
   test("redirects a non-member org to the active org instead of erroring", async () => {
-    const { args } = buildArgs("/o/other/admin/users?scope=lab");
+    const { args } = buildArgs("/other/admin/users?scope=lab");
 
     const response = await orgScopeMiddleware(
       { ...args, params: { org: "other" } } as unknown as Parameters<MiddlewareFunction>[0],
@@ -133,11 +133,11 @@ describe("orgScopeMiddleware", () => {
 
     expect(next).not.toHaveBeenCalled();
     expect((response as Response).status).toBe(302);
-    expect((response as unknown as { url: string }).url).toBe("/o/acme/admin/users?scope=lab");
+    expect((response as unknown as { url: string }).url).toBe("/acme/admin/users?scope=lab");
   });
 
   test("never switches on a mutation — it redirects to the active org", async () => {
-    const { args } = buildArgs("/o/beta/connections", "POST");
+    const { args } = buildArgs("/beta/connections", "POST");
 
     const response = await orgScopeMiddleware(
       { ...args, params: { org: "beta" } } as unknown as Parameters<MiddlewareFunction>[0],
@@ -145,11 +145,11 @@ describe("orgScopeMiddleware", () => {
     );
 
     expect(selectActiveOrganization).not.toHaveBeenCalled();
-    expect((response as unknown as { url: string }).url).toBe("/o/acme/connections");
+    expect((response as unknown as { url: string }).url).toBe("/acme/connections");
   });
 
   test("throws when the session middleware has not run", async () => {
-    const { args } = buildArgs("/o/acme/connections");
+    const { args } = buildArgs("/acme/connections");
 
     await expect(
       orgScopeMiddleware(

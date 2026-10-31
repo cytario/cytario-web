@@ -69,11 +69,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 }) => {
   // Only revalidate after form submissions so flash notifications surface.
   if (formAction) return defaultShouldRevalidate;
-  // An organization switch moves the /o/:org segment; the root loader's user
+  // An organization switch moves the /:org segment; the root loader's user
   // projection (active org, memberships) must follow or the shell — breadcrumb
   // root, org-prefixed links — keeps rendering the organization the session
   // just left.
-  if (currentUrl.pathname.split("/")[2] !== nextUrl.pathname.split("/")[2]) return true;
+  if (currentUrl.pathname.split("/")[1] !== nextUrl.pathname.split("/")[1]) return true;
   return false;
 };
 

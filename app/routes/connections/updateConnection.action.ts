@@ -262,7 +262,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
             .join(" ")}`,
     });
 
-    return redirect(orgPath(user.organization, `/connections/${updatedConfig.id}`), {
+    return redirect(orgPath(user.organization, `/${updatedConfig.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

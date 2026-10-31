@@ -95,7 +95,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
           : `Share created. ${outcome.warning}`,
     });
 
-    return redirect(orgPath(user.organization, `/connections/${share.id}`), {
+    return redirect(orgPath(user.organization, `/${share.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
