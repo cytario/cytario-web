@@ -6,18 +6,9 @@ import type { Identity } from "@cytario/plugin-api";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 import type { ProviderCatalog } from "~/utils/providerCatalog.schema";
 
-vi.mock("~/.server/auth/orgTokenExchange", () => ({
-  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-access",
-    expiresAt: Date.now() + 300_000,
-    organization: "org1",
-  }),
-  getOrExchangeOrgToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-id",
-    expiresAt: Date.now() + 300_000,
-    organization: "org1",
-  }),
-}));
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 const {
   getProviderCatalogMock,
   resolveConnectionProviderMock,

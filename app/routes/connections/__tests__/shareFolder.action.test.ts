@@ -8,18 +8,9 @@ import { applyGrantsAndRecordStatus } from "~/routes/connections/connectionGrant
 import { shareAction } from "~/routes/connections/shareFolder.action";
 import mock from "~/utils/__tests__/__mocks__";
 
-vi.mock("~/.server/auth/orgTokenExchange", () => ({
-  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-access",
-    expiresAt: Date.now() + 300_000,
-    organization: "org1",
-  }),
-  getOrExchangeOrgToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-id",
-    expiresAt: Date.now() + 300_000,
-    organization: "org1",
-  }),
-}));
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 // All vi.mock calls are hoisted above the imports by vitest.
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {

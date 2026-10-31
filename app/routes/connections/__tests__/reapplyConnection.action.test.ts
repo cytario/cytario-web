@@ -7,13 +7,9 @@ import { applyGrantsAndRecordStatus } from "~/routes/connections/connectionGrant
 import { reapplyAction } from "~/routes/connections/reapplyConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
-vi.mock("~/.server/auth/orgTokenExchange", () => ({
-  getOrExchangeOrgToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-id",
-    expiresAt: Date.now() + 300_000,
-    organization: "org1",
-  }),
-}));
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
@@ -75,7 +71,7 @@ describe("reapplyAction", () => {
     expect((result as Response).status).toBe(302);
     expect(applyGrantsAndRecordStatus).toHaveBeenCalledWith(config, {
       user,
-      idToken: "narrow-id",
+      idToken: "narrow-id:org1",
       accessToken: "",
     });
   });

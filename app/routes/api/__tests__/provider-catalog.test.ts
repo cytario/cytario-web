@@ -7,13 +7,9 @@ import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/.server/db/prisma", () => ({ prisma: {} }));
 vi.mock("~/.server/db/redis", () => ({ redis: {} }));
-vi.mock("~/.server/auth/orgTokenExchange", () => ({
-  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-token",
-    expiresAt: Date.now() + 300_000,
-    organization: "cytario",
-  }),
-}));
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 
 vi.mock("~/.server/providers/providerCatalog.server", async () => {
   const actual = await vi.importActual<typeof import("~/.server/providers/providerCatalog.server")>(

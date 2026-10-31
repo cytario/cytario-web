@@ -6,13 +6,9 @@ const { getProviderCatalogMock } = vi.hoisted(() => ({
   getProviderCatalogMock: vi.fn(),
 }));
 
-vi.mock("~/.server/auth/orgTokenExchange", () => ({
-  getOrExchangeOrgAccessToken: vi.fn().mockResolvedValue({
-    accessToken: "narrow-token",
-    expiresAt: Date.now() + 300_000,
-    organization: "testcorp",
-  }),
-}));
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 
 vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
