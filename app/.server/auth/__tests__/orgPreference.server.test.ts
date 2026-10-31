@@ -1,6 +1,13 @@
 import { getPreferredOrg, setPreferredOrg } from "../orgPreference.server";
 import { prisma } from "~/.server/db/prisma";
 
+const row = (value: unknown) => ({
+  userId: "user-1",
+  key: "lastOrgAlias",
+  value,
+  updatedAt: new Date(),
+});
+
 describe("orgPreference", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -8,39 +15,39 @@ describe("orgPreference", () => {
 
   describe("getPreferredOrg", () => {
     test("returns the stored alias", async () => {
-      vi.spyOn(prisma.userOrgPreference, "findUnique").mockResolvedValue({
-        userId: "user-1",
-        lastOrgAlias: "vericura",
-        updatedAt: new Date(),
-      } as never);
+      vi.spyOn(prisma.userPreference, "findUnique").mockResolvedValue(row("vericura") as never);
 
       await expect(getPreferredOrg("user-1")).resolves.toBe("vericura");
-      expect(prisma.userOrgPreference.findUnique).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
+      expect(prisma.userPreference.findUnique).toHaveBeenCalledWith({
+        where: { userId_key: { userId: "user-1", key: "lastOrgAlias" } },
       });
     });
 
     test("returns null when the user has no history", async () => {
-      vi.spyOn(prisma.userOrgPreference, "findUnique").mockResolvedValue(null);
+      vi.spyOn(prisma.userPreference, "findUnique").mockResolvedValue(null);
 
       await expect(getPreferredOrg("user-2")).resolves.toBeNull();
+    });
+
+    test("returns null for a non-string stored value", async () => {
+      vi.spyOn(prisma.userPreference, "findUnique").mockResolvedValue(
+        row({ alias: "vericura" }) as never,
+      );
+
+      await expect(getPreferredOrg("user-1")).resolves.toBeNull();
     });
   });
 
   describe("setPreferredOrg", () => {
-    test("upserts a single row per user", async () => {
-      vi.spyOn(prisma.userOrgPreference, "upsert").mockResolvedValue({
-        userId: "user-1",
-        lastOrgAlias: "cytar",
-        updatedAt: new Date(),
-      } as never);
+    test("upserts the lastOrgAlias preference entry", async () => {
+      vi.spyOn(prisma.userPreference, "upsert").mockResolvedValue(row("cytar") as never);
 
       await setPreferredOrg("user-1", "cytar");
 
-      expect(prisma.userOrgPreference.upsert).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
-        create: { userId: "user-1", lastOrgAlias: "cytar" },
-        update: { lastOrgAlias: "cytar" },
+      expect(prisma.userPreference.upsert).toHaveBeenCalledWith({
+        where: { userId_key: { userId: "user-1", key: "lastOrgAlias" } },
+        create: { userId: "user-1", key: "lastOrgAlias", value: "cytar" },
+        update: { value: "cytar" },
       });
     });
   });
