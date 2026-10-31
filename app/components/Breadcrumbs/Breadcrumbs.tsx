@@ -1,4 +1,4 @@
-import { Button, Icon, Logo, Menu, MenuItem, MenuSection } from "@cytario/design";
+import { ButtonLink, Icon, IconButton, Logo, Menu, MenuItem, MenuSection } from "@cytario/design";
 import { Link, UIMatch, useLocation, useMatches } from "react-router";
 
 import { buildOrgCrumbs, nodeToTrail } from "./breadcrumbTrail";
@@ -11,11 +11,16 @@ type NodeMatch = UIMatch<unknown, { node?: (match: NodeMatch) => TreeNode | null
 
 const ORGANIZATIONS_SECTION = "Organizations";
 
+const JOIN_CX = "-ms-px z-10 hover:bg-muted";
+const ARROW_CX = `${JOIN_CX} rounded-s-none -ps-2`;
+
 /**
- * The root crumb: which organization the page belongs to. With more than one
- * membership it is the switcher — picking an org navigates to the same view in
- * it, and the org layout's middleware moves the session, so the loaders below
- * re-run for the new tenant.
+ * The root crumb: which organization the page belongs to. A split button for
+ * a multi-membership session — the label navigates to the active
+ * organization's connection list, the arrow opens the membership menu, and
+ * picking an org navigates to the same view inside it (the org layout's
+ * middleware moves the session, so the loaders below re-run for the new
+ * tenant). A single-membership session renders the label read-only.
  */
 function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
   const { pathname } = useLocation();
@@ -31,32 +36,42 @@ function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
   }
 
   return (
-    <Menu
-      content={
-        <MenuSection header={ORGANIZATIONS_SECTION} aria-label={ORGANIZATIONS_SECTION}>
-          {crumbs.map((crumb) => (
-            <MenuItem
-              key={crumb.alias}
-              id={crumb.alias}
-              href={switchOrgPath(crumb.alias, pathname)}
-              endContent={crumb.isActive ? <Icon icon="Check" size="sm" /> : undefined}
-            >
-              {crumb.alias}
-            </MenuItem>
-          ))}
-        </MenuSection>
-      }
-    >
-      <Button
+    <div role="group" aria-label="Switch organization" className="flex items-center rounded-full">
+      <ButtonLink
+        href={orgPath(activeOrganization, "/")}
         variant="ghost"
         size="sm"
         iconLeft="Building2"
-        iconRight="ChevronDown"
-        aria-label="Switch organization"
+        className="rounded-e-none pe-1"
+        aria-label={`${activeOrganization} connections`}
       >
         {activeOrganization}
-      </Button>
-    </Menu>
+      </ButtonLink>
+      <Menu
+        content={
+          <MenuSection header={ORGANIZATIONS_SECTION} aria-label={ORGANIZATIONS_SECTION}>
+            {crumbs.map((crumb) => (
+              <MenuItem
+                key={crumb.alias}
+                id={crumb.alias}
+                href={switchOrgPath(crumb.alias, pathname)}
+                endContent={crumb.isActive ? <Icon icon="Check" size="sm" /> : undefined}
+              >
+                {crumb.alias}
+              </MenuItem>
+            ))}
+          </MenuSection>
+        }
+      >
+        <IconButton
+          icon="ChevronDown"
+          label="Switch organization"
+          variant="ghost"
+          size="sm"
+          className={ARROW_CX}
+        />
+      </Menu>
+    </div>
   );
 }
 

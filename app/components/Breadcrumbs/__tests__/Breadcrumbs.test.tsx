@@ -19,7 +19,7 @@ vi.mock("~/hooks/useCurrentUser", () => ({
 
 const renderBreadcrumbs = () =>
   render(
-    <MemoryRouter initialEntries={["/o/acme/connections/bucket/a/b"]}>
+    <MemoryRouter initialEntries={["/acme/bucket/a/b"]}>
       <Breadcrumbs />
     </MemoryRouter>,
   );
@@ -66,9 +66,9 @@ describe("Breadcrumbs", () => {
 
   test("renders a crumb per node, splitting connection paths into ancestors", () => {
     (useMatches as Mock).mockReturnValue([
-      { pathname: "/o/acme/connections", handle: { node: () => staticNode("Connections") } },
+      { pathname: "/acme/connections", handle: { node: () => staticNode("Connections") } },
       {
-        pathname: "/o/acme/connections/bucket/a/b",
+        pathname: "/acme/bucket/a/b",
         handle: { node: () => connectionNode("bucket", "a/b", "b") },
       },
     ]);
@@ -84,7 +84,7 @@ describe("Breadcrumbs", () => {
   test("every crumb gets a context menu", () => {
     (useMatches as Mock).mockReturnValue([
       {
-        pathname: "/o/acme/connections/bucket/a/b",
+        pathname: "/acme/bucket/a/b",
         handle: { node: () => connectionNode("bucket", "a/b", "b") },
       },
     ]);
@@ -110,7 +110,7 @@ describe("Breadcrumbs", () => {
 
     renderBreadcrumbs();
 
-    expect(screen.getByRole("link", { name: "Go to home" })).toHaveAttribute("href", "/o/acme");
+    expect(screen.getByRole("link", { name: "Go to home" })).toHaveAttribute("href", "/acme");
   });
 
   test("names a single organization as the root crumb without a switcher", () => {
@@ -136,6 +136,21 @@ describe("Breadcrumbs", () => {
     expect(items.map((item) => item.textContent)).toEqual(["acme", "beta"]);
   });
 
+  test("the split button's label navigates to the active org's connection list", () => {
+    currentUser = {
+      organization: "acme",
+      organizations: { acme: { groups: [] }, beta: { groups: [] } },
+    };
+    (useMatches as Mock).mockReturnValue([]);
+
+    renderBreadcrumbs();
+
+    // The label is the primary action of the split button; the arrow is the
+    // menu action. They sit in one joined group.
+    expect(screen.getByRole("link", { name: "acme connections" })).toHaveAttribute("href", "/acme");
+    expect(screen.getByRole("group", { name: "Switch organization" })).toBeInTheDocument();
+  });
+
   test("a switcher entry keeps the current sub-path in the chosen organization", async () => {
     currentUser = {
       organization: "acme",
@@ -150,11 +165,11 @@ describe("Breadcrumbs", () => {
     // layout's middleware then reconciles into a session change.
     expect(await screen.findByRole("menuitem", { name: "beta" })).toHaveAttribute(
       "href",
-      "/o/beta/connections/bucket/a/b",
+      "/beta/bucket/a/b",
     );
     expect(screen.getByRole("menuitem", { name: "acme" })).toHaveAttribute(
       "href",
-      "/o/acme/connections/bucket/a/b",
+      "/acme/bucket/a/b",
     );
   });
 });
