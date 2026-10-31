@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
@@ -24,9 +23,6 @@ vi.mock("~/.server/providers/bucketCatalog.server", async () => {
 });
 vi.mock("~/.server/auth/verifyCliToken", () => ({
   verifyCliToken: vi.fn(),
-}));
-vi.mock("~/.server/auth/orgPreference.server", () => ({
-  getPreferredOrg: vi.fn(),
 }));
 vi.mock("~/routes/connections/connections.server", () => ({
   listConnections: vi.fn(),
@@ -79,7 +75,6 @@ const cliToken = (overrides: Record<string, unknown> = {}) => ({
 describe("me.connections loader — SRS-CY-419101/419102", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getPreferredOrg).mockResolvedValue(null);
   });
 
   test("lists connections with the user's most permissive grant", async () => {
@@ -126,23 +121,7 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(listConnections).not.toHaveBeenCalled();
   });
 
-  test("acts in the user's last-used org when the token carries several", async () => {
-    vi.mocked(verifyCliToken).mockResolvedValue(
-      cliToken({ organization: { org1: { groups: [] }, org2: { groups: [] } } }) as never,
-    );
-    vi.mocked(getPreferredOrg).mockResolvedValue("org2");
-    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
-    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
-    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
-
-    const response = (await loader(buildArgs("token"))) as Response;
-
-    expect(response.status).toBe(200);
-    expect(getPreferredOrg).toHaveBeenCalledWith("user-123");
-    expect(getProviderCatalog).toHaveBeenCalledWith("org2", "token");
-  });
-
-  test("falls back to the first alias when no org was last used", async () => {
+  test("acts in the token's first alias when it carries several organizations", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(
       cliToken({ organization: { zulu: { groups: [] }, alpha: { groups: [] } } }) as never,
     );

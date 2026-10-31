@@ -2,7 +2,6 @@ import { type LoaderFunctionArgs } from "react-router";
 
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
 import { profileFromTokenClaims } from "~/.server/auth/getUserInfo";
-import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
 import { jsonError } from "~/.server/httpResponse";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -35,10 +34,6 @@ interface MeConnection {
  * by a Bearer access token on the CLI client — no browser session, no STS
  * mint. The same token is forwarded to the portal catalog lookups, which
  * exchange it (RFC 8693) to resolve the organization.
- *
- * The token carries every membership, so the acting org is resolved the same
- * way a login does: the user's last-used org when they still belong to it, else
- * the first alias. A token with no organization at all stays a dead end.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const authHeader = request.headers.get("Authorization") ?? "";
@@ -52,14 +47,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return jsonError(401, "The presented token is invalid or expired.");
   }
 
-  const preferredOrg =
-    typeof payload.sub === "string"
-      ? await getPreferredOrg(payload.sub).catch((error: unknown) => {
-          console.warn("[me/connections] org preference lookup failed", error);
-          return null;
-        })
-      : null;
-  const user = profileFromTokenClaims(payload, preferredOrg ?? undefined);
+  const user = profileFromTokenClaims(payload);
   if (!user?.organization) {
     return jsonError(401, "The token carries no organization to act in.");
   }
