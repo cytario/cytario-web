@@ -1,4 +1,4 @@
-import { orgPath, stripOrgPath } from "~/utils/orgPath";
+import { isOrgAgnosticPath, orgPath, stripOrgPath } from "~/utils/orgPath";
 
 export type OrgScopeResolution =
   /** The URL's organization is the session's organization — nothing to do. */
@@ -50,5 +50,14 @@ export function resolveOrgScope({
 
   if (urlOrganization === target) return { kind: "active" };
 
-  return { kind: "redirect", to: `${orgPath(target, stripOrgPath(pathname))}${search}` };
+  // A sub-path that is org-agnostic (a reserved route like /recent or
+  // /admin/users) keeps its tail in the active org; anything else — a
+  // connection id or object path — belongs to the tenant it lives in and
+  // would 404 in the active one, so the redirect lands on the org root.
+  const subPath = stripOrgPath(pathname);
+  const keepTail = isOrgAgnosticPath(subPath);
+  return {
+    kind: "redirect",
+    to: `${orgPath(target, keepTail ? subPath : "/")}${keepTail ? search : ""}`,
+  };
 }

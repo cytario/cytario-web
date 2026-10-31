@@ -35,19 +35,29 @@ describe("resolveOrgScope", () => {
     });
   });
 
-  test("a non-membership org redirects to the active org, keeping the sub-path", () => {
+  test("a non-membership org on an org-agnostic route keeps the sub-path", () => {
     expect(
       resolveOrgScope({
         urlOrganization: "other",
         activeOrganization: "acme",
         organizations: ["acme", "beta"],
-        pathname: "/other/abc/a",
-        search: "?modal=add-connection",
+        pathname: "/other/recent",
+        search: "?x=1",
       }),
-    ).toEqual({
-      kind: "redirect",
-      to: "/acme/abc/a?modal=add-connection",
-    });
+    ).toEqual({ kind: "redirect", to: "/acme/recent?x=1" });
+  });
+
+  test("a non-membership org on a connection path lands on the active org's root", () => {
+    // The connection id belongs to the foreign tenant — the same path in the
+    // active org is a 404, so the redirect drops it.
+    expect(
+      resolveOrgScope({
+        urlOrganization: "other",
+        activeOrganization: "acme",
+        organizations: ["acme", "beta"],
+        pathname: "/other/00000000-0000-4000-8000-000000000000/folder",
+      }),
+    ).toEqual({ kind: "redirect", to: "/acme" });
   });
 
   test("a non-membership org falls back to the first membership without an active org", () => {
@@ -66,7 +76,7 @@ describe("resolveOrgScope", () => {
     ).toEqual({ kind: "redirect", to: "/onboarding" });
   });
 
-  test("a mutation cannot switch tenant — it redirects instead of replaying its body", () => {
+  test("a mutation cannot switch tenant — it redirects to the active org's root instead of replaying its body", () => {
     expect(
       resolveOrgScope({
         ...base,
@@ -74,7 +84,7 @@ describe("resolveOrgScope", () => {
         activeOrganization: "acme",
         canSwitch: false,
       }),
-    ).toEqual({ kind: "redirect", to: "/acme/abc" });
+    ).toEqual({ kind: "redirect", to: "/acme" });
   });
 
   test("a mutation in the active org proceeds", () => {
