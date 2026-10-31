@@ -151,7 +151,7 @@ describe("Breadcrumbs", () => {
     expect(screen.getByRole("group", { name: "Switch organization" })).toBeInTheDocument();
   });
 
-  test("a switcher entry keeps the current sub-path in the chosen organization", async () => {
+  test("a switcher entry lands on the chosen organization's root", async () => {
     currentUser = {
       organization: "acme",
       organizations: { acme: { groups: [] }, beta: { groups: [] } },
@@ -162,14 +162,10 @@ describe("Breadcrumbs", () => {
     await userEvent.click(screen.getByRole("button", { name: "Switch organization" }));
 
     // Menu items render as links, so the switch is a real navigation the org
-    // layout's middleware then reconciles into a session change.
-    expect(await screen.findByRole("menuitem", { name: "beta" })).toHaveAttribute(
-      "href",
-      "/beta/bucket/a/b",
-    );
-    expect(screen.getByRole("menuitem", { name: "acme" })).toHaveAttribute(
-      "href",
-      "/acme/bucket/a/b",
-    );
+    // layout's middleware then reconciles into a session change. The target is
+    // the chosen org's connection list — never the same sub-path, which in
+    // another tenant is always a 404.
+    expect(await screen.findByRole("menuitem", { name: "beta" })).toHaveAttribute("href", "/beta");
+    expect(screen.getByRole("menuitem", { name: "acme" })).toHaveAttribute("href", "/acme");
   });
 });

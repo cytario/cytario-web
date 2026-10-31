@@ -72,9 +72,24 @@ export function stripOrgPath(pathname: string): string {
   return match?.[2] ?? "/";
 }
 
-/** The same view of the app in another organization — the org-switch target. */
-export function switchOrgPath(organization: string, pathname: string): string {
-  return orgPath(organization, stripOrgPath(pathname));
+/**
+ * Whether `subPath` (already org-stripped) names a view that exists in every
+ * organization — a reserved route such as `/recent` or `/admin/users`. A
+ * connection id or object path does not: it belongs to the tenant it lives
+ * in, so redirecting it into another organization would land on a 404.
+ */
+export function isOrgAgnosticPath(subPath: string): boolean {
+  return isReservedRoot(subPath);
+}
+
+/**
+ * The org-switch target: the chosen organization's root (its connection
+ * list). The current sub-path is deliberately not kept — a connection id or
+ * object path belongs to the tenant it lives in, and the same path in another
+ * organization is always a 404.
+ */
+export function switchOrgPath(organization: string): string {
+  return orgPath(organization, "/");
 }
 
 /**

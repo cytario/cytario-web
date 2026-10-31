@@ -71,12 +71,11 @@ describe("stripOrgPath", () => {
 });
 
 describe("switchOrgPath", () => {
-  test("keeps the current sub-path in the new organization", () => {
-    expect(switchOrgPath("beta", "/acme/abc/folder")).toBe("/beta/abc/folder");
-  });
-
-  test("switches from the organization root to the new organization root", () => {
-    expect(switchOrgPath("beta", "/acme")).toBe("/beta");
+  test("targets the new organization's root (its connection list)", () => {
+    // The current sub-path is deliberately not kept: a connection id or
+    // object path belongs to the tenant it lives in — the same path in
+    // another organization is always a 404.
+    expect(switchOrgPath("beta")).toBe("/beta");
   });
 });
 

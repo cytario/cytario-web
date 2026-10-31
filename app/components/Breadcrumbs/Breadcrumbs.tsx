@@ -1,5 +1,5 @@
 import { ButtonLink, Icon, IconButton, Logo, Menu, MenuItem, MenuSection } from "@cytario/design";
-import { Link, UIMatch, useLocation, useMatches } from "react-router";
+import { Link, UIMatch, useMatches } from "react-router";
 
 import { buildOrgCrumbs, nodeToTrail } from "./breadcrumbTrail";
 import { type TreeNode } from "../DirectoryView/buildDirectoryTree";
@@ -18,12 +18,11 @@ const ARROW_CX = `${JOIN_CX} rounded-s-none -ps-2`;
  * The root crumb: which organization the page belongs to. A split button for
  * a multi-membership session — the label navigates to the active
  * organization's connection list, the arrow opens the membership menu, and
- * picking an org navigates to the same view inside it (the org layout's
- * middleware moves the session, so the loaders below re-run for the new
- * tenant). A single-membership session renders the label read-only.
+ * picking an org lands on that org's connection list (the same sub-path in
+ * another tenant would 404, so it is never carried over). A single-membership
+ * session renders the label read-only.
  */
 function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
-  const { pathname } = useLocation();
   const user = useCurrentUser();
   const crumbs = buildOrgCrumbs(Object.keys(user?.organizations ?? {}), activeOrganization);
 
@@ -54,7 +53,7 @@ function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
               <MenuItem
                 key={crumb.alias}
                 id={crumb.alias}
-                href={switchOrgPath(crumb.alias, pathname)}
+                href={switchOrgPath(crumb.alias)}
                 endContent={crumb.isActive ? <Icon icon="Check" size="sm" /> : undefined}
               >
                 {crumb.alias}
