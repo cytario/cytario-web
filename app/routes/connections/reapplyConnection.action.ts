@@ -2,6 +2,7 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { applyGrantsAndRecordStatus } from "./connectionGrant.server";
 import { authContext } from "~/.server/auth/authMiddleware";
+import { getOrExchangeOrgToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
@@ -14,7 +15,7 @@ import { orgPath } from "~/utils/orgPath";
  * Authorizes every grant's scope server-side before minting any write
  * session. */
 export const reapplyAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId } = context.get(authContext);
   const session = context.get(sessionContext);
   if (!user.organization) {
     throw new Error("Active organization missing from session");
@@ -38,9 +39,15 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
     assertGrantScope(grant.scope, user.adminScopes);
   }
 
+  // The bucket-policy write session is an STS mint: it needs the narrow
+  // per-org ID token (the raw session token carries no ORG tag for a
+  // multi-org user, and the write role's trust policy rejects it).
   const outcome = await applyGrantsAndRecordStatus(config, {
     user,
-    idToken: session.get("authTokens")?.idToken ?? "",
+    idToken: user.organization
+      ? (await getOrExchangeOrgToken(sessionId, user.organization, authTokens.accessToken))
+          .accessToken
+      : "",
     accessToken: session.get("authTokens")?.accessToken ?? "",
   });
 

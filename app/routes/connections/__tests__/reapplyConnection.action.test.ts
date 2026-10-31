@@ -7,6 +7,13 @@ import { applyGrantsAndRecordStatus } from "~/routes/connections/connectionGrant
 import { reapplyAction } from "~/routes/connections/reapplyConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/orgTokenExchange", () => ({
+  getOrExchangeOrgToken: vi.fn().mockResolvedValue({
+    accessToken: "narrow-id",
+    expiresAt: Date.now() + 300_000,
+    organization: "org1",
+  }),
+}));
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
@@ -32,7 +39,11 @@ vi.mock("~/routes/connections/connectionGrant.server", async () => {
 
 function buildArgs(user: ReturnType<typeof mock.user>, form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user });
+  ctx.set(authContext, {
+    user,
+    sessionId: "session-1",
+    authTokens: { accessToken: "access-token" },
+  });
   ctx.set(sessionContext, mock.session({ authTokens: { idToken: "tok" } as never }));
   const request = new Request("http://localhost/connections", {
     method: "POST",
@@ -64,7 +75,7 @@ describe("reapplyAction", () => {
     expect((result as Response).status).toBe(302);
     expect(applyGrantsAndRecordStatus).toHaveBeenCalledWith(config, {
       user,
-      idToken: "tok",
+      idToken: "narrow-id",
       accessToken: "",
     });
   });
