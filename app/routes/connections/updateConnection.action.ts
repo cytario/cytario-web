@@ -12,12 +12,17 @@ import { parseGrants } from "./createConnection.action";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
 import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
+import { orgPath } from "~/utils/orgPath";
 
 export interface UpdateConnectionInput {
   name: string;
@@ -117,8 +122,14 @@ export async function updateConnection(
 }
 
 export const updateAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId } = context.get(authContext);
   const session = context.get(sessionContext);
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = user.organization
+    ? (await getOrExchangeOrgAccessToken(sessionId, user.organization, authTokens.accessToken))
+        .accessToken
+    : "";
   const formData = await request.formData();
 
   const connectionId = String(formData.get("connectionId") ?? "");
@@ -148,7 +159,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
+    catalog = await getProviderCatalog(user.organization, portalAccessToken);
   } catch (error) {
     return {
       formError:
@@ -178,7 +189,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
   const bucketRef = await validateBucketRef(
     user.organization,
-    session.get("authTokens")?.accessToken ?? "",
+    portalAccessToken,
     validated,
     refs.providerConnection,
   );
@@ -203,10 +214,14 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     delete credentials[updatedConfig.id];
     session.set("credentials", credentials);
 
+    // The bucket-policy write session is an STS mint: it needs the narrow
+    // per-org ID token (the raw session token carries no ORG tag for a
+    // multi-org user, and the write role's trust policy rejects it).
     const acting = {
       user,
-      idToken: session.get("authTokens")?.idToken ?? "",
-      accessToken: session.get("authTokens")?.accessToken ?? "",
+      idToken: (await getOrExchangeOrgToken(sessionId, user.organization, authTokens.accessToken))
+        .accessToken,
+      accessToken: portalAccessToken,
     };
 
     const outcome = await applyGrantsAndRecordStatus(updatedConfig, acting);
@@ -247,7 +262,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
             .join(" ")}`,
     });
 
-    return redirect(`/connections/${updatedConfig.id}`, {
+    return redirect(orgPath(user.organization, `/${updatedConfig.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

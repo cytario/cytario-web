@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useFetcher } from "react-router";
 
+import { useOrgPath } from "~/hooks/useOrgPath";
+
 export function useRecordRecentView(
   resourceId: string,
   data: {
@@ -11,6 +13,7 @@ export function useRecordRecentView(
   },
 ) {
   const fetcher = useFetcher();
+  const recentPath = useOrgPath()("/recent");
 
   useEffect(() => {
     if (!data.pathName) return;
@@ -21,7 +24,7 @@ export function useRecordRecentView(
         name: data.name,
         type: data.isSingleFile ? "file" : "directory",
       },
-      { method: "post", action: "/recent" },
+      { method: "post", action: recentPath },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resourceId]);

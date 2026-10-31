@@ -62,11 +62,18 @@ export const links: LinksFunction = () => [
 export const middleware: MiddlewareFunction[] = [sessionMiddleware];
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
   formAction,
   defaultShouldRevalidate,
 }) => {
   // Only revalidate after form submissions so flash notifications surface.
   if (formAction) return defaultShouldRevalidate;
+  // An organization switch moves the /:org segment; the root loader's user
+  // projection (active org, memberships) must follow or the shell — breadcrumb
+  // root, org-prefixed links — keeps rendering the organization the session
+  // just left.
+  if (currentUrl.pathname.split("/")[1] !== nextUrl.pathname.split("/")[1]) return true;
   return false;
 };
 

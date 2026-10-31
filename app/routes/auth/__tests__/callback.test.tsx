@@ -4,6 +4,7 @@ import { loader } from "../callback.route";
 import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { getUserInfo } from "~/.server/auth/getUserInfo";
 import { validateOAuthState } from "~/.server/auth/oauthState";
+import { getPreferredOrg, setPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
@@ -14,6 +15,11 @@ vi.mock("~/.server/auth/exchangeAuthCode", () => ({
 
 vi.mock("~/.server/auth/getUserInfo", () => ({
   getUserInfo: vi.fn(),
+}));
+
+vi.mock("~/.server/auth/orgPreference.server", () => ({
+  getPreferredOrg: vi.fn(),
+  setPreferredOrg: vi.fn(),
 }));
 
 vi.mock("~/.server/auth/oauthState", () => ({
@@ -64,6 +70,67 @@ describe("callback loader", () => {
     vi.mocked(exchangeAuthCode).mockResolvedValue(mock.tokenReponse());
     vi.mocked(verifyIdToken).mockResolvedValue({ nonce: "test-nonce-abc", sub: "user-123" });
     vi.mocked(getUserInfo).mockResolvedValue(mockUser);
+    vi.mocked(getPreferredOrg).mockResolvedValue(null);
+    vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
+  });
+
+  test("resolves the active org from the persisted preference", async () => {
+    vi.mocked(getPreferredOrg).mockResolvedValue("vericura");
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(getPreferredOrg).toHaveBeenCalledWith("user-123");
+    expect(getUserInfo).toHaveBeenCalledWith(expect.any(String), "vericura");
+  });
+
+  test("a silent re-auth keeps the org already on the session", async () => {
+    mockSession.get.mockImplementation((key: string) =>
+      key === "activeOrganization" ? "cytar" : undefined,
+    );
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(getUserInfo).toHaveBeenCalledWith(expect.any(String), "cytar");
+    expect(getPreferredOrg).not.toHaveBeenCalled();
+  });
+
+  test("writes the resolved org to the session and the preference", async () => {
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(mockSession.set).toHaveBeenCalledWith("activeOrganization", "org1");
+    expect(setPreferredOrg).toHaveBeenCalledWith("mock-user-id", "org1");
+  });
+
+  test("persists no preference for a zero-org session", async () => {
+    vi.mocked(getUserInfo).mockResolvedValue(
+      mock.user({ organization: undefined, organizations: {} }),
+    );
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(mockSession.set).toHaveBeenCalledWith("activeOrganization", undefined);
+    expect(setPreferredOrg).not.toHaveBeenCalled();
+  });
+
+  test("a preference write failure does not fail the login", async () => {
+    vi.mocked(setPreferredOrg).mockRejectedValue(new Error("database unavailable"));
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect((response as Response).status).toBe(302);
+    expect(mockSession.set).toHaveBeenCalledWith("user", expect.any(Object));
+    consoleSpy.mockRestore();
   });
 
   test("successful authentication creates session and redirects", async () => {

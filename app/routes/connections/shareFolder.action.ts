@@ -5,10 +5,12 @@ import { createConnection } from "./createConnection.action";
 import { shareFolderSchema } from "./shareFolder.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
+import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { assertGrantScope } from "~/routes/admin/assertAdminScope";
+import { orgPath } from "~/utils/orgPath";
 
 /** Create a folder share and apply its bucket-policy grant. Order of
  * enforcement is load-bearing: authorize every SUBMITTED target scope
@@ -17,8 +19,14 @@ import { assertGrantScope } from "~/routes/admin/assertAdminScope";
  * applying the managed grant set (warning, never claiming enforced, when the
  * write is denied). */
 export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId } = context.get(authContext);
   const session = context.get(sessionContext);
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = user.organization
+    ? (await getOrExchangeOrgAccessToken(sessionId, user.organization, authTokens.accessToken))
+        .accessToken
+    : "";
   if (!user.organization) {
     throw new Error("Active organization missing from session");
   }
@@ -44,7 +52,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
 
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
+    catalog = await getProviderCatalog(user.organization, portalAccessToken);
   } catch (error) {
     return {
       formError:
@@ -87,7 +95,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
           : `Share created. ${outcome.warning}`,
     });
 
-    return redirect(`/connections/${share.id}`, {
+    return redirect(orgPath(user.organization, `/${share.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

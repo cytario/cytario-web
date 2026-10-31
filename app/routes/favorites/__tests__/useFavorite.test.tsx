@@ -20,6 +20,12 @@ vi.mock("react-router", () => ({
   }),
 }));
 
+// The provider resolves its action path from the active org; this suite
+// exercises the favourite semantics, not the link prefix.
+vi.mock("~/hooks/useOrgPath", () => ({
+  useOrgPath: () => (path: string) => path,
+}));
+
 let favorites: SerializedFavorite[] = [];
 
 const wrapper = ({ children }: { children: ReactNode }) => (

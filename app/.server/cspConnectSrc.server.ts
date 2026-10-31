@@ -1,5 +1,6 @@
 import { getSession, getSessionData } from "./auth/getSession";
 import type { UserProfile } from "./auth/getUserInfo";
+import { getOrExchangeOrgAccessToken } from "./auth/orgTokenExchange";
 import { createLabel } from "./logging";
 import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
@@ -16,7 +17,8 @@ const label = createLabel("csp", "magenta");
  * active organization, or an unresolvable catalog yields an empty set. */
 export async function resolveConnectSrcHosts(request: Request): Promise<string[]> {
   let organization: string | undefined;
-  let accessToken: string | undefined;
+  let subjectToken: string | undefined;
+  let sessionId: string | undefined;
   let user: UserProfile | undefined;
   try {
     const cookie = request.headers.get("cookie");
@@ -25,15 +27,23 @@ export async function resolveConnectSrcHosts(request: Request): Promise<string[]
     const sessionData = await getSessionData(session);
     user = sessionData.user;
     organization = sessionData.user?.organization;
-    accessToken = sessionData.authTokens?.accessToken;
+    subjectToken = sessionData.authTokens?.accessToken;
+    sessionId = session.id;
   } catch (error) {
     console.warn(`${label} session read failed, CSP connect-src fails closed:`, error);
     return [];
   }
 
-  if (!user || !organization || !accessToken) return [];
+  if (!user || !organization || !subjectToken) return [];
 
   try {
+    // Portal lookups present a narrow per-org access token: the portal rejects
+    // the multi-membership session token a multi-org user carries. The CSP
+    // derivation is best-effort — an exchange failure degrades to a closed
+    // host set rather than failing the response.
+    const accessToken = await getOrExchangeOrgAccessToken(sessionId!, organization, subjectToken)
+      .then((exchanged) => exchanged.accessToken)
+      .catch(() => undefined);
     const catalog = await getProviderCatalog(organization, accessToken);
     const hosts = new Set<string>();
 
@@ -79,7 +89,7 @@ export async function resolveConnectSrcHosts(request: Request): Promise<string[]
 
 /** The bucket catalog, or undefined when the build has no portal lookup or
  * the lookup fails — the provider-default regions still cover the org. */
-async function fetchBucketCatalog(organization: string, accessToken: string) {
+async function fetchBucketCatalog(organization: string, accessToken?: string) {
   if (cytarioConfig.providers.source !== "portal") return undefined;
   try {
     return await getBucketCatalog(organization, accessToken);

@@ -4,9 +4,16 @@ export const GETTING_STARTED_TOUR_ID = "getting-started";
 export const VIEWER_TOUR_ID = "viewer";
 export const USER_MANAGEMENT_TOUR_ID = "user-management";
 
+/**
+ * The breadcrumb's organization switcher trigger. Qualified by the route, since
+ * the tour's spotlight otherwise matches any `Building2` button.
+ */
+export const ORG_SWITCHER_SELECTOR =
+  'nav[aria-label="Breadcrumb"] button[aria-label="Switch organization"]';
+
 /** Context the registry gets to decide whether a tour should auto-start. */
 export interface TourContext {
-  /** `location.pathname` — viewer pages are `/connections/:id/...` image files. */
+  /** `location.pathname` — viewer pages are `/:org/:id/...` files. */
   pathname: string;
   /** Last path segment, e.g. `slide.ome.tiff` — the resource's name. */
   leafName: string;
@@ -17,6 +24,9 @@ export interface TourContext {
    *  user-management screen's default scope. Includes the `*` org-root
    *  sentinel for org admins. */
   adminScopes: readonly string[];
+  /** How many organizations the user belongs to; the switcher only renders
+   *  for more than one. */
+  organizationCount?: number;
 }
 
 export interface TourDefinition {
@@ -55,12 +65,26 @@ export function leafNameOf(pathname: string): string {
   }
 }
 
-/** True when the pathname points at a single resource inside a connection. */
+/** True when the pathname points at a single resource inside a connection.
+ *  The organization prefix is optional so the helper keeps working for callers
+ *  that hold an already-stripped path. */
 export function isResourcePath(pathname: string): boolean {
-  return /^\/connections\/[^/]+\/.+/.test(pathname);
+  return /^(?:\/o\/[^/]+)?\/connections\/[^/]+\/.+/.test(pathname);
 }
 
 /** True when the pathname is a single-file image, i.e. the viewer's route. */
 export function isImageViewerRoute(pathname: string, leafName: string): boolean {
   return isResourcePath(pathname) && getFileCategory(leafName) === "image";
+}
+
+/**
+ * The steps this run may show. A step whose target cannot exist in this context
+ * is dropped rather than left to fail its target wait: joyride would mark it
+ * failed and advance after `targetWaitTimeout`, stalling the tour for seconds on
+ * a screen the step never applied to.
+ */
+export function visibleSteps(definition: TourDefinition, context: TourContext) {
+  return definition.steps.filter(
+    (step) => !step.data?.requiresMultipleOrgs || (context.organizationCount ?? 0) > 1,
+  );
 }

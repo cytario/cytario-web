@@ -7,6 +7,9 @@ import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { createAction } from "~/routes/connections/createConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
@@ -51,6 +54,7 @@ function buildArgs(form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
   ctx.set(authContext, {
     user: mock.user({ adminScopes: ["org1/lab"], organization: "org1" }),
+    sessionId: "session-1",
     authTokens: { accessToken: "access-token" },
   });
   ctx.set(sessionContext, mock.session({ authTokens: { idToken: "tok" } as never }));

@@ -19,6 +19,12 @@ export function jobTokenHostRequestData(binding: ResolvedJobBinding): HostReques
     family_name: "",
     policy: [],
     organization: binding.organization,
+    organizations: Object.freeze({
+      [binding.organization]: Object.freeze({
+        groups: Object.freeze([]),
+        attributes: Object.freeze({}),
+      }),
+    }),
     organizationAttributes: Object.freeze({}),
     groups: [],
     adminScopes: [],
@@ -56,6 +62,7 @@ export function orgAgnosticHostRequestData(): HostRequestData {
     family_name: "",
     policy: [],
     organization: undefined,
+    organizations: Object.freeze({}),
     organizationAttributes: Object.freeze({}),
     groups: [],
     adminScopes: [],

@@ -1,4 +1,9 @@
-import { getUserInfo, toIdentity, type UserProfile } from "../getUserInfo";
+import {
+  getUserInfo,
+  resolveActiveOrganization,
+  toIdentity,
+  type UserProfile,
+} from "../getUserInfo";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
 
 vi.mock("../wellKnownEndpoints", () => ({
@@ -462,6 +467,127 @@ describe("getUserInfo", () => {
     });
   });
 
+  describe("Multi-org claim", () => {
+    const multiOrgProfile = (overrides?: Record<string, unknown>) => ({
+      sub: "uuid-multi",
+      email: "multi@example.com",
+      email_verified: true,
+      name: "Multi",
+      preferred_username: "multi",
+      given_name: "Multi",
+      family_name: "Org",
+      policy: [],
+      groups: [],
+      organization: {
+        vericura: { id: "org-vericura", groups: ["/lab", "/lab/admins"], tier: ["pro"] },
+        ascent: { id: "org-ascent", groups: ["/research"], tier: ["basic"] },
+        cytario: { groups: ["/admins"] },
+      },
+      ...overrides,
+    });
+
+    test("exposes every membership with its own attributes and groups", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(multiOrgProfile()) });
+
+      const result = await getUserInfo("access-token");
+
+      expect(Object.keys(result.organizations).sort()).toEqual(["ascent", "cytario", "vericura"]);
+      expect(result.organizations.vericura).toEqual({
+        id: "org-vericura",
+        groups: ["lab", "lab/admins"],
+        attributes: { tier: ["pro"] },
+      });
+      expect(result.organizations.ascent).toEqual({
+        id: "org-ascent",
+        groups: ["research"],
+        attributes: { tier: ["basic"] },
+      });
+      // No `id` in the claim → the key is absent, never an undefined value.
+      expect(result.organizations.cytario).not.toHaveProperty("id");
+    });
+
+    test("defaults to the first alias alphabetically when nothing is preferred", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(multiOrgProfile()) });
+
+      const result = await getUserInfo("access-token");
+
+      expect(result.organization).toBe("ascent");
+      expect(result.organizationAttributes).toEqual({ tier: ["basic"] });
+      expect(result.groups).toEqual(["research"]);
+      expect(result.adminScopes).toEqual([]);
+    });
+
+    test("honours a preferred alias the token still carries", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(multiOrgProfile()) });
+
+      const result = await getUserInfo("access-token", "vericura");
+
+      expect(result.organization).toBe("vericura");
+      expect(result.organizationAttributes).toEqual({ tier: ["pro"] });
+      expect(result.groups).toEqual(["lab"]);
+      expect(result.adminScopes).toEqual(["lab"]);
+    });
+
+    test("falls back to the first alias when the preferred org is no longer a membership", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(multiOrgProfile()) });
+
+      const result = await getUserInfo("access-token", "revoked-org");
+
+      expect(result.organization).toBe("ascent");
+      expect(result.groups).toEqual(["research"]);
+    });
+
+    test("derives the active-org projection, not another org's", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(multiOrgProfile()) });
+
+      const result = await getUserInfo("access-token", "cytario");
+
+      expect(result.organization).toBe("cytario");
+      expect(result.adminScopes).toEqual(["*"]);
+      expect(result.groups).toEqual([]);
+      expect(result.organizationAttributes).toEqual({});
+    });
+
+    test("yields no active org and an empty map for a zero-org token", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(multiOrgProfile({ organization: undefined })),
+      });
+
+      const result = await getUserInfo("access-token", "vericura");
+
+      expect(result.organization).toBeUndefined();
+      expect(result.organizations).toEqual({});
+      expect(result.organizationAttributes).toEqual({});
+    });
+  });
+
+  describe("resolveActiveOrganization", () => {
+    const membership = { groups: [], attributes: {} };
+
+    test("returns undefined for an empty membership map", () => {
+      expect(resolveActiveOrganization({})).toBeUndefined();
+    });
+
+    test("returns the preferred alias when present", () => {
+      const organizations = { alpha: membership, zeta: membership };
+
+      expect(resolveActiveOrganization(organizations, "zeta")).toBe("zeta");
+    });
+
+    test("ignores a preferred alias that is not a membership", () => {
+      const organizations = { beta: membership, alpha: membership };
+
+      expect(resolveActiveOrganization(organizations, "gamma")).toBe("alpha");
+    });
+
+    test("picks the first alias alphabetically, independent of claim order", () => {
+      const organizations = { zulu: membership, alpha: membership, mike: membership };
+
+      expect(resolveActiveOrganization(organizations)).toBe("alpha");
+    });
+  });
+
   describe("Zod Validation", () => {
     test("throws ZodError for malformed userinfo response", async () => {
       const malformedProfile = {
@@ -518,6 +644,12 @@ describe("getUserInfo", () => {
       email: "alice@example.com",
       policy: ["default-policy"],
       organization: "testcorp",
+      organizations: {
+        testcorp: {
+          groups: ["lab"],
+          attributes: { subscription_status: ["active"] },
+        },
+      },
       organizationAttributes: { subscription_status: ["active"] },
       groups: ["lab"],
       adminScopes: ["*"],

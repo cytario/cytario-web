@@ -48,13 +48,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const user = profileFromTokenClaims(payload);
-  const organizationClaim = payload.organization;
-  const organizationCount =
-    organizationClaim && typeof organizationClaim === "object"
-      ? Object.keys(organizationClaim).length
-      : 0;
-  if (!user?.organization || organizationCount !== 1) {
-    return jsonError(401, "The token carries no single active organization.");
+  if (!user?.organization) {
+    return jsonError(401, "The token carries no organization to act in.");
   }
   const organization = user.organization;
 

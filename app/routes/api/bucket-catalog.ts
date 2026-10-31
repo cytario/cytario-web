@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
@@ -21,7 +22,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     return Response.json({ source: "oss" }, { headers: { "Cache-Control": "no-store, private" } });
   }
 
-  const { user, authTokens } = context.get(authContext);
+  const { user, authTokens, sessionId } = context.get(authContext);
   if (!user.organization) {
     return Response.json(
       { source: "portal", error: "No active organization." },
@@ -30,7 +31,12 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   }
 
   try {
-    const catalog = await getBucketCatalog(user.organization, authTokens.accessToken);
+    // A narrow per-org token: the portal rejects the multi-membership session
+    // token a multi-org user carries.
+    const portalToken = (
+      await getOrExchangeOrgAccessToken(sessionId, user.organization, authTokens.accessToken)
+    ).accessToken;
+    const catalog = await getBucketCatalog(user.organization, portalToken);
     return Response.json(
       { source: "portal", catalog },
       { headers: { "Cache-Control": "no-store, private" } },

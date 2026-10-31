@@ -35,8 +35,25 @@ const userProfileSchema = z.object({
 
 type UserProfileRaw = z.infer<typeof userProfileSchema>;
 
+/** One Keycloak organization membership, sanitized for host and client use. */
+export interface OrganizationMembership {
+  /** Immutable Keycloak org id — absent when the membership mapper omits it. */
+  id?: string;
+  /** Group paths inside this org, with the leading `/` stripped. */
+  groups: readonly string[];
+  /** Opaque org attributes, PII/size-filtered; frozen. */
+  attributes: Readonly<Record<string, readonly string[]>>;
+}
+
+/** Every membership the token carries, keyed by org alias. */
+export type Organizations = Readonly<Record<string, OrganizationMembership>>;
+
 export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
+  /** Active org alias — `undefined` for a zero-org session. */
   organization?: string;
+  /** All memberships from the `organization` claim, active one included. */
+  organizations: Organizations;
+  /** Attributes of the ACTIVE org. */
   organizationAttributes: Readonly<Record<string, readonly string[]>>;
   groups: string[];
   adminScopes: string[];
@@ -78,23 +95,89 @@ function normalizeOrganizationAttributes(
   return Object.freeze(attributes);
 }
 
-function enrichUserProfile(raw: UserProfileRaw): UserProfile {
-  // Group membership and org attributes arrive nested under the sole key of the
-  // Keycloak Organizations claim `{ "<alias>": { id, groups, ...attrs } }`.
-  const orgEntry = raw.organization ? Object.entries(raw.organization)[0] : undefined;
-  const organization = orgEntry?.[0];
-  const rawGroups = orgEntry ? (orgEntry[1].groups ?? []) : raw.groups;
-  const organizationAttributes = orgEntry
-    ? normalizeOrganizationAttributes(orgEntry[1])
-    : Object.freeze({});
+// `id` surfaces array-shaped on some mapper configs; take the first usable value.
+function readOrganizationId(entry: OrganizationEntry): string | undefined {
+  const candidates = Array.isArray(entry.id) ? entry.id : [entry.id];
+  const id = candidates.find((value): value is string => typeof value === "string" && value !== "");
+  return id;
+}
 
-  // Root `/admins` becomes the `*` admin scope — "admin of every owner scope in
-  // this org", still bounded by the tenant check (no cross-org power).
+function normalizeOrganizations(claim: UserProfileRaw["organization"]): Organizations {
+  const organizations: Record<string, OrganizationMembership> = {};
+  for (const [alias, entry] of Object.entries(claim ?? {})) {
+    const id = readOrganizationId(entry);
+    organizations[alias] = Object.freeze({
+      ...(id ? { id } : {}),
+      groups: Object.freeze((entry.groups ?? []).map(normalizeGroup)),
+      attributes: normalizeOrganizationAttributes(entry),
+    });
+  }
+  return Object.freeze(organizations);
+}
+
+interface GroupDerivation {
+  groups: string[];
+  adminScopes: string[];
+}
+
+// Root `/admins` becomes the `*` admin scope — "admin of every owner scope in
+// this org", still bounded by the tenant check (no cross-org power).
+function deriveGroupScopes(rawGroups: readonly string[]): GroupDerivation {
   const allGroups = rawGroups.map(normalizeGroup);
   const adminScopes = allGroups
     .filter((g) => g === "admins" || g.endsWith("/admins"))
     .map((g) => (g === "admins" ? ORG_ROOT_SCOPE : g.replace(/\/admins$/, "")));
   const groups = allGroups.filter((g) => g !== "admins" && !g.endsWith("/admins"));
+  return { groups, adminScopes };
+}
+
+/**
+ * Deterministic active-org pick: the caller's preferred alias (last used) when
+ * the token still carries that membership, else the first alias alphabetically.
+ * Returns `undefined` for a zero-org session.
+ */
+export function resolveActiveOrganization(
+  organizations: Organizations,
+  preferredAlias?: string,
+): string | undefined {
+  const aliases = Object.keys(organizations).sort();
+  if (preferredAlias && aliases.includes(preferredAlias)) return preferredAlias;
+  return aliases[0];
+}
+
+/**
+ * Re-derives the active-org projection (groups, admin scopes, attributes) for
+ * `alias`. An alias outside the memberships clears the projection entirely
+ * rather than keeping the previous org's, so a session can never carry one
+ * tenant's entitlements under another's alias.
+ */
+export function withActiveOrganization(user: UserProfile, alias: string | undefined): UserProfile {
+  const membership = alias ? user.organizations[alias] : undefined;
+  if (!alias || !membership) {
+    return {
+      ...user,
+      organization: undefined,
+      organizationAttributes: Object.freeze({}),
+      groups: [],
+      adminScopes: [],
+    };
+  }
+  const { groups, adminScopes } = deriveGroupScopes(membership.groups);
+  return {
+    ...user,
+    organization: alias,
+    organizationAttributes: membership.attributes,
+    groups,
+    adminScopes,
+  };
+}
+
+function enrichUserProfile(raw: UserProfileRaw, preferredAlias?: string): UserProfile {
+  const organizations = normalizeOrganizations(raw.organization);
+  const organization = resolveActiveOrganization(organizations, preferredAlias);
+  const activeMembership = organization ? organizations[organization] : undefined;
+
+  const { groups, adminScopes } = deriveGroupScopes(activeMembership?.groups ?? raw.groups);
 
   return {
     sub: raw.sub,
@@ -106,13 +189,18 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
     family_name: raw.family_name,
     policy: raw.policy,
     organization,
-    organizationAttributes,
+    organizations,
+    organizationAttributes: activeMembership?.attributes ?? Object.freeze({}),
     groups,
     adminScopes,
   };
 }
 
-/** Drops PII so it never reaches the client. */
+/**
+ * Drops PII so it never reaches the client. `organizations` is absent from the
+ * plugin-api `Identity` contract, so the multi-org map stays host-side until
+ * that interface grows one.
+ */
 export function toIdentity(user: UserProfile): Identity {
   // Frozen — gates share this object; none may mutate it.
   return Object.freeze({
@@ -127,7 +215,10 @@ export function toIdentity(user: UserProfile): Identity {
 // Group membership arrives nested under the organization claim (Keycloak
 // Organizations), not as a top-level `groups` claim; identity-display fields
 // default when absent. Returns null when the claims do not parse.
-export function profileFromTokenClaims(claims: JWTPayload): UserProfile | null {
+export function profileFromTokenClaims(
+  claims: JWTPayload,
+  preferredAlias?: string,
+): UserProfile | null {
   const tokenClaimsSchema = userProfileSchema.extend({
     email_verified: z.boolean().default(false),
     name: z.string().default(""),
@@ -138,10 +229,13 @@ export function profileFromTokenClaims(claims: JWTPayload): UserProfile | null {
   });
   const parsed = tokenClaimsSchema.safeParse(claims);
   if (!parsed.success) return null;
-  return enrichUserProfile(parsed.data);
+  return enrichUserProfile(parsed.data, preferredAlias);
 }
 
-export const getUserInfo = async (accessToken: string): Promise<UserProfile> => {
+export const getUserInfo = async (
+  accessToken: string,
+  preferredAlias?: string,
+): Promise<UserProfile> => {
   try {
     const wellKnownEndpoints = await getWellKnownEndpoints();
     const { userinfo_endpoint } = wellKnownEndpoints;
@@ -159,7 +253,7 @@ export const getUserInfo = async (accessToken: string): Promise<UserProfile> => 
 
     const rawUserProfile = await response.json();
     const validatedUserProfile = userProfileSchema.parse(rawUserProfile);
-    const enrichedUserProfile = enrichUserProfile(validatedUserProfile);
+    const enrichedUserProfile = enrichUserProfile(validatedUserProfile, preferredAlias);
 
     return enrichedUserProfile;
   } catch (error) {

@@ -6,6 +6,7 @@ import { generateOAuthState, validateRedirectTo } from "~/.server/auth/oauthStat
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 import { createLabel } from "~/.server/logging";
 import { cytarioConfig } from "~/config";
+import { orgPath } from "~/utils/orgPath";
 
 export const meta: MetaFunction = () => {
   return [
@@ -27,7 +28,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (user) {
     console.info(`${label} User already authenticated, redirecting`);
-    return redirect("/");
+    // Straight to the org they were in — the un-prefixed root would only
+    // redirect once more.
+    return redirect(orgPath(session.get("activeOrganization") ?? user.organization, "/"));
   }
 
   try {

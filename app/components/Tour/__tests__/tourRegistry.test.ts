@@ -2,11 +2,13 @@ import { describe, expect, test } from "vitest";
 
 import {
   GETTING_STARTED_TOUR_ID,
+  ORG_SWITCHER_SELECTOR,
   USER_MANAGEMENT_TOUR_ID,
   VIEWER_TOUR_ID,
   isImageViewerRoute,
   isResourcePath,
   leafNameOf,
+  visibleSteps,
 } from "../tourRegistry";
 import { tourRegistry } from "../tours/registry";
 
@@ -187,9 +189,7 @@ describe("tourRegistry", () => {
 
     test("connection entries are scoped to the content section, not bare `main`", () => {
       expect(targets.filter((target) => /^main a\[/.test(target))).toEqual([]);
-      expect(
-        targets.some((target) => target.startsWith('main section a[href^="/connections/"]')),
-      ).toBe(true);
+      expect(targets.some((target) => target.startsWith('main section a[href^="/"]'))).toBe(true);
     });
 
     test("the sidebar entry step and the content entry step differ", () => {
@@ -210,8 +210,11 @@ describe("tourRegistry", () => {
   describe("helpers", () => {
     test("isResourcePath matches nested resource routes", () => {
       expect(isResourcePath("/connections/abc/folder/img.tiff")).toBe(true);
+      expect(isResourcePath("/o/acme/connections/abc/folder/img.tiff")).toBe(true);
+      expect(isResourcePath("/o/acme/connections/abc")).toBe(false);
       expect(isResourcePath("/connections/abc")).toBe(false);
       expect(isResourcePath("/connections")).toBe(false);
+      expect(isResourcePath("/o/acme/connections")).toBe(false);
     });
 
     test("leafNameOf returns the decoded last segment", () => {
@@ -223,6 +226,9 @@ describe("tourRegistry", () => {
 
     test("isImageViewerRoute is true only for a single-file image", () => {
       expect(isImageViewerRoute("/connections/abc/slide.ome.tiff", "slide.ome.tiff")).toBe(true);
+      expect(isImageViewerRoute("/o/acme/connections/abc/slide.ome.tiff", "slide.ome.tiff")).toBe(
+        true,
+      );
       expect(isImageViewerRoute("/connections/abc/notes.txt", "notes.txt")).toBe(false);
       expect(isImageViewerRoute("/connections/abc", "abc")).toBe(false);
       expect(isImageViewerRoute("/connections", "connections")).toBe(false);
@@ -234,6 +240,39 @@ describe("tourRegistry", () => {
           expect(step.target).toBeTruthy();
         }
       }
+    });
+  });
+
+  describe("organization switcher step", () => {
+    const context = {
+      pathname: "/o/acme/connections/abc/folder",
+      leafName: "folder",
+      connectionCount: 1,
+      adminScopes: [] as string[],
+    };
+
+    test("the switcher step targets the breadcrumb's org control", () => {
+      const selector = String(
+        gettingStarted.steps.find((step) => step.data?.requiresMultipleOrgs)?.target,
+      );
+
+      expect(selector).toBe(ORG_SWITCHER_SELECTOR);
+      expect(selector.startsWith('nav[aria-label="Breadcrumb"]')).toBe(true);
+    });
+
+    test("a single-org user never sees the step", () => {
+      const steps = visibleSteps(gettingStarted, { ...context, organizationCount: 1 });
+      expect(steps.some((step) => step.data?.requiresMultipleOrgs)).toBe(false);
+    });
+
+    test("a multi-org user gets the step", () => {
+      const steps = visibleSteps(gettingStarted, { ...context, organizationCount: 2 });
+      expect(steps.some((step) => step.data?.requiresMultipleOrgs)).toBe(true);
+    });
+
+    test("an unstated org count drops the step — its target cannot exist", () => {
+      const steps = visibleSteps(gettingStarted, context);
+      expect(steps.some((step) => step.data?.requiresMultipleOrgs)).toBe(false);
     });
   });
 });

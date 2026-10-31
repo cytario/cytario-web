@@ -2,7 +2,9 @@ import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
 import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
-import { toIdentity } from "./getUserInfo";
+import { resolveActiveOrganization, toIdentity, withActiveOrganization } from "./getUserInfo";
+import type { UserProfile } from "./getUserInfo";
+import { getPreferredOrg } from "./orgPreference.server";
 import { withHostRequestContext } from "../hostRequestContext";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
 import { sessionContext } from "./sessionMiddleware";
@@ -20,6 +22,8 @@ export interface AuthContextData extends SessionData {
   connectionConfigs: ConnectionConfigWithGrants[];
   credentialErrors: Record<string, string>;
   connectionProviders: Record<string, ClientConnectionProvider>;
+  /** Identifies the cached narrow exchange tokens for this request's session. */
+  sessionId: string;
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -64,8 +68,47 @@ const isComplete = (data: Partial<SessionData>): boolean => {
 
 const label = createLabel("authorize", "green");
 
+/**
+ * The session's authoritative tenant: the stored alias while the token still
+ * carries that membership, else a re-resolution (last used → first alias) so an
+ * org switch, a revoked membership or a session written before the org map
+ * existed cannot leave the session scoped to an org the token no longer has. A
+ * profile with no org map at all keeps the org it already carries.
+ */
+const reconcileActiveOrganization = async (
+  sessionData: SessionData,
+): Promise<{ activeOrganization?: string; user: UserProfile }> => {
+  const user = sessionData.user;
+  const stored = sessionData.activeOrganization;
+
+  if (!user.organizations) {
+    return { activeOrganization: stored ?? user.organization, user };
+  }
+
+  if (stored && user.organizations[stored]) {
+    return {
+      activeOrganization: stored,
+      user: stored === user.organization ? user : withActiveOrganization(user, stored),
+    };
+  }
+
+  const preferred = Object.keys(user.organizations).length
+    ? await getPreferredOrg(user.sub).catch((error: unknown) => {
+        console.warn(`${label} Org preference lookup failed:`, error);
+        return null;
+      })
+    : null;
+
+  const activeOrganization = resolveActiveOrganization(user.organizations, preferred ?? undefined);
+  if (activeOrganization === user.organization) {
+    return { activeOrganization, user };
+  }
+  return { activeOrganization, user: withActiveOrganization(user, activeOrganization) };
+};
+
 const fetchAllCredentials = async (
   sessionData: SessionData,
+  sessionId: string,
 ): Promise<{
   sessionData: SessionData;
   connectionConfigs: ConnectionConfigWithGrants[];
@@ -77,6 +120,7 @@ const fetchAllCredentials = async (
   const { credentials, errors, providers } = await getAllSessionCredentials(
     sessionData,
     connectionConfigs,
+    sessionId,
   );
 
   return {
@@ -103,7 +147,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
 
   if (isComplete(sessionData)) {
     let updatedSessionData = sessionData as SessionData;
-    const { authTokens, user } = updatedSessionData;
+    const { authTokens } = updatedSessionData;
 
     // Gates run before any ConnectionConfig query so a zero-org or gated session
     // cannot fall through to an unscoped tenant read; gates receive only the
@@ -111,7 +155,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
     const outcome = await runGates({
       url: url.toString(),
       method: request.method,
-      identity: toIdentity(user),
+      identity: toIdentity(updatedSessionData.user),
     });
 
     if (outcome.kind === "redirect") {
@@ -127,6 +171,22 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    const reconciled = await reconcileActiveOrganization(updatedSessionData);
+    if (
+      reconciled.activeOrganization !== updatedSessionData.activeOrganization ||
+      reconciled.user !== updatedSessionData.user
+    ) {
+      updatedSessionData = {
+        ...updatedSessionData,
+        user: reconciled.user,
+        activeOrganization: reconciled.activeOrganization,
+      };
+      session.set("user", reconciled.user);
+      session.set("activeOrganization", reconciled.activeOrganization);
+      await sessionStorage.commitSession(session);
+    }
+    const user = updatedSessionData.user;
 
     if (!user.organization) {
       console.info(`${label} No active organization on session, redirecting to onboarding`);
@@ -146,7 +206,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
         connectionConfigs,
         credentialErrors,
         connectionProviders,
-      } = await fetchAllCredentials(updatedSessionData);
+      } = await fetchAllCredentials(updatedSessionData, session.id);
       updatedSessionData = withCredentials;
 
       if (updatedSessionData.credentials !== sessionData.credentials) {
@@ -159,11 +219,12 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
         connectionConfigs,
         credentialErrors,
         connectionProviders,
+        sessionId: session.id,
       });
       return withHostRequestContext(
         {
           user: updatedSessionData.user,
-          identity: toIdentity(user),
+          identity: toIdentity(updatedSessionData.user),
           authTokens: updatedSessionData.authTokens,
           sessionId: session.id,
         },
@@ -189,10 +250,13 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
           connectionConfigs,
           credentialErrors,
           connectionProviders,
-        } = await fetchAllCredentials({
-          ...updatedSessionData,
-          authTokens: newAuthTokens,
-        });
+        } = await fetchAllCredentials(
+          {
+            ...updatedSessionData,
+            authTokens: newAuthTokens,
+          },
+          session.id,
+        );
         updatedSessionData = withCredentials;
 
         session.set("credentials", updatedSessionData.credentials);
@@ -203,6 +267,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
           connectionConfigs,
           credentialErrors,
           connectionProviders,
+          sessionId: session.id,
         });
         return withHostRequestContext(
           {

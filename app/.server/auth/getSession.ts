@@ -1,4 +1,9 @@
-import { CytarioSession, sessionStorage } from "./sessionStorage";
+import {
+  CytarioSession,
+  type ConnectionsCredentials,
+  type SessionData,
+  sessionStorage,
+} from "./sessionStorage";
 
 /**
  * @deprecated For routes under the auth middleware chain, use `context.get(sessionContext)` instead.
@@ -14,10 +19,13 @@ export const getSession = async (request: Request): Promise<CytarioSession> => {
   }
 };
 
-export const getSessionData = async (session: CytarioSession) => {
+export type SessionSnapshot = Partial<SessionData> & { credentials: ConnectionsCredentials };
+
+export const getSessionData = async (session: CytarioSession): Promise<SessionSnapshot> => {
   const user = session.get("user");
+  const activeOrganization = session.get("activeOrganization");
   const authTokens = session.get("authTokens");
   const credentials = session.get("credentials") || {};
   const notification = session.get("notification");
-  return { user, authTokens, credentials, notification };
+  return { user, activeOrganization, authTokens, credentials, notification };
 };

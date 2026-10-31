@@ -6,6 +6,9 @@ import type { Identity } from "@cytario/plugin-api";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 import type { ProviderCatalog } from "~/utils/providerCatalog.schema";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 const {
   getProviderCatalogMock,
   resolveConnectionProviderMock,

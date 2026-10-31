@@ -19,6 +19,8 @@ export type ConnectionsCredentials = Record<string, Credentials>;
 
 export interface SessionData {
   user: UserProfile;
+  /** Active org alias — server authority for the tenant scope of this session. */
+  activeOrganization?: string;
   authTokens: AuthTokens;
   credentials: ConnectionsCredentials;
   notification?: NotificationInput;

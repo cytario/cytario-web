@@ -4,10 +4,12 @@ import { applyBucketGrantSet } from "./connectionGrant.server";
 import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
+import { getOrExchangeOrgToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
+import { orgPath } from "~/utils/orgPath";
 
 export async function deleteConnection(
   user: UserProfile,
@@ -35,7 +37,7 @@ export async function deleteConnection(
 }
 
 export const deleteAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();
   const connectionId = String(formData.get("connectionId") ?? "");
@@ -50,7 +52,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   } catch (error) {
     if (error instanceof Error) {
       session.set("notification", { status: "error", message: error.message });
-      return redirect("/connections", {
+      return redirect(orgPath(user.organization, "/"), {
         headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
       });
     }
@@ -77,7 +79,12 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
       deleted,
       {
         user,
-        idToken: session.get("authTokens")?.idToken ?? "",
+        // The bucket-policy write session is an STS mint: it needs the
+        // narrow per-org ID token (the raw session token carries no ORG
+        // tag for a multi-org user, and the write role's trust policy
+        // rejects it).
+        idToken: (await getOrExchangeOrgToken(sessionId, user.organization, authTokens.accessToken))
+          .accessToken,
         accessToken: session.get("authTokens")?.accessToken ?? "",
       },
     );
@@ -91,7 +98,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   session.set("notification", notification);
 
-  return redirect("/connections", {
+  return redirect(orgPath(user.organization, "/"), {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });
 };

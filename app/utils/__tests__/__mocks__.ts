@@ -111,6 +111,9 @@ const mock = {
     email: "string",
     policy: ["default-policy"],
     organization: "org1",
+    organizations: {
+      org1: { groups: ["org1/lab"], attributes: {} },
+    },
     organizationAttributes: {},
     groups: ["org1/lab"],
     adminScopes: ["org1/lab"],
