@@ -98,9 +98,6 @@ export function Breadcrumbs() {
       {activeOrganization && (
         <div className="flex h-full shrink-0 items-center">
           <OrgCrumb activeOrganization={activeOrganization} />
-          {trail.length > 0 && (
-            <Icon icon="ChevronRight" size="sm" className="text-muted-foreground" />
-          )}
         </div>
       )}
       <ol className="flex min-w-0 items-center">
