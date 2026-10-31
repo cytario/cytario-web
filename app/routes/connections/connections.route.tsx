@@ -49,10 +49,16 @@ const title = "Connections";
 export const meta: MetaFunction = () => [{ title: `${title} — Cytario` }];
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
   formAction,
   defaultShouldRevalidate,
 }) => {
   if (formAction) return defaultShouldRevalidate;
+  // An organization switch changes the /:org segment while staying on this
+  // route — the list must reload or it keeps showing the previous tenant's
+  // connections.
+  if (currentUrl.pathname.split("/")[1] !== nextUrl.pathname.split("/")[1]) return true;
   return false;
 };
 
