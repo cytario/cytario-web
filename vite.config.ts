@@ -29,6 +29,20 @@ export default defineConfig({
   optimizeDeps: {
     include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],
     exclude: localDevelopment.optimizeDepsExclude,
+    // Explicit entries REPLACE the default scan (rollupOptions.input / html
+    // files) and DROP its built-in **/__tests__** + coverage ignores, so the
+    // app sources must be globbed back with those ignores re-applied,
+    // alongside the excluded asset-URL deps' dist entries — whose runtime
+    // graph (deck.gl → @probe.gl/stats, …) would otherwise be discovered at
+    // request time and break dynamic imports with stale `?v=` hashes.
+    entries: [
+      ...localDevelopment.optimizeDepsEntries,
+      "app/**/*",
+      "!app/**/__tests__/**",
+      "!app/**/*.test.*",
+      "!app/**/*.spec.*",
+      "!app/.generated/**",
+    ],
   },
   ssr: {
     noExternal: localDevelopment.ssrNoExternal,
