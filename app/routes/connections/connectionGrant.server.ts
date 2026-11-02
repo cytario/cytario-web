@@ -22,6 +22,7 @@ import {
   type ProviderCatalog,
   type ProviderConnection,
   type ProviderRole,
+  type ProviderType,
 } from "~/utils/providerCatalog.schema";
 
 /**
@@ -113,6 +114,9 @@ export function assembleBucketGrants(
       });
       if (!storageRole) continue;
       const grantKind = grantProviderTypeOf(providerConnection?.providerType);
+      if (providerConnection?.providerType === "kubernetes") {
+        throw new Error(NOT_A_STORAGE_BACKEND);
+      }
       if (!grantKind) {
         throw new Error(
           "Cannot assemble bucket grants: the connection's provider connection is absent from the catalog (fail closed).",
@@ -156,6 +160,10 @@ export function validateProviderRefs(
   const providerConnection = findProviderConnection(catalog, refs.providerConnectionId);
   if (!providerConnection) {
     return { ok: false, errors: { providerConnectionId: ["Unknown provider connection"] } };
+  }
+
+  if (providerConnection.providerType === "kubernetes") {
+    return { ok: false, errors: { providerConnectionId: [NOT_A_STORAGE_BACKEND] } };
   }
 
   const bucketRow = bucketCatalog
@@ -337,9 +345,32 @@ function connectionProviderFor(
   };
 }
 
-/** The provider type of an `ApplyTarget`, narrowed to the engines we have. */
-const applyProviderTypeOf = (providerType: ConnectionProvider["providerType"]): "aws" | "rustfs" =>
-  providerType === "rustfs" ? "rustfs" : "aws";
+/**
+ * The provider types that back storage connections. A `kubernetes` provider
+ * connection is a compute-cluster connection riding the shared connection
+ * table — never a storage backend — so every storage-side path treats it as
+ * out of scope rather than falling through to an AWS default.
+ */
+export const STORAGE_PROVIDER_TYPES: readonly ProviderType[] = ["aws", "rustfs"];
+
+export function isStorageProviderType(providerType: string | undefined): boolean {
+  return providerType === "aws" || providerType === "rustfs";
+}
+
+const NOT_A_STORAGE_BACKEND =
+  "Kubernetes provider connections are compute-cluster connections, not storage backends — a storage connection cannot be created or shared against one (fail closed).";
+
+/**
+ * The provider type of an `ApplyTarget`, narrowed to the storage engines; a
+ * non-storage provider type never falls through to the AWS apply path.
+ */
+const applyProviderTypeOf = (
+  providerType: ConnectionProvider["providerType"],
+): "aws" | "rustfs" => {
+  if (providerType === "rustfs") return "rustfs";
+  if (providerType === "aws") return "aws";
+  throw new Error(NOT_A_STORAGE_BACKEND);
+};
 
 /** The provider type of a connection's grant assembly, fail-closed on drift. */
 const grantProviderTypeOf = (providerType: string | undefined): "aws" | "rustfs" | undefined =>

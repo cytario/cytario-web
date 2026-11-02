@@ -169,6 +169,51 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(body.connections).toHaveLength(0);
   });
 
+  test("omits a kubernetes provider connection — it is a compute-cluster connection, not storage", async () => {
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([
+      sharedConnection(),
+      mock.connectionConfig({
+        id: "conn-k8s",
+        name: "lab-cluster",
+        providerConnectionId: "pc-k8s",
+        grants: [mock.connectionGrant({ scope: "*", accessLevel: "admin" })],
+      }),
+    ]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({ id: "pc-mock" }),
+          mock.providerConnection({
+            id: "pc-k8s",
+            providerType: "kubernetes",
+            endpoint: "https://kube.lab.example.com:6443",
+          }),
+        ],
+        providerRoles: [
+          mock.providerRole({
+            roleArn: READ_ONLY_ARN,
+            accessLevel: "read-only",
+            bucketIds: ["bucket-mock-id"],
+          }),
+          mock.providerRole({
+            roleArn: ADMIN_ARN,
+            accessLevel: "admin",
+            bucketIds: ["bucket-mock-id"],
+          }),
+        ],
+      }),
+    );
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as { connections: Array<{ id: string }> };
+
+    expect(response.status).toBe(200);
+    expect(body.connections).toHaveLength(1);
+    expect(body.connections[0]?.id).toBe("conn-uuid-1");
+  });
+
   test("a public connection lists with a null roleArn and read-only access", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
     vi.mocked(listConnections).mockResolvedValue([

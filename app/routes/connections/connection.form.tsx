@@ -152,13 +152,15 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
 
   const connectionItems: SelectItem[] = useMemo(
     () =>
-      (catalog?.providerConnections ?? []).map((c) => {
-        if (c.isPublic) return { id: c.id, name: c.name };
-        const detail = c.endpoint
-          ? `${c.region} (${c.endpoint})`
-          : `${c.providerType.toUpperCase()} ${c.region}`;
-        return { id: c.id, name: `${c.name} — ${detail}` };
-      }),
+      (catalog?.providerConnections ?? [])
+        .filter((c) => c.providerType !== "kubernetes")
+        .map((c) => {
+          if (c.isPublic) return { id: c.id, name: c.name };
+          const detail = c.endpoint
+            ? `${c.region} (${c.endpoint})`
+            : `${c.providerType.toUpperCase()} ${c.region}`;
+          return { id: c.id, name: `${c.name} — ${detail}` };
+        }),
     [catalog],
   );
 

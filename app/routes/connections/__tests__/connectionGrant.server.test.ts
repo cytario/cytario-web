@@ -189,6 +189,30 @@ describe("assembleBucketGrants", () => {
     const grants = assembleBucketGrants(configs, catalog);
     expect(grants.map((g) => g.groupPath)).toEqual(["lab"]);
   });
+
+  test("fails closed with an accurate error when a connection references a kubernetes provider", () => {
+    const kubernetesCatalog = mock.providerCatalog({
+      providerConnections: [
+        mock.providerConnection({
+          id: "pc-k8s",
+          providerType: "kubernetes",
+          endpoint: "https://kube.lab.example.com:6443",
+        }),
+      ],
+      providerRoles: [
+        mock.providerRole({ providerConnectionId: "pc-k8s", accessLevel: "read-write" }),
+      ],
+    });
+    const configs = [
+      mock.connectionConfig({
+        name: "a",
+        bucketName: "b",
+        providerConnectionId: "pc-k8s",
+        grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-write" })],
+      }),
+    ];
+    expect(() => assembleBucketGrants(configs, kubernetesCatalog)).toThrow(/not storage backends/i);
+  });
 });
 
 describe("validateProviderRefs", () => {
@@ -239,6 +263,28 @@ describe("validateProviderRefs", () => {
       ok: false,
       errors: { providerConnectionId: ["Unknown provider connection"] },
     });
+  });
+
+  test("rejects a kubernetes provider connection as not a storage backend", () => {
+    const kubernetesCatalog = mock.providerCatalog({
+      providerConnections: [
+        mock.providerConnection({
+          id: "pc-k8s",
+          providerType: "kubernetes",
+          endpoint: "https://kube.lab.example.com:6443",
+        }),
+      ],
+      providerRoles: [],
+    });
+    const result = validateProviderRefs(kubernetesCatalog, {
+      providerConnectionId: "pc-k8s",
+      bucketName: "mock-bucket",
+      grants: [{ accessLevel: "read-only", scope: "lab" }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.providerConnectionId?.[0]).toMatch(/not storage backends/i);
+    }
   });
 
   test("rejects a level whose roles all live under a different provider connection", () => {
@@ -642,6 +688,28 @@ describe("resolveApplyTarget", () => {
     const result = await resolveApplyTarget(config, "tok");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/catalog down/i);
+  });
+
+  test("returns an accurate error for a connection on a kubernetes provider, never an AWS apply target", async () => {
+    const kubernetesCatalog = mock.providerCatalog({
+      providerConnections: [
+        mock.providerConnection({
+          id: "pc-k8s",
+          providerType: "kubernetes",
+          endpoint: "https://kube.lab.example.com:6443",
+        }),
+      ],
+      providerRoles: [
+        mock.providerRole({ providerConnectionId: "pc-k8s", accessLevel: "read-write" }),
+      ],
+    });
+    vi.mocked(getProviderCatalog).mockResolvedValue(kubernetesCatalog);
+    const config = mock.connectionConfig({
+      bucketName: "b",
+      providerConnectionId: "pc-k8s",
+      grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-write" })],
+    });
+    await expect(resolveApplyTarget(config, "tok")).rejects.toThrow(/not storage backends/i);
   });
 });
 
