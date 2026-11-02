@@ -16,6 +16,19 @@ import { z } from "zod";
 export const PROVIDER_TYPES = ["aws", "rustfs", "kubernetes"] as const;
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
 
+/**
+ * The provider types that back storage connections. A `kubernetes` provider
+ * connection is a compute-cluster connection riding the shared connection
+ * table — never a storage backend — so storage-side consumers select from
+ * this allowlist rather than excluding known non-storage types one by one.
+ */
+export const STORAGE_PROVIDER_TYPES: readonly ["aws", "rustfs"] = ["aws", "rustfs"];
+
+/** True of provider types that can back a storage connection. */
+export function isStorageProviderType(providerType: string | undefined): boolean {
+  return providerType === "aws" || providerType === "rustfs";
+}
+
 export const PROVIDER_CONNECTION_STATUSES = ["pending", "connected", "drifted", "error"] as const;
 export type ProviderConnectionStatus = (typeof PROVIDER_CONNECTION_STATUSES)[number];
 

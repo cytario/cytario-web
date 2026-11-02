@@ -213,6 +213,28 @@ describe("assembleBucketGrants", () => {
     ];
     expect(() => assembleBucketGrants(configs, kubernetesCatalog)).toThrow(/not storage backends/i);
   });
+
+  test("fails closed even when the kubernetes connection publishes no storage roles (the realistic shape)", () => {
+    const rolelessCatalog = mock.providerCatalog({
+      providerConnections: [
+        mock.providerConnection({
+          id: "pc-k8s",
+          providerType: "kubernetes",
+          endpoint: "https://kube.lab.example.com:6443",
+        }),
+      ],
+      providerRoles: [],
+    });
+    const configs = [
+      mock.connectionConfig({
+        name: "a",
+        bucketName: "b",
+        providerConnectionId: "pc-k8s",
+        grants: [mock.connectionGrant({ scope: "lab", accessLevel: "read-write" })],
+      }),
+    ];
+    expect(() => assembleBucketGrants(configs, rolelessCatalog)).toThrow(/not storage backends/i);
+  });
 });
 
 describe("validateProviderRefs", () => {

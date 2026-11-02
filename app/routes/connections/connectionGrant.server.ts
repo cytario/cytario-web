@@ -22,7 +22,6 @@ import {
   type ProviderCatalog,
   type ProviderConnection,
   type ProviderRole,
-  type ProviderType,
 } from "~/utils/providerCatalog.schema";
 
 /**
@@ -107,6 +106,12 @@ export function assembleBucketGrants(
       ? findBucketByName(bucketCatalog, config.providerConnectionId, config.bucketName)
       : undefined;
     for (const grant of config.grants) {
+      // Checked before the role lookup: a kubernetes connection publishes no
+      // storage roles, so the realistic catalog shape would otherwise skip the
+      // grant and silently yield an empty set instead of failing closed.
+      if (providerConnection?.providerType === "kubernetes") {
+        throw new Error(NOT_A_STORAGE_BACKEND);
+      }
       const storageRole = findStorageRole(catalog, {
         providerConnectionId: config.providerConnectionId,
         accessLevel: grant.accessLevel as never,
@@ -114,9 +119,6 @@ export function assembleBucketGrants(
       });
       if (!storageRole) continue;
       const grantKind = grantProviderTypeOf(providerConnection?.providerType);
-      if (providerConnection?.providerType === "kubernetes") {
-        throw new Error(NOT_A_STORAGE_BACKEND);
-      }
       if (!grantKind) {
         throw new Error(
           "Cannot assemble bucket grants: the connection's provider connection is absent from the catalog (fail closed).",
@@ -351,12 +353,6 @@ function connectionProviderFor(
  * table — never a storage backend — so every storage-side path treats it as
  * out of scope rather than falling through to an AWS default.
  */
-export const STORAGE_PROVIDER_TYPES: readonly ProviderType[] = ["aws", "rustfs"];
-
-export function isStorageProviderType(providerType: string | undefined): boolean {
-  return providerType === "aws" || providerType === "rustfs";
-}
-
 const NOT_A_STORAGE_BACKEND =
   "Kubernetes provider connections are compute-cluster connections, not storage backends — a storage connection cannot be created or shared against one (fail closed).";
 
