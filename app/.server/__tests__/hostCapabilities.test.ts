@@ -938,7 +938,10 @@ describe("HostCapabilities — Kubernetes compute provider", () => {
     expect(session.executionRoleArn).toBeUndefined();
     expect(session.logGroupName).toBeUndefined();
     expect(session.imagePullSecretRef).toBeNull();
+    // The endpoint rides providerConfig so the org-agnostic reconcile path
+    // — which mints with no connection projection — can compose URLs.
     expect(session.providerConfig).toEqual({
+      endpoint: "https://kube.lab.example.com:6443",
       namespace: "cytario-jobs",
       imagePullSecrets: { "ac-1": "cytario-registry-pull" },
       serviceAccountName: "cytario-job",

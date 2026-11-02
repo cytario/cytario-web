@@ -144,10 +144,14 @@ export async function assumeComputeRole(
       );
     }
     const signedFetch = createKubernetesSignedFetch(typeSpecific.credential, typeSpecific.endpoint);
+    // The endpoint rides providerConfig alongside the submission knobs so the
+    // org-agnostic reconcile path — which has no connection projection — can
+    // compose API-server URLs.
     return {
       signedFetch,
       imagePullSecretRef: null,
       providerConfig: {
+        endpoint: typeSpecific.endpoint,
         namespace: typeSpecific.namespace,
         ...(typeSpecific.imagePullSecrets
           ? { imagePullSecrets: typeSpecific.imagePullSecrets }

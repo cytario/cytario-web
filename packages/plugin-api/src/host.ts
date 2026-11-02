@@ -243,11 +243,11 @@ export interface ComputeRoleSession {
   logGroupName?: string;
   /**
    * Provider-interpreted configuration for a non-AWS provider, opaque to the
-   * host. On a Kubernetes session it carries the job `namespace`, the
-   * per-catalog `imagePullSecrets` map (catalog id → Secret name), the
-   * `serviceAccountName`, the `logMode` and the `placement` (node selector /
-   * tolerations). Absent on an AWS session, whose knobs are the ARN and
-   * log-group fields above.
+   * host. On a Kubernetes session it carries the API-server `endpoint`, the
+   * job `namespace`, the per-catalog `imagePullSecrets` map (catalog id →
+   * Secret name), the `serviceAccountName`, the `logMode` and the `placement`
+   * (node selector / tolerations). Absent on an AWS session, whose knobs are
+   * the ARN and log-group fields above.
    */
   providerConfig?: Record<string, unknown>;
   /**

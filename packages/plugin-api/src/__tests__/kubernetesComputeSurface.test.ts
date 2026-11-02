@@ -28,6 +28,7 @@ test("ComputeRoleSession accepts a Kubernetes session without the AWS fields", (
     signedFetch: () => Promise.resolve(new Response(null, { status: 200 })),
     imagePullSecretRef: null,
     providerConfig: {
+      endpoint: "https://kube.lab.example.com:6443",
       namespace: "cytario-jobs",
       imagePullSecrets: { "ac-1": "cytario-registry-pull" },
       serviceAccountName: "cytario-job",
