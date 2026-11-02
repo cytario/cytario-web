@@ -51,7 +51,7 @@ export function mapResourceEnvelope(raw: unknown): ProviderResourceEnvelope | un
   }
 
   // Platform: accept the enum string.
-  if (obj.platform === "EC2" || obj.platform === "FARGATE") {
+  if (obj.platform === "EC2" || obj.platform === "FARGATE" || obj.platform === "KUBERNETES") {
     envelope.platform = obj.platform;
   }
 

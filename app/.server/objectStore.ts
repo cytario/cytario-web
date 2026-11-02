@@ -22,7 +22,7 @@ import {
   isInsideHiddenPrefix,
   isInsideLeafDirectory,
 } from "~/utils/leafDirectory";
-import type { AccessLevel } from "~/utils/providerCatalog.schema";
+import type { AccessLevel, ProviderType } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 function requireRequestData() {
@@ -51,7 +51,7 @@ async function resolveWritableConnection(
   region: string;
   endpoint: string | null;
   accessLevel: AccessLevel;
-  providerType: "aws" | "rustfs";
+  providerType: ProviderType;
 }> {
   const { user, authTokens } = requireRequestData();
   const configs = await listConnections(user);
