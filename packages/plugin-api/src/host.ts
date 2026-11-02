@@ -28,9 +28,14 @@ export interface ConnectionProjection {
 export interface ComputeConnectionProjection {
   id: string;
   name: string;
-  /** Compute provider type (e.g. `"AWS_BATCH"`). */
+  /** Compute provider type (e.g. `"AWS_BATCH"`, `"KUBERNETES_JOBS"`). */
   type: string;
   region: string;
+  /**
+   * The Kubernetes API server URL. Absent on an AWS provider — its control-
+   * plane endpoints derive from the region.
+   */
+  endpoint?: string;
 }
 
 /**
@@ -171,11 +176,11 @@ export interface ProviderResourceEnvelope {
    * binding applies: `EC2` honors `resourceRequirements` (VCPU/MEMORY/GPU)
    * and `instanceType` is invalid for single-node jobs; `FARGATE` honors
    * the fixed VCPU/MEMORY pair set in `supportedVcpuMemoryPairs` and
-   * rejects `gpu > 0`; a future `KUBERNETES` binding maps the envelope onto
+   * rejects `gpu > 0`; `KUBERNETES` maps the envelope onto
    * `resources.requests`/`limits`. Absent on a `defaults` envelope that
    * predates this surface (the binding then assumes EC2).
    */
-  platform?: "EC2" | "FARGATE";
+  platform?: "EC2" | "FARGATE" | "KUBERNETES";
   /**
    * Fargate-only: the discrete (VCPU, MEMORY) pairs the queue accepts,
    * as Kubernetes-style quantities (e.g. `["2", "8Gi"]`). An empty or
@@ -190,29 +195,34 @@ export interface ProviderResourceEnvelope {
  * control-plane calls and the broker's storage mint — never raw keys. The
  * plugin uses `signedFetch` to make authenticated requests; the host mints
  * the STS session and the plugin never sees an access key or a raw session
- * token.
+ * token. On a Kubernetes provider there is no STS mint: the host attaches
+ * the provider connection's bearer credential inside `signedFetch` and
+ * confines every request to the connection's endpoint origin, so the
+ * plugin never sees the credential either.
  */
 export interface ComputeRoleSession {
   signedFetch: SignedFetch;
-  /** ARN of the AWS Batch job queue registered on the compute provider. */
-  jobQueueArn: string;
+  /** ARN of the AWS Batch job queue registered on the compute provider. Omitted on a Kubernetes session. */
+  jobQueueArn?: string;
   /**
    * ARN of the compute provider's job role — the running container's
    * identity, carrying no standing storage access. The plugin uses it to
    * construct the provider job-definition on demand — never a
-   * caller-supplied role.
+   * caller-supplied role. Omitted on a Kubernetes session.
    */
-  jobRoleArn: string;
+  jobRoleArn?: string;
   /**
    * ARN of the compute provider's execution role — limited to image pull and
    * log write. Used to construct the provider job-definition on demand.
+   * Omitted on a Kubernetes session.
    */
-  executionRoleArn: string;
+  executionRoleArn?: string;
   /**
    * ARN of the Secrets Manager pull-secret reference, or null when the
    * provider has no connected app catalog. Embedded in the on-demand job
    * definition so AWS Batch retrieves the registry credential at
-   * image-fetch time.
+   * image-fetch time. Null on a Kubernetes session — its pull secrets are
+   * Kubernetes Secret names carried in `providerConfig`.
    */
   imagePullSecretRef: string | null;
   /**
@@ -228,8 +238,18 @@ export interface ComputeRoleSession {
    * is written to. Provisioned by the admin-portal via the Logs
    * `CreateLogGroup` API and passed through the lookup so the plugin references
    * it in the on-demand job definition's `logConfiguration` — never hard-coded.
+   * Omitted on a Kubernetes session, whose log mode is `providerConfig.logMode`.
    */
-  logGroupName: string;
+  logGroupName?: string;
+  /**
+   * Provider-interpreted configuration for a non-AWS provider, opaque to the
+   * host. On a Kubernetes session it carries the job `namespace`, the
+   * per-catalog `imagePullSecrets` map (catalog id → Secret name), the
+   * `serviceAccountName`, the `logMode` and the `placement` (node selector /
+   * tolerations). Absent on an AWS session, whose knobs are the ARN and
+   * log-group fields above.
+   */
+  providerConfig?: Record<string, unknown>;
   /**
    * The compute provider's default resource envelope for the active
    * organization, projected from the compute-provider record. The
