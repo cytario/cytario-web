@@ -17,6 +17,8 @@ export interface OverlayClassConfig {
 export interface OverlayColumnsConfig {
   id: string;
   geometry: string;
+  /** Absent on configs persisted before encodings were recorded — WKT is the historical default. */
+  geometryEncoding?: OverlayGeometryEncoding;
   x: string;
   y: string;
 }
@@ -96,10 +98,10 @@ const findColumn = (
 const isIdLikeType = (type: string): boolean =>
   isIntegerType(type) || /^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
 
-const isGeometryLikeType = (type: string): boolean =>
+export const isGeometryLikeType = (type: string): boolean =>
   /^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
 
-const isWkbType = (type: string): boolean => /^(BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
+export const isWkbType = (type: string): boolean => /^(BLOB|BYTE_ARRAY)$/.test(type.toUpperCase());
 
 /**
  * Resolve a prunable covering from the schema: struct coverings surface as
@@ -215,6 +217,9 @@ export function interpretOverlaySchema(schema: ParquetColumn[]): OverlayConfig |
     columns: {
       id: idColumn.name,
       geometry: geomColumn?.name ?? "",
+      ...(geomColumn && !anchor
+        ? { geometryEncoding: isWkbType(geomColumn.type) ? ("wkb" as const) : ("wkt" as const) }
+        : {}),
       x: xColumn?.name ?? "",
       y: yColumn?.name ?? "",
     },

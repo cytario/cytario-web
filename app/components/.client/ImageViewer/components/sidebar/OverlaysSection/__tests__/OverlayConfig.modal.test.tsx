@@ -48,6 +48,7 @@ const schema = [
   { name: "geom", type: "VARCHAR" },
   { name: "marker_positive_cd4", type: "BOOLEAN" },
   { name: "name", type: "VARCHAR" },
+  { name: "area", type: "DOUBLE" },
 ];
 
 const updateOverlayConfigMock = vi.fn();
@@ -98,6 +99,7 @@ describe("OverlayConfigModal", () => {
     expect(config.columns).toEqual({
       id: "object",
       geometry: "geom",
+      geometryEncoding: "wkt",
       x: "x",
       y: "y",
     });
@@ -233,5 +235,94 @@ describe("OverlayConfigModal", () => {
       operator: ">",
       threshold: 3,
     });
+  });
+
+  test("the geometry selector offers None and applying it clears the geometry column", async () => {
+    const { updateOverlayConfig, onClose } = setup();
+    const user = userEvent.setup();
+
+    await waitFor(() => {
+      expect(screen.getAllByText("object").length).toBeGreaterThan(0);
+    });
+
+    await user.click(screen.getByRole("button", { name: /Geometry column/ }));
+    await user.click(await screen.findByRole("option", { name: "None" }));
+
+    const apply = screen.getByRole("button", { name: "Apply" });
+    await waitFor(() => {
+      expect(apply).toBeEnabled();
+    });
+    apply.click();
+
+    await waitFor(() => {
+      expect(updateOverlayConfig).toHaveBeenCalledTimes(1);
+    });
+    const [, config] = vi.mocked(updateOverlayConfig).mock.calls[0];
+    expect(config.columns.geometry).toBe("");
+    expect(config.columns.geometryEncoding).toBeUndefined();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test("a mis-picked numeric geometry column disables Apply until None is selected", async () => {
+    const { updateOverlayConfig } = setup({
+      markers: {},
+      config: {
+        version: 1,
+        columns: { id: "object", geometry: "area", x: "x", y: "y" },
+        classes: [{ sourceColumn: "marker_positive_cd4", label: "CD4", mode: "boolean" }],
+      },
+    });
+    const user = userEvent.setup();
+
+    const apply = await screen.findByRole("button", { name: "Apply" });
+    await waitFor(() => {
+      expect(apply).toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Geometry column/ }));
+    await user.click(await screen.findByRole("option", { name: "None" }));
+
+    await waitFor(() => {
+      expect(apply).toBeEnabled();
+    });
+    apply.click();
+
+    await waitFor(() => {
+      expect(updateOverlayConfig).toHaveBeenCalledTimes(1);
+    });
+    const [, config] = vi.mocked(updateOverlayConfig).mock.calls[0];
+    expect(config.columns.geometry).toBe("");
+  });
+
+  test("a stale geometry column reference is recoverable by selecting None", async () => {
+    const { updateOverlayConfig } = setup({
+      markers: {},
+      config: {
+        version: 1,
+        columns: { id: "object", geometry: "vanished", x: "x", y: "y" },
+        classes: [{ sourceColumn: "marker_positive_cd4", label: "CD4", mode: "boolean" }],
+      },
+    });
+    const user = userEvent.setup();
+
+    const apply = await screen.findByRole("button", { name: "Apply" });
+    await waitFor(() => {
+      expect(apply).toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: /Geometry column/ }));
+    await user.click(await screen.findByRole("option", { name: "None" }));
+
+    await waitFor(() => {
+      expect(apply).toBeEnabled();
+    });
+    apply.click();
+
+    await waitFor(() => {
+      expect(updateOverlayConfig).toHaveBeenCalledTimes(1);
+    });
+    const [, config] = vi.mocked(updateOverlayConfig).mock.calls[0];
+    expect(config.columns.geometry).toBe("");
+    expect(config.columns.geometryEncoding).toBeUndefined();
   });
 });
