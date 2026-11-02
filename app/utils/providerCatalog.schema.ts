@@ -13,8 +13,21 @@ import { z } from "zod";
  * ExternalId, or any management credential.
  */
 
-export const PROVIDER_TYPES = ["aws", "rustfs"] as const;
+export const PROVIDER_TYPES = ["aws", "rustfs", "kubernetes"] as const;
 export type ProviderType = (typeof PROVIDER_TYPES)[number];
+
+/**
+ * The provider types that back storage connections. A `kubernetes` provider
+ * connection is a compute-cluster connection riding the shared connection
+ * table — never a storage backend — so storage-side consumers select from
+ * this allowlist rather than excluding known non-storage types one by one.
+ */
+export const STORAGE_PROVIDER_TYPES: readonly ["aws", "rustfs"] = ["aws", "rustfs"];
+
+/** True of provider types that can back a storage connection. */
+export function isStorageProviderType(providerType: string | undefined): boolean {
+  return providerType === "aws" || providerType === "rustfs";
+}
 
 export const PROVIDER_CONNECTION_STATUSES = ["pending", "connected", "drifted", "error"] as const;
 export type ProviderConnectionStatus = (typeof PROVIDER_CONNECTION_STATUSES)[number];
@@ -52,14 +65,17 @@ export const providerConnectionSchema = z
     isPublic: z.boolean().default(false),
   })
   .superRefine((connection, ctx) => {
-    // A rustfs connection without an endpoint would silently mint against
-    // the AWS default — reject at the parse boundary, mirroring the apply
-    // path's fail-closed endpoint requirement.
-    if (connection.providerType === "rustfs" && !connection.endpoint) {
+    // A rustfs or kubernetes connection without an endpoint would silently
+    // mint against the AWS default — reject at the parse boundary, mirroring
+    // the apply path's fail-closed endpoint requirement.
+    if (
+      (connection.providerType === "rustfs" || connection.providerType === "kubernetes") &&
+      !connection.endpoint
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["endpoint"],
-        message: "A rustfs provider connection requires a non-null endpoint.",
+        message: `A ${connection.providerType} provider connection requires a non-null endpoint.`,
       });
     }
   });
@@ -86,18 +102,22 @@ export const providerRoleSchema = z.object({
   bucketIds: z.array(z.string()).default([]),
 });
 
-export const COMPUTE_PROVIDER_TYPES = ["AWS_BATCH"] as const;
+export const COMPUTE_PROVIDER_TYPES = ["AWS_BATCH", "KUBERNETES_JOBS"] as const;
 export type ComputeProviderType = (typeof COMPUTE_PROVIDER_TYPES)[number];
 
 export const COMPUTE_PROVIDER_STATUSES = ["pending", "connected", "drifted", "error"] as const;
 export type ComputeProviderStatus = (typeof COMPUTE_PROVIDER_STATUSES)[number];
 
-export const computeProviderSchema = z.object({
+/**
+ * The AWS Batch compute provider: the shape every pre-Kubernetes payload
+ * carries, unchanged.
+ */
+const awsBatchComputeProviderSchema = z.object({
   id: z.string().min(1),
   providerConnectionId: z.string().min(1),
   displayName: z.string().min(1),
   region: z.string().min(1),
-  type: z.enum(COMPUTE_PROVIDER_TYPES),
+  type: z.literal("AWS_BATCH"),
   typeSpecific: z.object({
     jobQueueArn: z.string().min(1),
     /**
@@ -133,6 +153,117 @@ export const computeProviderSchema = z.object({
   }),
   status: z.enum(COMPUTE_PROVIDER_STATUSES),
 });
+
+/**
+ * A URL with an https scheme — the Kubernetes API server is reached over TLS.
+ * The parse boundary refuses anything else, so a misconfigured catalog never
+ * reaches the session mint with a replayable bearer credential pointed at a
+ * plaintext or malformed endpoint.
+ */
+const httpsUrl = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      try {
+        return new URL(value).protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    { message: "The Kubernetes endpoint must be an https:// URL." },
+  );
+
+/**
+ * A Kubernetes compute provider. The `credential` is the per-org submission
+ * token for the Kubernetes API server — the same server-to-server-secret
+ * posture as `appCatalogs[].accessAccountSecret`: it rides the gated lookup
+ * and never reaches the browser projection.
+ */
+const kubernetesJobsComputeProviderSchema = z.object({
+  id: z.string().min(1),
+  providerConnectionId: z.string().min(1),
+  displayName: z.string().min(1),
+  region: z.string().min(1),
+  type: z.literal("KUBERNETES_JOBS"),
+  typeSpecific: z.object({
+    /** Kubernetes API server URL the host confines the session's requests to. */
+    endpoint: httpsUrl,
+    /** Namespace the org's jobs are submitted into. */
+    namespace: z.string().min(1),
+    /** Per-org bearer token for the Kubernetes API server. */
+    credential: nullToUndefined(z.string().min(1).optional()),
+    /** Defaults to `"provisioned"` — the host provisions the job objects itself. */
+    connectMode: z.enum(["provisioned", "operator-managed"]).default("provisioned"),
+    /**
+     * Kubernetes Secret name per catalog, keyed by the catalog id. Null
+     * normalises to an absent map, mirroring the registry pull secrets above.
+     */
+    imagePullSecrets: z.preprocess(
+      (v) => (v === null ? undefined : v),
+      z.record(z.string(), z.string().min(1)).optional(),
+    ),
+    /**
+     * Optional: the Kubernetes ServiceAccount the job pods run as. Omitted
+     * means the namespace's default.
+     */
+    serviceAccountName: nullToUndefined(z.string().min(1).optional()),
+    /** Only `"pod-logs"` exists today; the enum keeps it an explicit contract. */
+    logMode: z.literal("pod-logs").optional(),
+    placement: z
+      .object({
+        nodeSelector: z.record(z.string(), z.string()).optional(),
+        /** Toleration entries as the API server accepts them, kept opaque here. */
+        tolerations: z.array(z.record(z.string(), z.unknown())).optional(),
+      })
+      .optional(),
+    defaultResources: z.record(z.string(), z.unknown()).nullable().optional(),
+    maxResources: z.record(z.string(), z.unknown()).nullable().optional(),
+  }),
+  status: z.enum(COMPUTE_PROVIDER_STATUSES),
+});
+
+/**
+ * Unknown compute-provider types degrade instead of failing the whole
+ * catalog parse (and with it storage connections): the entry is dropped
+ * with a warning, mirroring the `REGISTRY_KINDS` degradation below. An entry
+ * whose type IS known must still parse — a malformed known-type entry fails
+ * the parse (fail closed on the shapes this host acts on).
+ */
+const KNOWN_COMPUTE_PROVIDER_TYPES = COMPUTE_PROVIDER_TYPES as readonly string[];
+
+export const computeProviderSchema = z.discriminatedUnion("type", [
+  awsBatchComputeProviderSchema,
+  kubernetesJobsComputeProviderSchema,
+]);
+
+function parseComputeProviders(raw: unknown, ctx: z.RefinementCtx): ComputeProvider[] {
+  if (!Array.isArray(raw)) return [];
+  const providers: ComputeProvider[] = [];
+  for (const entry of raw) {
+    const type =
+      entry && typeof entry === "object" ? (entry as { type?: unknown }).type : undefined;
+    if (typeof type !== "string" || !KNOWN_COMPUTE_PROVIDER_TYPES.includes(type)) {
+      console.warn(
+        `[providers] Dropping compute provider entry with unknown type ${JSON.stringify(
+          type,
+        )} — host supports ${KNOWN_COMPUTE_PROVIDER_TYPES.join(", ")}`,
+      );
+      continue;
+    }
+    const parsed = computeProviderSchema.safeParse(entry);
+    if (!parsed.success) {
+      ctx.addIssue({
+        code: "custom",
+        input: entry,
+        message: `Invalid compute provider entry: ${parsed.error.message}`,
+      });
+      continue;
+    }
+    providers.push(parsed.data);
+  }
+  return providers;
+}
 
 export const computeRoleSchema = z.object({
   id: z.string().min(1),
@@ -196,7 +327,7 @@ export const appCatalogSchema = z.object({
 export const providerCatalogSchema = z.object({
   providerConnections: z.array(providerConnectionSchema),
   providerRoles: z.array(providerRoleSchema),
-  computeProviders: z.array(computeProviderSchema).default([]),
+  computeProviders: z.array(z.unknown()).default([]).transform(parseComputeProviders),
   computeRoles: z.array(computeRoleSchema).default([]),
   appCatalogs: z.array(appCatalogSchema).default([]),
 });

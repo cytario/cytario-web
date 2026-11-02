@@ -8,7 +8,7 @@ import { assertApiCompatible } from "@cytario/plugin-api";
 // DOES touch the moved API must be pinned, and an old host must skip the
 // spanning form only if its parser cannot read it.
 test("the v8 host accepts a spanning plugin and rejects older majors", () => {
-  expect(HOST_API_VERSION).toBe("8.0.0");
+  expect(HOST_API_VERSION).toBe("8.1.0");
   const plugin = (apiVersion: string) => ({ name: "p", apiVersion });
 
   // Spanning: accepted (this is the whole point of the || support).
@@ -21,7 +21,7 @@ test("the v8 host accepts a spanning plugin and rejects older majors", () => {
   // Pinned to v8: accepted.
   expect(() => assertApiCompatible(plugin("^8.0.0"), HOST_API_VERSION)).not.toThrow();
   // Pre-8 only: rejected by the v8 gate.
-  expect(() => assertApiCompatible(plugin("^6.0.0"), HOST_API_VERSION)).toThrow(/host is 8\.0\.0/);
+  expect(() => assertApiCompatible(plugin("^6.0.0"), HOST_API_VERSION)).toThrow(/host is 8\.1\.0/);
   expect(() => assertApiCompatible(plugin("^7.0.0"), HOST_API_VERSION)).toThrow();
   // Future major: rejected.
   expect(() => assertApiCompatible(plugin("^9.0.0"), HOST_API_VERSION)).toThrow();

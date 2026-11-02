@@ -79,6 +79,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     connections.map(async (connection): Promise<MeConnection | null> => {
       const resolved = resolveConnectionProviderWithGrants(catalog, connection, bucketCatalog);
       if (!resolved) return null;
+      // A kubernetes provider connection is a compute-cluster connection,
+      // never a storage backend — it carries no S3 endpoints for the CLI.
+      if (resolved.providerType === "kubernetes") return null;
       const grant = pickGrantForUser(resolved, user, organization);
 
       const bucketRow = bucketCatalog?.buckets.find(

@@ -37,6 +37,14 @@ const catalog = {
       status: "connected",
       isPublic: true,
     },
+    {
+      id: "pc-k8s",
+      name: "Lab Cluster",
+      providerType: "kubernetes",
+      endpoint: "https://kube.lab.example.com:6443",
+      region: "on-prem",
+      status: "connected",
+    },
   ],
   providerRoles: [
     {
@@ -184,6 +192,19 @@ describe("ConnectionForm — built-in public provider bucket input", () => {
     await user.click(screen.getByRole("option", { name: /Prod/ }));
 
     expect(screen.queryByLabelText(/Endpoint/)).toBeNull();
+  });
+
+  test("a kubernetes provider connection never appears as a storage choice", async () => {
+    renderForm(["lab"]);
+    await openProviderSelect();
+
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Prod/ })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Public" })).toBeInTheDocument();
+    });
+    // The compute-cluster connection rides the shared catalog but is not a
+    // storage backend, so the picker omits it entirely.
+    expect(screen.queryByRole("option", { name: /Lab Cluster/ })).toBeNull();
   });
 });
 

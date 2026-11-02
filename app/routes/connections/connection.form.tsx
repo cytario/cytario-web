@@ -26,7 +26,7 @@ import { GrantLevelHint, grantLevelHint, levelsForGrant } from "./grantLevels";
 import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
-import { type AccessLevel } from "~/utils/providerCatalog.schema";
+import { isStorageProviderType, type AccessLevel } from "~/utils/providerCatalog.schema";
 
 const STEP_LABELS = ["Storage", "Visibility", "Confirm"];
 const LAST_STEP = STEP_LABELS.length - 1;
@@ -152,13 +152,15 @@ export const ConnectionForm = ({ adminScopes, initialData, defaultScope }: Conne
 
   const connectionItems: SelectItem[] = useMemo(
     () =>
-      (catalog?.providerConnections ?? []).map((c) => {
-        if (c.isPublic) return { id: c.id, name: c.name };
-        const detail = c.endpoint
-          ? `${c.region} (${c.endpoint})`
-          : `${c.providerType.toUpperCase()} ${c.region}`;
-        return { id: c.id, name: `${c.name} — ${detail}` };
-      }),
+      (catalog?.providerConnections ?? [])
+        .filter((c) => isStorageProviderType(c.providerType))
+        .map((c) => {
+          if (c.isPublic) return { id: c.id, name: c.name };
+          const detail = c.endpoint
+            ? `${c.region} (${c.endpoint})`
+            : `${c.providerType.toUpperCase()} ${c.region}`;
+          return { id: c.id, name: `${c.name} — ${detail}` };
+        }),
     [catalog],
   );
 

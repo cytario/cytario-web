@@ -826,6 +826,175 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
   });
 });
 
+const KUBERNETES_PROVIDER = {
+  id: "cp-k8s-1",
+  providerConnectionId: "pc-k8s",
+  displayName: "Lab Cluster",
+  region: "on-prem",
+  type: "KUBERNETES_JOBS",
+  typeSpecific: {
+    endpoint: "https://kube.lab.example.com:6443",
+    namespace: "cytario-jobs",
+    credential: "sa-token-for-org1",
+    imagePullSecrets: { "ac-1": "cytario-registry-pull" },
+    serviceAccountName: "cytario-job",
+    logMode: "pod-logs",
+    placement: { nodeSelector: { "cytario.io/compute": "gpu" } },
+    defaultResources: null,
+  },
+  status: "connected",
+} as const;
+
+describe("HostCapabilities — Kubernetes compute provider", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getProviderCatalogMock.mockResolvedValue(EMPTY_CATALOG);
+  });
+
+  test("computeConnections projects the Kubernetes endpoint, absent on AWS", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        KUBERNETES_PROVIDER,
+        {
+          id: "cp-1",
+          providerConnectionId: "pc-1",
+          displayName: "GPU Cluster",
+          region: "eu-central-1",
+          type: "AWS_BATCH",
+          typeSpecific: {
+            jobQueueArn: "arn:aws:batch:eu-central-1:825967678234:job-queue/gpu-queue",
+            jobRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/job",
+            executionRoleArn: "arn:aws:iam::825967678234:role/cytario/cp/exec",
+            imagePullSecretRef: null,
+            logGroupName: "/aws/batch/cytario-compute/test",
+            defaultResources: null,
+          },
+          status: "connected",
+        },
+      ],
+      computeRoles: [],
+      appCatalogs: [],
+    });
+
+    const projections = await withHostRequestContext(mockRequestData, async () =>
+      hostCapabilities.computeConnections(),
+    );
+
+    const k8s = projections.find((p) => p.id === "cp-k8s-1");
+    expect(k8s).toMatchObject({
+      type: "KUBERNETES_JOBS",
+      endpoint: "https://kube.lab.example.com:6443",
+    });
+    const aws = projections.find((p) => p.id === "cp-1");
+    expect(aws?.type).toBe("AWS_BATCH");
+    expect(aws?.endpoint).toBeUndefined();
+
+    getProviderCatalogMock.mockReset();
+  });
+
+  test("the computeConnections projection never carries the connection credential", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [KUBERNETES_PROVIDER],
+      computeRoles: [],
+      appCatalogs: [],
+    });
+
+    const projections = await withHostRequestContext(mockRequestData, async () =>
+      hostCapabilities.computeConnections(),
+    );
+
+    // The credential stays server-side: the projection carries only identity
+    // and type attributes, exactly as AWS role ARNs are stripped today.
+    const projectionJson = JSON.stringify(projections[0]);
+    expect(projectionJson).not.toContain("sa-token-for-org1");
+    expect(projectionJson).not.toContain("credential");
+    expect(projectionJson).not.toContain("typeSpecific");
+
+    getProviderCatalogMock.mockReset();
+  });
+
+  test("assumeComputeRole mints a Kubernetes session without STS and without the AWS ARN fields", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [KUBERNETES_PROVIDER],
+      computeRoles: [],
+      appCatalogs: [],
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+
+    // No ComputeRole rows exist for a Kubernetes provider — and none were
+    // looked up, so no STS mint happened either.
+    expect(stsSendMock).not.toHaveBeenCalled();
+    expect(session.jobQueueArn).toBeUndefined();
+    expect(session.jobRoleArn).toBeUndefined();
+    expect(session.executionRoleArn).toBeUndefined();
+    expect(session.logGroupName).toBeUndefined();
+    expect(session.imagePullSecretRef).toBeNull();
+    // The endpoint rides providerConfig so the org-agnostic reconcile path
+    // — which mints with no connection projection — can compose URLs.
+    expect(session.providerConfig).toEqual({
+      endpoint: "https://kube.lab.example.com:6443",
+      namespace: "cytario-jobs",
+      imagePullSecrets: { "ac-1": "cytario-registry-pull" },
+      serviceAccountName: "cytario-job",
+      logMode: "pod-logs",
+      placement: { nodeSelector: { "cytario.io/compute": "gpu" } },
+    });
+    expect(typeof session.signedFetch).toBe("function");
+
+    getProviderCatalogMock.mockReset();
+  });
+
+  test("the Kubernetes session's signedFetch confines egress to the connection endpoint origin", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [KUBERNETES_PROVIDER],
+      computeRoles: [],
+      appCatalogs: [],
+    });
+
+    const session = await withHostRequestContext(mockRequestData, () =>
+      hostCapabilities.assumeComputeRole(),
+    );
+
+    await expect(session.signedFetch("https://evil.example.com/api/v1/pods")).rejects.toThrow(
+      /egress violation/,
+    );
+    // Same-origin requests still work; only the foreign origin is refused.
+    getProviderCatalogMock.mockReset();
+  });
+
+  test("assumeComputeRole fails closed on a Kubernetes provider whose credential is absent", async () => {
+    getProviderCatalogMock.mockResolvedValue({
+      providerConnections: [],
+      providerRoles: [],
+      computeProviders: [
+        {
+          ...KUBERNETES_PROVIDER,
+          typeSpecific: { ...KUBERNETES_PROVIDER.typeSpecific, credential: undefined },
+        },
+      ],
+      computeRoles: [],
+      appCatalogs: [],
+    } as never);
+
+    await expect(
+      withHostRequestContext(mockRequestData, () => hostCapabilities.assumeComputeRole()),
+    ).rejects.toThrow(/no Kubernetes credential/i);
+
+    getProviderCatalogMock.mockReset();
+  });
+});
+
 describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();

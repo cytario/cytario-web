@@ -1,4 +1,4 @@
-import { createBatchSignedFetch } from "../computeRole";
+import { createBatchSignedFetch, createKubernetesSignedFetch } from "../computeRole";
 
 const CREDENTIALS = {
   AccessKeyId: "AKIATESTCOMPUTE000001",
@@ -76,5 +76,63 @@ describe("createBatchSignedFetch", () => {
     expect(captured).toHaveLength(1);
     const headers = new Headers(captured[0].init.headers);
     expect(headers.get("host")).toBe("logs.eu-central-1.amazonaws.com");
+  });
+});
+
+describe("createKubernetesSignedFetch", () => {
+  let captured: CapturedRequest[];
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    captured = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      captured.push({ url: String(input), init: init ?? {} });
+      return Promise.resolve(new Response(null, { status: 200 }));
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  const ENDPOINT = "https://kube.lab.example.com:6443";
+
+  test("attaches the bearer credential to a same-origin request", async () => {
+    const signedFetch = createKubernetesSignedFetch("sa-token-for-org1", ENDPOINT);
+
+    await signedFetch(`${ENDPOINT}/apis/batch/v1/namespaces/cytario-jobs/jobs`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+
+    expect(captured).toHaveLength(1);
+    const headers = new Headers(captured[0].init.headers);
+    expect(headers.get("authorization")).toBe("Bearer sa-token-for-org1");
+    // Caller headers survive; the credential is additive.
+    expect(headers.get("content-type")).toBe("application/json");
+  });
+
+  test("rejects a request to a foreign origin before any fetch happens", async () => {
+    const signedFetch = createKubernetesSignedFetch("sa-token-for-org1", ENDPOINT);
+
+    await expect(
+      signedFetch("https://evil.example.com/apis/batch/v1/namespaces/cytario-jobs/jobs"),
+    ).rejects.toThrow(/egress violation/);
+    await expect(signedFetch(`${ENDPOINT.replace("kube", "kube2")}/api/v1/pods`)).rejects.toThrow(
+      /egress violation/,
+    );
+    expect(captured).toHaveLength(0);
+  });
+
+  test("a different port on the same host is a foreign origin", async () => {
+    const signedFetch = createKubernetesSignedFetch("sa-token-for-org1", ENDPOINT);
+
+    await expect(signedFetch("https://kube.lab.example.com:8443/api/v1/pods")).rejects.toThrow(
+      /egress violation/,
+    );
+    expect(captured).toHaveLength(0);
   });
 });

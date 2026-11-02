@@ -79,6 +79,8 @@ class HostCapabilitiesImpl implements HostCapabilities {
         name: p.displayName,
         type: p.type,
         region: p.region,
+        // The Kubernetes API server URL; absent on an AWS provider.
+        ...(p.type === "KUBERNETES_JOBS" ? { endpoint: p.typeSpecific.endpoint } : {}),
       }));
   }
 

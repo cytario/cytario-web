@@ -311,7 +311,10 @@ describe("providerCatalogSchema", () => {
       ],
     };
     const catalog = providerCatalogSchema.parse(withMap);
-    expect(catalog.computeProviders[0].typeSpecific.registryPullSecrets).toEqual({
+    const provider = catalog.computeProviders[0];
+    expect(provider.type).toBe("AWS_BATCH");
+    if (provider.type !== "AWS_BATCH") throw new Error("unreachable");
+    expect(provider.typeSpecific.registryPullSecrets).toEqual({
       "ac-1":
         "arn:aws:secretsmanager:eu-central-1:123456789012:secret:cytario-compute/cp-1/registry-pull/ac-1",
     });
@@ -319,8 +322,10 @@ describe("providerCatalogSchema", () => {
 
   test("a compute-provider payload without registryPullSecrets still parses (scalar-only legacy shape)", () => {
     const catalog = providerCatalogSchema.parse(CATALOG);
-    expect(catalog.computeProviders[0].typeSpecific.registryPullSecrets).toBeUndefined();
-    expect(catalog.computeProviders[0].typeSpecific.imagePullSecretRef).toBe(
+    const provider = catalog.computeProviders[0];
+    if (provider.type !== "AWS_BATCH") throw new Error("unreachable");
+    expect(provider.typeSpecific.registryPullSecrets).toBeUndefined();
+    expect(provider.typeSpecific.imagePullSecretRef).toBe(
       "arn:aws:secretsmanager:eu-central-1:123456789012:secret:registry-pull-abc",
     );
   });
@@ -339,7 +344,9 @@ describe("providerCatalogSchema", () => {
       ],
     };
     const catalog = providerCatalogSchema.parse(withNull);
-    expect(catalog.computeProviders[0].typeSpecific.registryPullSecrets).toBeUndefined();
+    const provider = catalog.computeProviders[0];
+    if (provider.type !== "AWS_BATCH") throw new Error("unreachable");
+    expect(provider.typeSpecific.registryPullSecrets).toBeUndefined();
   });
 
   test("rejects an empty pull-secret ARN inside the map (min(1) not loosened)", () => {
@@ -397,6 +404,245 @@ describe("providerCatalogSchema", () => {
     // the mapper reads.
     const typeSpecific = catalog.computeProviders[0].typeSpecific as Record<string, unknown>;
     expect(typeSpecific.unexpectedSiblingKey).toBeUndefined();
+  });
+
+  test("degrades an unknown compute-provider type to a dropped entry, never a parse failure", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const withUnknownType = {
+      ...CATALOG,
+      computeProviders: [
+        ...CATALOG.computeProviders,
+        {
+          id: "cp-future",
+          providerConnectionId: "pc-1",
+          displayName: "Future Provider",
+          region: "eu-central-1",
+          type: "SLURM",
+          typeSpecific: {},
+          status: "connected" as const,
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withUnknownType);
+    // The unknown entry is dropped, the known one survives, and storage
+    // connections keep parsing — the whole catalog never fails.
+    expect(catalog.computeProviders).toHaveLength(1);
+    expect(catalog.computeProviders[0].id).toBe("cp-1");
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('unknown type "SLURM"'));
+    warnSpy.mockRestore();
+  });
+
+  test("rejects a known-type compute-provider entry that fails its own shape (fail closed)", () => {
+    const malformed = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: { ...CATALOG.computeProviders[0].typeSpecific, logGroupName: "" },
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(malformed)).toThrow();
+  });
+
+  test("parses a KUBERNETES_JOBS compute provider", () => {
+    const withKubernetes = {
+      ...CATALOG,
+      computeProviders: [
+        ...CATALOG.computeProviders,
+        {
+          id: "cp-k8s-1",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: {
+            endpoint: "https://kube.lab.example.com:6443",
+            namespace: "cytario-jobs",
+            credential: "sa-token-for-org1",
+            imagePullSecrets: { "ac-1": "cytario-registry-pull" },
+            serviceAccountName: "cytario-job",
+            logMode: "pod-logs",
+            placement: {
+              nodeSelector: { "cytario.io/compute": "gpu" },
+              tolerations: [{ key: "nvidia.com/gpu", operator: "Exists" }],
+            },
+            defaultResources: { cpu: "2000m", memory: "8Gi" },
+            maxResources: { cpu: "32", memory: "256Gi" },
+          },
+          status: "connected" as const,
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withKubernetes);
+    const provider = catalog.computeProviders.find((p) => p.id === "cp-k8s-1");
+    if (!provider || provider.type !== "KUBERNETES_JOBS") throw new Error("unreachable");
+    expect(provider.typeSpecific.endpoint).toBe("https://kube.lab.example.com:6443");
+    expect(provider.typeSpecific.namespace).toBe("cytario-jobs");
+    expect(provider.typeSpecific.credential).toBe("sa-token-for-org1");
+    expect(provider.typeSpecific.connectMode).toBe("provisioned");
+    expect(provider.typeSpecific.imagePullSecrets).toEqual({ "ac-1": "cytario-registry-pull" });
+    expect(provider.typeSpecific.serviceAccountName).toBe("cytario-job");
+    expect(provider.typeSpecific.logMode).toBe("pod-logs");
+    expect(provider.typeSpecific.placement).toEqual({
+      nodeSelector: { "cytario.io/compute": "gpu" },
+      tolerations: [{ key: "nvidia.com/gpu", operator: "Exists" }],
+    });
+  });
+
+  test("a kubernetes compute provider degrades without a credential or optional knobs", () => {
+    const minimal = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          id: "cp-k8s-2",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: {
+            endpoint: "https://kube.lab.example.com:6443",
+            namespace: "cytario-jobs",
+          },
+          status: "connected" as const,
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(minimal);
+    const provider = catalog.computeProviders[0];
+    if (provider.type !== "KUBERNETES_JOBS") throw new Error("unreachable");
+    expect(provider.typeSpecific.credential).toBeUndefined();
+    expect(provider.typeSpecific.connectMode).toBe("provisioned");
+    expect(provider.typeSpecific.imagePullSecrets).toBeUndefined();
+    expect(provider.typeSpecific.serviceAccountName).toBeUndefined();
+    expect(provider.typeSpecific.logMode).toBeUndefined();
+    expect(provider.typeSpecific.placement).toBeUndefined();
+  });
+
+  test("a JSON null credential or imagePullSecrets normalises to absent, not a parse failure", () => {
+    const withNulls = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          id: "cp-k8s-3",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: {
+            endpoint: "https://kube.lab.example.com:6443",
+            namespace: "cytario-jobs",
+            credential: null,
+            imagePullSecrets: null,
+          },
+          status: "connected" as const,
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(withNulls);
+    const provider = catalog.computeProviders[0];
+    if (provider.type !== "KUBERNETES_JOBS") throw new Error("unreachable");
+    expect(provider.typeSpecific.credential).toBeUndefined();
+    expect(provider.typeSpecific.imagePullSecrets).toBeUndefined();
+  });
+
+  test("rejects a kubernetes compute provider whose endpoint or namespace is absent", () => {
+    const withoutEndpoint = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          id: "cp-k8s-4",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: { namespace: "cytario-jobs" },
+          status: "connected" as const,
+        },
+      ],
+    };
+    const withoutNamespace = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          id: "cp-k8s-5",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: { endpoint: "https://kube.lab.example.com:6443" },
+          status: "connected" as const,
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(withoutEndpoint)).toThrow();
+    expect(() => providerCatalogSchema.parse(withoutNamespace)).toThrow();
+  });
+
+  test("rejects a kubernetes compute provider with a non-https or malformed endpoint", () => {
+    const withEndpoint = (endpoint: string) => ({
+      ...CATALOG,
+      computeProviders: [
+        {
+          id: "cp-k8s-6",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: { endpoint, namespace: "cytario-jobs" },
+          status: "connected" as const,
+        },
+      ],
+    });
+    expect(() =>
+      providerCatalogSchema.parse(withEndpoint("http://kube.lab.example.com:6443")),
+    ).toThrow(/https/);
+    expect(() => providerCatalogSchema.parse(withEndpoint("kube.lab.example.com:6443"))).toThrow(
+      /https/,
+    );
+    expect(() => providerCatalogSchema.parse(withEndpoint("not a url at all"))).toThrow(/https/);
+  });
+
+  test("an AWS_BATCH entry carrying Kubernetes fields is not the Kubernetes variant", () => {
+    const mixed = {
+      ...CATALOG,
+      computeProviders: [
+        {
+          ...CATALOG.computeProviders[0],
+          typeSpecific: {
+            ...CATALOG.computeProviders[0].typeSpecific,
+            endpoint: "https://kube.lab.example.com:6443",
+          },
+        },
+      ],
+    };
+    const catalog = providerCatalogSchema.parse(mixed);
+    const typeSpecific = catalog.computeProviders[0].typeSpecific as Record<string, unknown>;
+    expect(typeSpecific.endpoint).toBeUndefined();
+  });
+
+  test("accepts a kubernetes storage provider connection with an endpoint", () => {
+    const good = {
+      ...CATALOG,
+      providerConnections: [
+        {
+          ...CATALOG.providerConnections[0],
+          providerType: "kubernetes",
+          endpoint: "https://kube.lab.example.com:6443",
+        },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(good)).not.toThrow();
+  });
+
+  test("rejects a kubernetes storage provider connection with a null endpoint (fail closed)", () => {
+    const bad = {
+      ...CATALOG,
+      providerConnections: [
+        { ...CATALOG.providerConnections[0], providerType: "kubernetes", endpoint: null },
+      ],
+    };
+    expect(() => providerCatalogSchema.parse(bad)).toThrow(/kubernetes.*non-null endpoint/);
   });
 });
 
