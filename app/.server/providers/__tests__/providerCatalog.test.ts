@@ -579,6 +579,30 @@ describe("providerCatalogSchema", () => {
     expect(() => providerCatalogSchema.parse(withoutNamespace)).toThrow();
   });
 
+  test("rejects a kubernetes compute provider with a non-https or malformed endpoint", () => {
+    const withEndpoint = (endpoint: string) => ({
+      ...CATALOG,
+      computeProviders: [
+        {
+          id: "cp-k8s-6",
+          providerConnectionId: "pc-k8s",
+          displayName: "Lab Cluster",
+          region: "on-prem",
+          type: "KUBERNETES_JOBS" as const,
+          typeSpecific: { endpoint, namespace: "cytario-jobs" },
+          status: "connected" as const,
+        },
+      ],
+    });
+    expect(() =>
+      providerCatalogSchema.parse(withEndpoint("http://kube.lab.example.com:6443")),
+    ).toThrow(/https/);
+    expect(() => providerCatalogSchema.parse(withEndpoint("kube.lab.example.com:6443"))).toThrow(
+      /https/,
+    );
+    expect(() => providerCatalogSchema.parse(withEndpoint("not a url at all"))).toThrow(/https/);
+  });
+
   test("an AWS_BATCH entry carrying Kubernetes fields is not the Kubernetes variant", () => {
     const mixed = {
       ...CATALOG,

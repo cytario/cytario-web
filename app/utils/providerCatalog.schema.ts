@@ -142,6 +142,26 @@ const awsBatchComputeProviderSchema = z.object({
 });
 
 /**
+ * A URL with an https scheme — the Kubernetes API server is reached over TLS.
+ * The parse boundary refuses anything else, so a misconfigured catalog never
+ * reaches the session mint with a replayable bearer credential pointed at a
+ * plaintext or malformed endpoint.
+ */
+const httpsUrl = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => {
+      try {
+        return new URL(value).protocol === "https:";
+      } catch {
+        return false;
+      }
+    },
+    { message: "The Kubernetes endpoint must be an https:// URL." },
+  );
+
+/**
  * A Kubernetes compute provider. The `credential` is the per-org submission
  * token for the Kubernetes API server — the same server-to-server-secret
  * posture as `appCatalogs[].accessAccountSecret`: it rides the gated lookup
@@ -155,7 +175,7 @@ const kubernetesJobsComputeProviderSchema = z.object({
   type: z.literal("KUBERNETES_JOBS"),
   typeSpecific: z.object({
     /** Kubernetes API server URL the host confines the session's requests to. */
-    endpoint: z.string().min(1),
+    endpoint: httpsUrl,
     /** Namespace the org's jobs are submitted into. */
     namespace: z.string().min(1),
     /** Per-org bearer token for the Kubernetes API server. */
