@@ -86,6 +86,26 @@ describe("mapResourceEnvelope", () => {
     });
   });
 
+  test("accepts the KUBERNETES platform (requests/limits semantics)", () => {
+    expect(
+      mapResourceEnvelope({
+        cpu: "2000m",
+        memory: "8Gi",
+        ephemeralStorage: "20Gi",
+        gpu: 1,
+        runtimeCapSeconds: 3600,
+        platform: "KUBERNETES",
+      }),
+    ).toEqual({
+      cpu: "2000m",
+      memory: "8Gi",
+      ephemeralStorage: "20Gi",
+      gpu: 1,
+      runtimeCapSeconds: 3600,
+      platform: "KUBERNETES",
+    });
+  });
+
   test("rejects non-integer GPU", () => {
     expect(mapResourceEnvelope({ memory: "4Gi", gpu: 1.5 })).toEqual({ memory: "4Gi" });
   });
