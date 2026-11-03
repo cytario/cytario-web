@@ -34,6 +34,7 @@ const overlayConfigSchema = z.object({
   columns: z.object({
     id: z.string(),
     geometry: z.string(),
+    geometryEncoding: z.enum(["wkb", "wkt"]).optional(),
     x: z.string(),
     y: z.string(),
   }),

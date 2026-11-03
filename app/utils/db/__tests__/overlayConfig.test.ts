@@ -22,7 +22,13 @@ describe("interpretOverlaySchema", () => {
     const config = interpretOverlaySchema(canonicalSchema());
 
     expect(config).not.toBeNull();
-    expect(config?.columns).toEqual({ id: "object", geometry: "geom", x: "x", y: "y" });
+    expect(config?.columns).toEqual({
+      id: "object",
+      geometry: "geom",
+      geometryEncoding: "wkt",
+      x: "x",
+      y: "y",
+    });
     expect(config?.classes).toHaveLength(2);
     expect(config?.classes[0]).toEqual({
       sourceColumn: "marker_positive_cd4",
@@ -45,6 +51,7 @@ describe("interpretOverlaySchema", () => {
     expect(config?.columns).toEqual({
       id: "cell_id",
       geometry: "geometry",
+      geometryEncoding: "wkt",
       x: "x",
       y: "y",
     });
@@ -102,6 +109,42 @@ describe("interpretOverlaySchema", () => {
     expect(config?.classes).toHaveLength(OVERLAY_CLASS_BIT_LIMIT);
     expect(config?.classes[0]?.sourceColumn).toBe("col_0");
     expect(config?.classes[31]?.sourceColumn).toBe("col_31");
+  });
+
+  test("records the WKB encoding for binary geometry columns", () => {
+    const config = interpretOverlaySchema([
+      col("object", "INT32"),
+      col("x", "DOUBLE"),
+      col("y", "DOUBLE"),
+      col("geom", "BLOB"),
+      col("marker_positive_cd4", "BOOLEAN"),
+    ]);
+
+    expect(config?.columns.geometryEncoding).toBe("wkb");
+  });
+
+  test("records the WKT encoding for text geometry columns", () => {
+    const config = interpretOverlaySchema([
+      col("object", "INT32"),
+      col("x", "DOUBLE"),
+      col("y", "DOUBLE"),
+      col("geom", "VARCHAR"),
+      col("marker_positive_cd4", "BOOLEAN"),
+    ]);
+
+    expect(config?.columns.geometryEncoding).toBe("wkt");
+  });
+
+  test("omits the geometry encoding when no geometry column resolves", () => {
+    const config = interpretOverlaySchema([
+      col("object", "INT32"),
+      col("x", "DOUBLE"),
+      col("y", "DOUBLE"),
+      col("marker_positive_cd4", "BOOLEAN"),
+    ]);
+
+    expect(config?.columns.geometry).toBe("");
+    expect(config?.columns.geometryEncoding).toBeUndefined();
   });
 });
 

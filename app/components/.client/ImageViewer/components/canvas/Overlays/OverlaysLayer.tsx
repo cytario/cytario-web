@@ -39,6 +39,114 @@ interface OverlaysLayerProps {
   showToast?: (toast: Omit<ToastData, "id">) => void;
 }
 
+interface SubLayersProps {
+  [key: string]: unknown;
+  data: unknown;
+  id: string;
+  tile: { index: { z: number; x: number; y: number } };
+}
+
+interface RenderContext {
+  arrowTable: Table;
+  numRows: number;
+  positionsFlat: Float64Array;
+  props: SubLayersProps;
+  pointRadius: number;
+  pointRadiusMin: number;
+  markerProps: MarkerProps;
+  fileMarkers: Record<string, CellMarker>;
+  enabledMarkers: string[];
+}
+
+/** Per-row bitmask of the enabled markers, computed from the tile's
+ *  marker_bitmask column with the full-bitmask extraction cached per table. */
+const buildMarkerMasks = (
+  arrowTable: Table,
+  numRows: number,
+  fileMarkers: Record<string, CellMarker>,
+  enabledMarkers: string[],
+): Float32Array => {
+  const bitmaskCol = arrowTable.getChild("marker_bitmask");
+  if (!bitmaskCol) {
+    throw new Error("marker_bitmask column not found in Arrow table");
+  }
+
+  // @ts-expect-error - Adding cache property to Arrow table
+  if (!arrowTable._cachedFullBitmask) {
+    const fullBitmask = new Float32Array(numRows);
+    let outputIndex = 0;
+
+    for (let chunkIdx = 0; chunkIdx < bitmaskCol.data.length; chunkIdx++) {
+      const chunk = bitmaskCol.data[chunkIdx];
+      const values = chunk.values as Float32Array;
+      const chunkLength = chunk.length;
+
+      for (let i = 0; i < chunkLength; i++) {
+        fullBitmask[outputIndex++] = values[i];
+      }
+    }
+
+    // @ts-expect-error - Cache on table
+    arrowTable._cachedFullBitmask = fullBitmask;
+  }
+
+  // @ts-expect-error - Retrieve cached full bitmask
+  const fullBitmask = arrowTable._cachedFullBitmask as Float32Array;
+
+  // Bitmask of the enabled markers in UI state.
+  const allMarkerKeys = Object.keys(fileMarkers);
+  let enabledBitmask = 0;
+  for (const markerKey of enabledMarkers) {
+    const bitIndex = allMarkerKeys.indexOf(markerKey);
+    if (bitIndex >= 0 && bitIndex < 32) {
+      enabledBitmask |= 1 << bitIndex;
+    }
+  }
+
+  const markerMasks = new Float32Array(numRows);
+  for (let i = 0; i < numRows; i++) {
+    markerMasks[i] = fullBitmask[i] & enabledBitmask;
+  }
+  return markerMasks;
+};
+
+const renderPointSubLayer = ({
+  arrowTable,
+  numRows,
+  positionsFlat,
+  props,
+  pointRadius,
+  pointRadiusMin,
+  markerProps,
+  fileMarkers,
+  enabledMarkers,
+}: RenderContext) => {
+  const markerMasks = buildMarkerMasks(arrowTable, numRows, fileMarkers, enabledMarkers);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = {
+    src: arrowTable, // for tooltip hover access
+    length: numRows,
+    attributes: {
+      getPosition: { value: positionsFlat, size: 2 },
+      getMarkerMask: { value: markerMasks, size: 1 },
+    },
+  };
+
+  // Explicit: the TileLayer's defaulted `parameters: {}` would clobber a
+  // subclass defaultProps value through the `...props` spread.
+  return new AdditiveScatterplotLayer({
+    ...props,
+    parameters: additiveBlendParameters,
+    data,
+    getRadius: pointRadius,
+    radiusMinPixels: pointRadiusMin,
+    // @ts-expect-error - Custom props not in deck.gl's base layer types
+    markerProps,
+    pickable: true,
+  });
+};
+
 export const OverlaysLayer = ({
   resourceId,
   overlayConfig,
@@ -149,115 +257,23 @@ export const OverlaysLayer = ({
       // @ts-expect-error - Retrieve cached positions
       const positionsFlat = arrowTable._cachedPositions as Float64Array;
 
-      if (isPointMode(props.tile.index.z)) {
-        const bitmaskCol = arrowTable.getChild("marker_bitmask");
-        if (!bitmaskCol) {
-          throw new Error("marker_bitmask column not found in Arrow table");
-        }
+      const pointRenderContext = {
+        arrowTable,
+        numRows,
+        positionsFlat,
+        props,
+        pointRadius,
+        pointRadiusMin,
+        markerProps,
+        fileMarkers,
+        enabledMarkers,
+      };
 
-        // @ts-expect-error - Adding cache property to Arrow table
-        if (!arrowTable._cachedFullBitmask) {
-          const fullBitmask = new Float32Array(numRows);
-          let outputIndex = 0;
-
-          for (let chunkIdx = 0; chunkIdx < bitmaskCol.data.length; chunkIdx++) {
-            const chunk = bitmaskCol.data[chunkIdx];
-            const values = chunk.values as Float32Array;
-            const chunkLength = chunk.length;
-
-            for (let i = 0; i < chunkLength; i++) {
-              fullBitmask[outputIndex++] = values[i];
-            }
-          }
-
-          // @ts-expect-error - Cache on table
-          arrowTable._cachedFullBitmask = fullBitmask;
-        }
-
-        // @ts-expect-error - Retrieve cached full bitmask
-        const fullBitmask = arrowTable._cachedFullBitmask as Float32Array;
-
-        // Bitmask of the enabled markers in UI state.
-        const allMarkerKeys = Object.keys(fileMarkers);
-        let enabledBitmask = 0;
-        for (const markerKey of enabledMarkers) {
-          const bitIndex = allMarkerKeys.indexOf(markerKey);
-          if (bitIndex >= 0 && bitIndex < 32) {
-            enabledBitmask |= 1 << bitIndex;
-          }
-        }
-
-        const markerMasks = new Float32Array(numRows);
-        for (let i = 0; i < numRows; i++) {
-          markerMasks[i] = fullBitmask[i] & enabledBitmask;
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data: any = {
-          src: arrowTable, // for tooltip hover access
-          length: numRows,
-          attributes: {
-            getPosition: { value: positionsFlat, size: 2 },
-            getMarkerMask: { value: markerMasks, size: 1 },
-          },
-        };
-
-        // Explicit: the TileLayer's defaulted `parameters: {}` would clobber a
-        // subclass defaultProps value through the `...props` spread.
-        return new AdditiveScatterplotLayer({
-          ...props,
-          parameters: additiveBlendParameters,
-          data,
-          getRadius: pointRadius,
-          radiusMinPixels: pointRadiusMin,
-          // @ts-expect-error - Custom props not in deck.gl's base layer types
-          markerProps,
-          pickable: true,
-        });
+      if (isPointMode(props.tile.index.z) || !arrowTable.getChild("geom")) {
+        return renderPointSubLayer(pointRenderContext);
       }
 
-      // Polygon mode: same bitmask extraction and enabled filter as points.
-      const bitmaskCol = arrowTable.getChild("marker_bitmask");
-      if (!bitmaskCol) {
-        throw new Error("marker_bitmask column not found in Arrow table");
-      }
-
-      // @ts-expect-error - Adding cache property to Arrow table
-      if (!arrowTable._cachedFullBitmask) {
-        const fullBitmask = new Float32Array(numRows);
-        let outputIndex = 0;
-
-        for (let chunkIdx = 0; chunkIdx < bitmaskCol.data.length; chunkIdx++) {
-          const chunk = bitmaskCol.data[chunkIdx];
-          const values = chunk.values as Float32Array;
-          const chunkLength = chunk.length;
-
-          for (let i = 0; i < chunkLength; i++) {
-            fullBitmask[outputIndex++] = values[i];
-          }
-        }
-
-        // @ts-expect-error - Cache on table
-        arrowTable._cachedFullBitmask = fullBitmask;
-      }
-
-      // @ts-expect-error - Retrieve cached full bitmask
-      const fullBitmask = arrowTable._cachedFullBitmask as Float32Array;
-
-      // Bitmask of the enabled markers in UI state.
-      const allMarkerKeys = Object.keys(fileMarkers);
-      let enabledBitmask = 0;
-      for (const markerKey of enabledMarkers) {
-        const bitIndex = allMarkerKeys.indexOf(markerKey);
-        if (bitIndex >= 0 && bitIndex < 32) {
-          enabledBitmask |= 1 << bitIndex;
-        }
-      }
-
-      const markerMasks = new Float32Array(numRows);
-      for (let i = 0; i < numRows; i++) {
-        markerMasks[i] = fullBitmask[i] & enabledBitmask;
-      }
+      const markerMasks = buildMarkerMasks(arrowTable, numRows, fileMarkers, enabledMarkers);
 
       const getLineWidth = 1;
       const lineWidthMinPixels = 1;

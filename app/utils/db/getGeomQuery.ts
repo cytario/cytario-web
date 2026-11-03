@@ -167,7 +167,7 @@ export function getGeomQuery(
       );
     }
 
-    if (isPointMode(tileIndex.z)) {
+    if (isPointMode(tileIndex.z) || !geom) {
       return /*sql*/ `
         SELECT
           ${id} as id,
@@ -180,10 +180,15 @@ export function getGeomQuery(
       `;
     }
 
+    const geomParsed =
+      config.columns.geometryEncoding === "wkb"
+        ? `ST_GeomFromWKB(${geom})`
+        : `ST_GeomFromText(${geom})`;
+
     return /*sql*/ `
       SELECT
         ${id} as id,
-        ST_AsWKB(ST_GeomFromText(${geom})) as geom, -- Convert WKT → GEOMETRY → WKB binary
+        ST_AsWKB(${geomParsed}) as geom,
         ${x} as x,
         ${y} as y,
         ${bitmaskExpression} AS marker_bitmask

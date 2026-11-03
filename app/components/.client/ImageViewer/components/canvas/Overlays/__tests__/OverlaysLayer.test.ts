@@ -1,6 +1,8 @@
+import { tableFromArrays } from "apache-arrow";
 import { vi } from "vitest";
 
 import type { CellMarker, OverlayConfig } from "../../../../state/store/types";
+import { AdditiveScatterplotLayer } from "../AdditiveScatterplotLayer";
 import { createMarkerProps } from "../markerUniforms";
 import { OverlaysLayer } from "../OverlaysLayer";
 
@@ -141,5 +143,34 @@ describe("OverlaysLayer", () => {
     const getTileDataAfter = (after.props.updateTriggers as { getTileData: unknown[] }).getTileData;
 
     expect(getTileDataBefore).toEqual(getTileDataAfter);
+  });
+
+  test("polygon-mode tiles without a geom column render a point sub-layer instead of throwing", () => {
+    const layer = buildLayer();
+    const renderSubLayers = layer.props.renderSubLayers as (
+      props: Record<string, unknown>,
+    ) => unknown;
+
+    const arrowTable = tableFromArrays({
+      id: [1, 2],
+      x: [10.5, 20.5],
+      y: [30.5, 40.5],
+      marker_bitmask: [1, 1],
+    });
+
+    const subLayer = renderSubLayers({
+      id: "tile-1",
+      data: arrowTable,
+      tile: { index: { z: 0, x: 0, y: 0 } },
+    });
+
+    expect(subLayer).toBeInstanceOf(AdditiveScatterplotLayer);
+    const subLayerData = (
+      subLayer as { props: { data: { attributes: { getPosition: { value: unknown } } } } }
+    ).props.data;
+    expect(subLayerData.attributes.getPosition.value).toEqual(
+      new Float64Array([10.5, 30.5, 20.5, 40.5]),
+    );
+    expect((subLayer as { props: { pickable: unknown } }).props.pickable).toBe(true);
   });
 });

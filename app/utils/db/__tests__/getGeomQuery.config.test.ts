@@ -90,6 +90,57 @@ describe("getGeomQuery with config", () => {
     expect(sql).toContain("marker_bitmask");
   });
 
+  test("polygon mode without a geometry column projects points only", () => {
+    const sql = getGeomQuery(s3Uri, tileIndex, [], {
+      columns: columns({ geometry: "" }),
+      classes: [booleanClass("is_tumor")],
+    });
+
+    expect(sql).not.toContain("ST_AsWKB");
+    expect(sql).not.toContain("ST_GeomFromText");
+    expect(sql).not.toContain("ST_GeomFromWKB");
+    expect(sql).toContain(`"object" as id`);
+    expect(sql).toContain(`"x" as x`);
+    expect(sql).toContain(`"y" as y`);
+    expect(sql).toContain("marker_bitmask");
+    expect(sql).toContain(`"x" BETWEEN`);
+    expect(sql).toContain(`"y" BETWEEN`);
+  });
+
+  test("polygon mode parses WKB-encoded geometry columns via ST_GeomFromWKB", () => {
+    const sql = getGeomQuery(s3Uri, tileIndex, [], {
+      columns: columns({ geometryEncoding: "wkb" }),
+      classes: [booleanClass("is_tumor")],
+    });
+
+    expect(sql).toContain(`ST_AsWKB(ST_GeomFromWKB("geom")) as geom`);
+  });
+
+  test("polygon mode defaults to WKT parsing when no encoding is recorded", () => {
+    const sql = getGeomQuery(s3Uri, tileIndex, [], {
+      columns: { id: "object", geometry: "geom", x: "x", y: "y" },
+      classes: [booleanClass("is_tumor")],
+    });
+
+    expect(sql).toContain(`ST_AsWKB(ST_GeomFromText("geom")) as geom`);
+    expect(sql).not.toContain("ST_GeomFromWKB");
+  });
+
+  test("point mode without a geometry column renders the unchanged point SQL", () => {
+    const sql = getGeomQuery(s3Uri, { z: -5, x: 0, y: 0 }, [], {
+      columns: columns({ geometry: "" }),
+      classes: [booleanClass("is_tumor")],
+    });
+
+    expect(sql).not.toContain("ST_AsWKB");
+    expect(sql).not.toContain("ST_GeomFromText");
+    expect(sql).toContain(`"object" as id`);
+    expect(sql).toContain(`"x" as x`);
+    expect(sql).toContain(`"y" as y`);
+    expect(sql).toContain("marker_bitmask");
+    expect(sql).toContain(`"x" BETWEEN`);
+  });
+
   test("escapes double quotes inside column names", () => {
     const sql = getGeomQuery(s3Uri, tileIndex, [], {
       columns: columns({ id: 'bad"col' }),

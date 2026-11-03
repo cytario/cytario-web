@@ -52,6 +52,27 @@ describe("migrateSidecarOverlays", () => {
     expect(migrateSidecarOverlays("nope")).toEqual({});
     expect(migrateSidecarOverlays(null)).toEqual({});
   });
+
+  test("persists the geometry encoding through a round trip", () => {
+    const entry = {
+      ...overlayEntry,
+      config: {
+        ...overlayEntry.config,
+        columns: { ...overlayEntry.config.columns, geometryEncoding: "wkb" },
+      },
+    };
+
+    const result = migrateSidecarOverlays({ "res-1": entry });
+
+    expect(result["res-1"]).toEqual(entry);
+    expect(result["res-1"]?.config?.columns.geometryEncoding).toBe("wkb");
+  });
+
+  test("parses configs recorded before the geometry encoding existed", () => {
+    const result = migrateSidecarOverlays({ "res-1": overlayEntry });
+
+    expect(result["res-1"]?.config?.columns.geometryEncoding).toBeUndefined();
+  });
 });
 
 describe("viewSettingsDocumentSchema without overlays", () => {

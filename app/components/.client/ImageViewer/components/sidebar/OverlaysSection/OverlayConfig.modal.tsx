@@ -17,7 +17,10 @@ import {
   type OverlayClassConfig,
   type OverlayClassOperator,
   type OverlayGeometryAnchor,
+  type OverlayGeometryEncoding,
   findCoveringColumns,
+  isGeometryLikeType,
+  isWkbType,
   validateOverlayConfig,
 } from "~/utils/db/overlayConfig";
 
@@ -119,6 +122,11 @@ export function OverlayConfigModal({
 
   const columnItems = useMemo(() => (schema ? toSelectItems(schema) : []), [schema]);
 
+  const geometryItems = useMemo<SelectItem[]>(
+    () => [{ id: "", name: "None" }, ...columnItems],
+    [columnItems],
+  );
+
   // The anchor is fully derived — no hand-editing. A covering from the schema
   // anchors the config when no x/y column is chosen; picking x/y columns
   // (or a geometry column without a matching covering) drops it.
@@ -127,14 +135,23 @@ export function OverlayConfigModal({
     const derived = findCoveringColumns(schema);
     if (!derived || !geomColumn) return undefined;
     const geomCol = schema.find((col) => col.name === geomColumn);
-    if (!geomCol || !/^(VARCHAR|UTF8|STRING|BLOB|BYTE_ARRAY)$/.test(geomCol.type.toUpperCase())) {
+    if (!geomCol || !isGeometryLikeType(geomCol.type)) {
       return undefined;
     }
     return {
-      encoding: /^(BLOB|BYTE_ARRAY)$/.test(geomCol.type.toUpperCase()) ? "wkb" : "wkt",
+      encoding: isWkbType(geomCol.type) ? "wkb" : "wkt",
       covering: derived,
     };
   }, [schema, xColumn, yColumn, geomColumn]);
+
+  const geometryEncoding: OverlayGeometryEncoding | undefined = useMemo(() => {
+    if (!schema || !geomColumn || anchor) return undefined;
+    const geomCol = schema.find((col) => col.name === geomColumn);
+    if (!geomCol || !isGeometryLikeType(geomCol.type)) {
+      return undefined;
+    }
+    return isWkbType(geomCol.type) ? "wkb" : "wkt";
+  }, [schema, geomColumn, anchor]);
 
   const updateClass = (index: number, patch: Partial<ClassDraft>) =>
     setClasses((prev) => prev.map((cls, i) => (i === index ? { ...cls, ...patch } : cls)));
@@ -149,7 +166,13 @@ export function OverlayConfigModal({
 
   const buildConfig = (): OverlayConfig => ({
     version: 1,
-    columns: { id: idColumn, geometry: geomColumn, x: xColumn, y: yColumn },
+    columns: {
+      id: idColumn,
+      geometry: geomColumn,
+      ...(geometryEncoding ? { geometryEncoding } : {}),
+      x: xColumn,
+      y: yColumn,
+    },
     ...(anchor ? { anchor } : {}),
     classes: classes.map(draftToClass),
   });
@@ -216,7 +239,8 @@ export function OverlayConfigModal({
           />
           <Select
             label="Geometry column"
-            items={columnItems}
+            items={geometryItems}
+            placeholder="None"
             selectedKey={geomColumn || null}
             onSelectionChange={(key) => setGeomColumn(String(key ?? ""))}
             isDisabled={!schema}
