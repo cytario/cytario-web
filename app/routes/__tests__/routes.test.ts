@@ -48,6 +48,10 @@ describe("route table", () => {
     expect(match("/api/v1/acme/provider-catalog")).toEqual(["routes/api/provider-catalog.ts"]);
     expect(match("/api/v1/acme/bucket-catalog")).toEqual(["routes/api/bucket-catalog.ts"]);
     expect(match("/api/v1/acme/job-grant/initiate")).toEqual(["routes/api/job-grant/initiate.ts"]);
+    // The callback stays un-prefixed: the Keycloak job-broker client
+    // registers exactly that one redirect URI, and the acting org comes from
+    // the pending submission, not the URL.
+    expect(match("/api/job-grant/callback")).toEqual(["routes/api/job-grant/callback.ts"]);
   });
 
   test("un-prefixed legacy app paths land in the org subtree, not a platform route", () => {

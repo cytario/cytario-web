@@ -31,8 +31,9 @@ vi.mock("~/.server/hostRequestContext", () => ({
 }));
 
 const listEndpointsMock = vi.hoisted(() => vi.fn());
+const findOrgScopedMock = vi.hoisted(() => vi.fn());
 vi.mock("~/.server/serverEndpointRegistry", () => ({
-  serverEndpointRegistry: { list: listEndpointsMock },
+  serverEndpointRegistry: { list: listEndpointsMock, findOrgScoped: findOrgScopedMock },
 }));
 
 const putBatchCredentialsMock = vi.hoisted(() => vi.fn());
@@ -43,7 +44,7 @@ vi.mock("~/.server/auth/jobCredentialStore", () => ({
 }));
 
 const PENDING = {
-  pluginPath: "/api/plugin/run",
+  pluginPath: "/run",
   requestBody: JSON.stringify({ applicationId: "demo-app", version: "1.0.0" }),
   returnPath: "/plugin/jobs",
   batchId: "batch-1",
@@ -63,7 +64,14 @@ function buildArgs(code: string, state: string, overrides: Record<string, unknow
   const url = new URL(`http://localhost/api/job-grant/callback?code=${code}&state=${state}`);
   for (const [k, v] of Object.entries(overrides)) url.searchParams.set(k, String(v));
   const context = new Map();
-  context.set(authContext, { authTokens: { accessToken: "at" }, user: null });
+  // requestOrganization is the session DEFAULT org — deliberately different
+  // from PENDING.organization so the tests pin that the acting org is the
+  // submission's, not the request URL's resolution.
+  context.set(authContext, {
+    authTokens: { accessToken: "at" },
+    user: null,
+    requestOrganization: "othercorp",
+  });
   context.set(sessionContext, { id: "sess" });
   return { request: new Request(url.toString()), context, params: {} } as never;
 }
@@ -88,22 +96,26 @@ beforeEach(() => {
 });
 
 describe("GET /api/job-grant/callback — submit-phase failure forwarding (C-425, SRS-CY-37311)", () => {
-  test("forwards the provider rejection reason to /plugin/jobs as ?message=", async () => {
+  test("forwards the provider rejection reason to the submission org's jobs view", async () => {
     const actionMock = vi.fn(async () => {
       throw new Error("Compute provider rejected RegisterJobDefinition: VCPU 0.5 not valid");
     });
-    listEndpointsMock.mockReturnValue([
-      { contribution: { path: "/api/plugin/run", action: actionMock } },
-    ]);
+    findOrgScopedMock.mockReturnValue({
+      contribution: { path: "/run", action: actionMock },
+    });
 
     const response = (await loader(buildArgs("code-1", "state-1"))) as Response;
 
+    expect(findOrgScopedMock).toHaveBeenCalledWith("/run");
     expect(putBatchCredentialsMock).toHaveBeenCalledWith(
       expect.objectContaining({ batchId: "batch-1", organization: "testcorp" }),
     );
     expect(response.status).toBe(302);
     const location = response.headers.get("Location") ?? "";
-    expect(location).toMatch(/\/plugin\/jobs\?/);
+    // The org-prefixed jobs view of the SUBMISSION's org — not the session
+    // default (othercorp), not a bare /plugin/jobs.
+    expect(location.startsWith("/testcorp/plugin/jobs?")).toBe(true);
+    expect(location).not.toContain("othercorp");
     const params = new URL(location, "http://localhost").searchParams;
     expect(params.get("error")).toBe("submit_failed");
     expect(params.get("message")).toBe(
@@ -115,9 +127,9 @@ describe("GET /api/job-grant/callback — submit-phase failure forwarding (C-425
     const actionMock = vi.fn(async () => {
       throw "not an Error object";
     });
-    listEndpointsMock.mockReturnValue([
-      { contribution: { path: "/api/plugin/run", action: actionMock } },
-    ]);
+    findOrgScopedMock.mockReturnValue({
+      contribution: { path: "/run", action: actionMock },
+    });
 
     const response = (await loader(buildArgs("code-1", "state-1"))) as Response;
 

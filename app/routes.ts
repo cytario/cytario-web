@@ -127,7 +127,7 @@ const apiRoutes = [
     file: "routes/api/broker.ts",
   },
   {
-    path: "/api/v1/:org/job-grant/callback",
+    path: "/api/job-grant/callback",
     file: "routes/api/job-grant/callback.ts",
   },
   {

@@ -40,7 +40,10 @@ export const action = async (args: ActionFunctionArgs): Promise<Response> => {
   const codeChallenge = generateCodeChallenge(codeVerifier);
 
   const { state, batchId } = await storePendingSubmission({
-    pluginPath: "/api/plugin/run",
+    // Plugin-relative: the callback resolves the contribution through the
+    // org-scoped registry, which keys on the plugin's declared path (`/run`),
+    // not the host-composed URL.
+    pluginPath: "/run",
     requestBody: body,
     userId: args.context.get(authContext).user.sub,
     organization: requestOrganization,

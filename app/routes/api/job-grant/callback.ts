@@ -3,7 +3,12 @@ import { redirect } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { exchangeAuthCodeForJobGrant } from "~/.server/auth/exchangeAuthCodeForJobGrant";
-import { decodeJwtClaims, profileFromTokenClaims, toIdentity } from "~/.server/auth/getUserInfo";
+import {
+  decodeJwtClaims,
+  profileFromTokenClaims,
+  toIdentity,
+  withActiveOrganization,
+} from "~/.server/auth/getUserInfo";
 import {
   collectCredentialsIfBatchEmpty,
   putBatchCredentials,
@@ -36,28 +41,33 @@ export const loader = async (args: LoaderFunctionArgs) => {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
-  const { requestOrganization } = context.get(authContext);
-  // The jobs view lives under the URL's organization prefix; this callback is
-  // an API route, so the request org resolved by the middleware is the source.
-  const jobsPath = (search = "") => `${orgPath(requestOrganization, JOBS_PATH)}${search}`;
 
   if (error) {
     console.error(`${label} Authorization error:`, error);
-    return redirect(jobsPath("?error=grant_denied"));
+    return redirect("/plugin/jobs?error=grant_denied");
   }
 
   if (!code || !state) {
     console.error(`${label} Missing code or state parameter`);
-    return redirect(jobsPath("?error=grant_failed"));
+    return redirect("/plugin/jobs?error=grant_failed");
   }
 
   const pending = await consumePendingSubmission(state);
   if (!pending) {
     console.error(`${label} Invalid or expired state`);
-    return redirect(jobsPath("?error=grant_expired"));
+    return redirect("/plugin/jobs?error=grant_expired");
   }
 
-  const redirectUri = `${new URL(request.url).origin}/api/job-grant/callback`;
+  // The acting org is the org the user submitted from, recorded at initiation —
+  // not this request's URL. The callback is un-prefixed (the Keycloak job-broker
+  // client registers exactly one redirect URI, the un-prefixed one), so the
+  // middleware resolved the session's default org here, which for a
+  // multi-membership session can be another org's alias.
+  const organization = pending.organization;
+  // The jobs view lives under the organization prefix.
+  const jobsPath = (search = "") => `${orgPath(organization, JOBS_PATH)}${search}`;
+
+  const redirectUri = `${url.origin}/api/job-grant/callback`;
 
   let grant;
   try {
@@ -65,7 +75,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "exchange failed";
     console.error(`${label} Auth code exchange failed:`, message);
-    return redirect("/plugin/jobs?error=grant_failed");
+    return redirect(jobsPath("?error=grant_failed"));
   }
 
   // authMiddleware (in the middleware array) has already refreshed the
@@ -76,12 +86,15 @@ export const loader = async (args: LoaderFunctionArgs) => {
     console.error(`${label} No auth tokens in session`);
     return redirect(jobsPath("?error=no_session"));
   }
-  // Re-read the claims so a group change made since login is visible, but stay
-  // in the org the request resolved rather than re-picking one. Token-derived —
+  // Re-read the claims so a group change made since login is visible, then
+  // project to the ACTING org — submit-phase grant resolution is group-scoped
+  // and must see this org's groups, not the session default's. Token-derived —
   // the same claim set the refresh path re-derives from.
-  const userProfile =
-    profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? sessionUser;
-  const identity = toIdentity(userProfile, requestOrganization);
+  const userProfile = withActiveOrganization(
+    profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? sessionUser,
+    organization,
+  );
+  const identity = toIdentity(userProfile, organization);
 
   // The batch's OAuth material is written here — the one point where the
   // refresh token exists — and never reaches the plugin or a container.
@@ -108,7 +121,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
   const requestData = {
     user: userProfile,
-    organization: requestOrganization,
+    organization,
     identity,
     authTokens,
     sessionId: context.get(sessionContext)?.id ?? "",
@@ -117,9 +130,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
   return withHostRequestContext(requestData, async () => {
     try {
-      const endpoint = serverEndpointRegistry
-        .list()
-        .find((e) => e.contribution.path === pending.pluginPath);
+      const endpoint = serverEndpointRegistry.findOrgScoped(pending.pluginPath);
 
       if (!endpoint || !endpoint.contribution.action) {
         throw new Error(`Plugin endpoint ${pending.pluginPath} not found or has no action`);
@@ -142,7 +153,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
       });
 
       console.info(`${label} Job submission completed for batch ${pending.batchId}`);
-      return redirect(orgPath(requestOrganization, pending.returnPath));
+      return redirect(orgPath(organization, pending.returnPath));
     } catch (err) {
       const message = err instanceof Error ? err.message : "submission failed";
       console.error(`${label} Job submission failed:`, message);
