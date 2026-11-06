@@ -1,9 +1,14 @@
-import type { JWTPayload } from "jose";
+import { decodeJwt, type JWTPayload } from "jose";
 import { z } from "zod";
 
-import { getWellKnownEndpoints } from "./wellKnownEndpoints";
 import type { Identity } from "@cytario/plugin-api";
-import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { type OrgEntitlements, normalizeGroup, orgEntitlements } from "~/utils/authorization";
+
+// The entitlements derivation is pure domain logic over the membership map
+// and lives in client-shared code (app/utils/authorization.ts); re-exported
+// here so the auth pipeline's existing importers keep their import site.
+export type { OrgEntitlements };
+export { orgEntitlements };
 
 // Accept any value shape (`unknown`) so a Keycloak mapper quirk can't throw
 // out of the whole parse and break login; only `groups` is consumed — other
@@ -35,11 +40,26 @@ const userProfileSchema = z.object({
 
 type UserProfileRaw = z.infer<typeof userProfileSchema>;
 
-export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
-  organization?: string;
-  organizationAttributes: Readonly<Record<string, readonly string[]>>;
-  groups: string[];
-  adminScopes: string[];
+/** One Keycloak organization membership, sanitized for host and client use. */
+export interface OrganizationMembership {
+  /** Immutable Keycloak org id — absent when the membership mapper omits it. */
+  id?: string;
+  /** Group paths inside this org, with the leading `/` stripped. */
+  groups: readonly string[];
+  /** Opaque org attributes, PII/size-filtered; frozen. */
+  attributes: Readonly<Record<string, readonly string[]>>;
+}
+
+/** Every membership the token carries, keyed by org alias. */
+export type Organizations = Readonly<Record<string, OrganizationMembership>>;
+
+export interface UserProfile extends Omit<UserProfileRaw, "organization" | "groups"> {
+  /** All memberships from the `organization` claim — the authoritative org
+   * source. Which org a request acts in is request-local (URL), never stored
+   * here, and the org-scoped entitlements (groups, admin scopes, attributes)
+   * are DERIVED from the membership at use via `orgEntitlements` — there is
+   * no projected copy on the profile to go stale. */
+  organizations: Organizations;
 }
 
 // Hygiene so a mapper change can't leak PII to the client: attributes reach
@@ -47,10 +67,6 @@ export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
 const EMAIL_SHAPED = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ATTR_VALUE_BYTES = 256;
 const attrEncoder = new TextEncoder();
-
-function normalizeGroup(group: string): string {
-  return group.replace(/^\//, "");
-}
 
 type OrganizationEntry = NonNullable<UserProfileRaw["organization"]>[string];
 
@@ -78,24 +94,55 @@ function normalizeOrganizationAttributes(
   return Object.freeze(attributes);
 }
 
+// `id` surfaces array-shaped on some mapper configs; take the first usable value.
+function readOrganizationId(entry: OrganizationEntry): string | undefined {
+  const candidates = Array.isArray(entry.id) ? entry.id : [entry.id];
+  const id = candidates.find((value): value is string => typeof value === "string" && value !== "");
+  return id;
+}
+
+function normalizeOrganizations(claim: UserProfileRaw["organization"]): Organizations {
+  const organizations: Record<string, OrganizationMembership> = {};
+  for (const [alias, entry] of Object.entries(claim ?? {})) {
+    const id = readOrganizationId(entry);
+    organizations[alias] = Object.freeze({
+      ...(id ? { id } : {}),
+      groups: Object.freeze((entry.groups ?? []).map(normalizeGroup)),
+      attributes: normalizeOrganizationAttributes(entry),
+    });
+  }
+  return Object.freeze(organizations);
+}
+
+/**
+ * Deterministic active-org pick: the caller's preferred alias (last used) when
+ * the token still carries that membership, else the first alias alphabetically.
+ * Returns `undefined` for a zero-org session.
+ */
+export function resolveActiveOrganization(
+  organizations: Organizations,
+  preferredAlias?: string,
+): string | undefined {
+  const aliases = Object.keys(organizations).sort();
+  if (preferredAlias && aliases.includes(preferredAlias)) return preferredAlias;
+  return aliases[0];
+}
+
 function enrichUserProfile(raw: UserProfileRaw): UserProfile {
-  // Group membership and org attributes arrive nested under the sole key of the
-  // Keycloak Organizations claim `{ "<alias>": { id, groups, ...attrs } }`.
-  const orgEntry = raw.organization ? Object.entries(raw.organization)[0] : undefined;
-  const organization = orgEntry?.[0];
-  const rawGroups = orgEntry ? (orgEntry[1].groups ?? []) : raw.groups;
-  const organizationAttributes = orgEntry
-    ? normalizeOrganizationAttributes(orgEntry[1])
-    : Object.freeze({});
+  const organizations = normalizeOrganizations(raw.organization);
 
-  // Root `/admins` becomes the `*` admin scope — "admin of every owner scope in
-  // this org", still bounded by the tenant check (no cross-org power).
-  const allGroups = rawGroups.map(normalizeGroup);
-  const adminScopes = allGroups
-    .filter((g) => g === "admins" || g.endsWith("/admins"))
-    .map((g) => (g === "admins" ? ORG_ROOT_SCOPE : g.replace(/\/admins$/, "")));
-  const groups = allGroups.filter((g) => g !== "admins" && !g.endsWith("/admins"));
+  // A member-of-nothing profile means the token's `organization` claim is
+  // absent, misshapen, or empty — every user is a member of ≥1 org. Without
+  // this line the zero-org 401/onboarding funnel looks like an onboarding
+  // problem when the actual cause is realm mapper drift after a deploy.
+  if (Object.keys(organizations).length === 0) {
+    console.warn(
+      `[auth] Token carries no usable organization membership (sub: ${raw.sub}) — the \`organization\` claim is absent or misshapen; check the realm's organization-membership mapper`,
+    );
+  }
 
+  // Memberships only: the org-scoped entitlements are derived at use via
+  // `orgEntitlements` — nothing org-flavored lives on the profile.
   return {
     sub: raw.sub,
     email: raw.email,
@@ -105,22 +152,26 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
     given_name: raw.given_name,
     family_name: raw.family_name,
     policy: raw.policy,
-    organization,
-    organizationAttributes,
-    groups,
-    adminScopes,
+    organizations,
   };
 }
 
-/** Drops PII so it never reaches the client. */
-export function toIdentity(user: UserProfile): Identity {
-  // Frozen — gates share this object; none may mutate it.
+/**
+ * Drops PII so it never reaches the client. `organizations` is absent from the
+ * plugin-api `Identity` contract, so the multi-org map stays host-side until
+ * that interface grows one. The org-scoped fields are DERIVED here from the
+ * membership map — the profile itself carries none.
+ */
+export function toIdentity(user: UserProfile, organization: string | undefined): Identity {
+  const entitlements = orgEntitlements(user, organization);
+  // Frozen — gates share this object; none may mutate it. `organization` is the
+  // request org; the profile carries only the membership map.
   return Object.freeze({
     sub: user.sub,
-    organization: user.organization,
-    organizationAttributes: user.organizationAttributes,
-    groups: user.groups,
-    adminScopes: user.adminScopes,
+    organization,
+    organizationAttributes: entitlements.attributes,
+    groups: entitlements.groups,
+    adminScopes: entitlements.adminScopes,
   });
 }
 
@@ -141,29 +192,32 @@ export function profileFromTokenClaims(claims: JWTPayload): UserProfile | null {
   return enrichUserProfile(parsed.data);
 }
 
-export const getUserInfo = async (accessToken: string): Promise<UserProfile> => {
+/** Reads the (unverified) claims of a token this server received directly
+ * from Keycloak — minted-by-us trust: the caller holds a token the realm
+ * just issued over TLS; decode-only reads its claims without re-verifying.
+ * A malformed token reads as {} — callers fall back to the stored profile
+ * rather than failing the request. */
+export function decodeJwtClaims(token: string): Record<string, unknown> {
   try {
-    const wellKnownEndpoints = await getWellKnownEndpoints();
-    const { userinfo_endpoint } = wellKnownEndpoints;
-
-    const response = await fetch(userinfo_endpoint, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`UserInfo fetch failed: ${response.status} - ${errorText}`);
-    }
-
-    const rawUserProfile = await response.json();
-    const validatedUserProfile = userProfileSchema.parse(rawUserProfile);
-    const enrichedUserProfile = enrichUserProfile(validatedUserProfile);
-
-    return enrichedUserProfile;
-  } catch (error) {
-    console.error("Keycloak getUserInfo failed:", error);
-    throw error;
+    return decodeJwt(token) as Record<string, unknown>;
+  } catch {
+    return {};
   }
-};
+}
+
+/**
+ * The session profile at login, derived from the access token issued in the
+ * same auth-code response — the exact claim set and code path the refresh
+ * path re-derives from mid-session, so a claim-shape change manifests
+ * identically at session birth and at refresh. No userinfo round-trip:
+ * login keeps its latency to the token-issuance hop, and a Keycloak userinfo
+ * outage cannot block new sessions while token issuance still works.
+ *
+ * Trust: the token arrives directly from Keycloak's token endpoint over TLS
+ * in this flow (minted-for-us), matching the refresh path's decode-only
+ * posture. A malformed token reads as {} (decodeJwtClaims) and the schema
+ * then yields null — the caller surfaces the failed-login notification.
+ */
+export function profileFromAccessToken(accessToken: string): UserProfile | null {
+  return profileFromTokenClaims(decodeJwtClaims(accessToken));
+}

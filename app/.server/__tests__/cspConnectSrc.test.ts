@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { resolveConnectSrcHosts } from "~/.server/cspConnectSrc.server";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 const ORG = "vericura";
 const TOKEN = "test-access-token";
 
@@ -44,14 +47,14 @@ vi.mock("~/routes/connections/connections.server", () => ({
 }));
 
 const sessionWith = (organization: string | undefined, accessToken: string | null = TOKEN) => ({
-  user: organization ? { organization } : {},
+  user: organization ? { organizations: { [organization]: { groups: [], attributes: {} } } } : {},
   authTokens: accessToken ? { accessToken: accessToken ?? undefined } : undefined,
 });
 
 // happy-dom strips `cookie` from Request-construction headers; setting it
 // after construction survives.
 const requestWithCookie = () => {
-  const request = new Request("https://app.cytar.io/objects");
+  const request = new Request(`https://app.cytar.io/${ORG}/objects`);
   request.headers.set("cookie", "__session=abc123");
   return request;
 };
@@ -90,7 +93,7 @@ describe("resolveConnectSrcHosts", () => {
 
     const hosts = await resolveConnectSrcHosts(requestWithCookie());
     expect(hosts).toEqual(["https://s3.example.com"]);
-    expect(getProviderCatalogMock).toHaveBeenCalledWith(ORG, TOKEN);
+    expect(getProviderCatalogMock).toHaveBeenCalledWith(ORG, `narrow-access:${ORG}`);
   });
 
   test("an AWS provider endpoint yields the regional origin, not the endpoint's own region", async () => {

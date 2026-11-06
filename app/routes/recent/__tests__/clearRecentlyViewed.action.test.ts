@@ -19,6 +19,7 @@ function createActionArgs() {
   const mockContext = {
     get: vi.fn().mockReturnValue({
       user: { sub: "user-1" },
+      requestOrganization: "org1",
     }),
   };
 
@@ -40,7 +41,7 @@ describe("clearRecentlyViewed action", () => {
     const result = await clearRecentlyViewed(createActionArgs());
 
     expect(result).toEqual({ ok: true });
-    expect(mockClearAllRecentlyViewed).toHaveBeenCalledWith("user-1");
+    expect(mockClearAllRecentlyViewed).toHaveBeenCalledWith("user-1", "org1");
   });
 
   test("returns 500 when clear throws", async () => {

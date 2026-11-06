@@ -1,12 +1,17 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { authContext } from "~/.server/auth/authMiddleware";
+import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { loader } from "~/routes/api/provider-catalog";
 import mock from "~/utils/__tests__/__mocks__";
 
 vi.mock("~/.server/db/prisma", () => ({ prisma: {} }));
 vi.mock("~/.server/db/redis", () => ({ redis: {} }));
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
+
 vi.mock("~/.server/providers/providerCatalog.server", async () => {
   const actual = await vi.importActual<typeof import("~/.server/providers/providerCatalog.server")>(
     "~/.server/providers/providerCatalog.server",
@@ -14,15 +19,40 @@ vi.mock("~/.server/providers/providerCatalog.server", async () => {
   return { ...actual, getProviderCatalog: vi.fn() };
 });
 
-function buildArgs(user: ReturnType<typeof mock.user>) {
+function buildArgs(
+  user: ReturnType<typeof mock.user>,
+  requestOrganization: string | undefined = Object.keys(user.organizations)[0],
+) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user, authTokens: { accessToken: "test-token", idToken: "test-id" } });
+  ctx.set(authContext, {
+    user,
+    requestOrganization,
+    sessionId: "session-1",
+    authTokens: { accessToken: "test-token", idToken: "test-id" },
+  });
   return {
-    request: new Request("http://localhost/api/provider-catalog"),
+    request: new Request(
+      `http://localhost/api/v1/${requestOrganization ?? "org"}/provider-catalog`,
+    ),
     params: {},
     context: { get: (k: unknown) => ctx.get(k), set: (k: unknown, v: unknown) => ctx.set(k, v) },
   } as unknown as Parameters<typeof loader>[0];
 }
+
+/** A user whose token carries two memberships, pointed at `org1`. */
+function multiOrgUser() {
+  return mock.user({
+    organizations: {
+      org1: { groups: ["org1/lab"], attributes: {} },
+      zeta: { groups: ["zeta/lab"], attributes: {} },
+    },
+  });
+}
+
+beforeEach(() => {
+  vi.mocked(getOrExchangeOrgAccessToken).mockClear();
+  vi.mocked(getProviderCatalog).mockReset();
+});
 
 describe("provider-catalog loader", () => {
   test("SECURITY: the response never carries a role ARN", async () => {
@@ -72,8 +102,30 @@ describe("provider-catalog loader", () => {
   });
 
   test("answers { error } when the session has no active organization", async () => {
-    const response = (await loader(buildArgs(mock.user({ organization: undefined })))) as Response;
+    const response = (await loader(buildArgs(mock.user({ organizations: {} })))) as Response;
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ error: "No active organization." });
+  });
+
+  test("the URL org's membership resolves that org's token exchange and catalog", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(mock.providerCatalog());
+
+    const response = (await loader(buildArgs(multiOrgUser(), "zeta"))) as Response;
+    const body = await response.json();
+
+    expect(getOrExchangeOrgAccessToken).toHaveBeenCalledWith("session-1", "zeta", "test-token");
+    expect(getProviderCatalog).toHaveBeenCalledWith("zeta", "narrow-access:zeta");
+    expect(body).toHaveProperty("catalog");
+  });
+
+  test("a multi-membership user acts in the request org the middleware resolved", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(mock.providerCatalog());
+
+    const response = (await loader(buildArgs(multiOrgUser(), "org1"))) as Response;
+
+    expect(response.status).toBe(200);
+    expect(getOrExchangeOrgAccessToken).toHaveBeenCalledWith("session-1", "org1", "test-token");
+    expect(getProviderCatalog).toHaveBeenCalledWith("org1", "narrow-access:org1");
+    expect(await response.json()).toHaveProperty("catalog");
   });
 });

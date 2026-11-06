@@ -26,7 +26,7 @@ export async function guardConnectionAction<Schema extends z.ZodType<{ connectio
   errorLabel,
   handler,
 }: GuardedActionArgs<Schema>): Promise<Response> {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization } = context.get(authContext);
 
   const formData = await request.formData();
   const fields = Object.fromEntries(
@@ -37,7 +37,7 @@ export async function guardConnectionAction<Schema extends z.ZodType<{ connectio
     return new Response("Invalid input", { status: 400 });
   }
 
-  const connection = await getConnection(user, parsed.data.connectionId);
+  const connection = await getConnection(user, requestOrganization, parsed.data.connectionId);
   if (!connection) {
     return new Response("Connection not found", { status: 404 });
   }

@@ -8,6 +8,7 @@ import { slotRegistry } from "./components/slotRegistry";
 import { viewerRegistry } from "./components/viewerRegistry";
 import { clientRouteRegistry } from "./lib/clientRouteRegistry";
 import { imageMetadata } from "./lib/imageMetadata";
+import { orgPaths } from "./lib/orgPaths";
 import { storagePicker } from "./lib/storagePicker";
 import { bootstrapPlugins } from "./plugins.generated";
 
@@ -27,7 +28,7 @@ await bootstrapPlugins(
     sidebarNav: sidebarNavRegistry,
     viewers: viewerRegistry,
     routes: clientRouteRegistry,
-    client: { storagePicker, imageMetadata },
+    client: { storagePicker, imageMetadata, orgPaths },
     env: "client",
   },
 ).catch((err) => {

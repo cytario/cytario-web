@@ -5,6 +5,7 @@ import { twMerge } from "tailwind-merge";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeIcon } from "~/components/DirectoryView/NodeLink/NodeIcon";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
+import { useActiveOrg } from "~/hooks/useOrgPath";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 interface GridItemProps {
@@ -15,7 +16,8 @@ interface GridItemProps {
 }
 
 export function GridItem({ node, preview, children, className }: GridItemProps) {
-  const to = buildConnectionPath(node.connectionId, node.pathName);
+  const activeOrg = useActiveOrg();
+  const to = buildConnectionPath(node.connectionId, node.pathName, activeOrg);
   const contextMenuRef = useRef<((event: React.MouseEvent) => void) | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 

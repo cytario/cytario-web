@@ -91,11 +91,11 @@ describe("favorites.server", () => {
       ];
       mockPrisma.pinnedPath.findMany.mockResolvedValue(mockFavorites);
 
-      const result = await getFavorites("user-1");
+      const result = await getFavorites("user-1", "org1");
 
       expect(result).toEqual(mockFavorites);
       expect(mockPrisma.pinnedPath.findMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
+        where: { userId: "user-1", connection: { organization: "org1" } },
         orderBy: { id: "desc" },
       });
     });

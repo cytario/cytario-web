@@ -4,10 +4,11 @@ import { createGroupSchema } from "./createGroup.schema";
 import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { getUserInfo } from "~/.server/auth/getUserInfo";
+import { decodeJwtClaims, profileFromTokenClaims } from "~/.server/auth/getUserInfo";
 import { addUserToOrganizationGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 
 export const createGroupAction: ActionFunction = async ({ request, context }) => {
   const { user, authTokens } = context.get(authContext);
@@ -27,10 +28,17 @@ export const createGroupAction: ActionFunction = async ({ request, context }) =>
 
     await addUserToOrganizationGroup(orgId, adminsGroupId, user.sub);
 
-    const refreshedUser = await getUserInfo(authTokens.accessToken);
+    // Re-read the claims so the just-created group is visible on this
+    // response; token-derived (the refresh path's claim set). The stored
+    // profile stays ORG-NEUTRAL — memberships only — like every other
+    // session write: the request-org projection is applied per request by
+    // authMiddleware, and persisting one org's groups here would leave the
+    // session carrying another tenant's entitlements. (The token itself
+    // predates the group; the next mint — or the next refresh — carries it.)
+    const refreshedUser = profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? user;
     session.set("user", refreshedUser);
 
-    const newScopeUrl = `/admin/users?scope=${encodeURIComponent(path)}`;
+    const newScopeUrl = adminUsersPath(org.alias, path);
 
     session.set("notification", {
       status: "success",

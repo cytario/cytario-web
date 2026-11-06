@@ -33,16 +33,27 @@ export async function upsertRecentlyViewed(
   });
 }
 
-export async function getRecentlyViewed(userId: string, limit = 20): Promise<RecentlyViewed[]> {
+/**
+ * The user's recently-viewed entries in `organization` only — the take/window
+ * applies per org, so a busy week in one tenant cannot evict another's.
+ */
+export async function getRecentlyViewed(
+  userId: string,
+  organization: string,
+  limit = 20,
+): Promise<RecentlyViewed[]> {
   return prisma.recentlyViewed.findMany({
-    where: { userId },
+    where: { userId, connection: { organization } },
     orderBy: { viewedAt: "desc" },
     take: limit,
   });
 }
 
-export async function clearAllRecentlyViewed(userId: string): Promise<void> {
-  await prisma.recentlyViewed.deleteMany({ where: { userId } });
+/** Clears the user's recently-viewed entries in `organization` only. */
+export async function clearAllRecentlyViewed(userId: string, organization: string): Promise<void> {
+  await prisma.recentlyViewed.deleteMany({
+    where: { userId, connection: { organization } },
+  });
 }
 
 export async function removeRecentlyViewed(

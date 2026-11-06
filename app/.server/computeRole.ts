@@ -1,6 +1,7 @@
 import { Sha256 } from "@aws-crypto/sha256-browser";
 import { SignatureV4 } from "@smithy/signature-v4";
 
+import { getOrExchangeOrgAccessToken, getOrExchangeOrgToken } from "./auth/orgTokenExchange";
 import { hostRequestStorage } from "./hostRequestContext";
 import { getProviderCatalog } from "./providers/providerCatalog.server";
 import { mapResourceEnvelope } from "./resourceEnvelope";
@@ -105,18 +106,28 @@ export async function assumeComputeRole(
   providerId?: string,
   organizationOverride?: string,
 ): Promise<ComputeRoleSession> {
-  const { user, authTokens } = requireRequestData();
-  const organization = organizationOverride ?? user.organization;
+  const { user, authTokens, sessionId, organization: requestOrganization } = requireRequestData();
+  const organization = organizationOverride ?? requestOrganization;
   if (!organization) {
     throw new Error("Active organization missing from request context");
   }
-  const catalog = await getProviderCatalog(organization, authTokens.accessToken);
+  // Portal lookups and the STS mint present narrow per-org tokens: the
+  // multi-membership session token is ambiguous to the portal and carries
+  // no single-valued ORG claim for the role trusts.
+  const [catalog, narrowIdToken] = await Promise.all([
+    getProviderCatalog(
+      organization,
+      (await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken))
+        .accessToken,
+    ),
+    getOrExchangeOrgToken(sessionId, organization, authTokens.accessToken),
+  ]);
   const { computeProvider, computeRole } = resolveComputeRole(catalog, providerId);
 
   const credentials = await assumeRoleWithWebIdentity({
     roleArn: computeRole.roleArn,
     roleSessionName: sanitizeRoleSessionName(`compute-${user.sub}`),
-    webIdentityToken: authTokens.idToken,
+    webIdentityToken: narrowIdToken.accessToken,
     region: computeProvider.region,
   });
 

@@ -2,8 +2,9 @@ import { LoaderFunctionArgs } from "react-router";
 
 import { loader } from "../callback.route";
 import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
-import { getUserInfo } from "~/.server/auth/getUserInfo";
+import { profileFromAccessToken } from "~/.server/auth/getUserInfo";
 import { validateOAuthState } from "~/.server/auth/oauthState";
+import { getPreferredOrg, setPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
@@ -12,8 +13,14 @@ vi.mock("~/.server/auth/exchangeAuthCode", () => ({
   exchangeAuthCode: vi.fn(),
 }));
 
-vi.mock("~/.server/auth/getUserInfo", () => ({
-  getUserInfo: vi.fn(),
+vi.mock("~/.server/auth/getUserInfo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/.server/auth/getUserInfo")>();
+  return { ...actual, profileFromAccessToken: vi.fn() };
+});
+
+vi.mock("~/.server/auth/orgPreference.server", () => ({
+  getPreferredOrg: vi.fn(),
+  setPreferredOrg: vi.fn(),
 }));
 
 vi.mock("~/.server/auth/oauthState", () => ({
@@ -63,7 +70,61 @@ describe("callback loader", () => {
     vi.mocked(validateOAuthState).mockResolvedValue(mockStateData);
     vi.mocked(exchangeAuthCode).mockResolvedValue(mock.tokenReponse());
     vi.mocked(verifyIdToken).mockResolvedValue({ nonce: "test-nonce-abc", sub: "user-123" });
-    vi.mocked(getUserInfo).mockResolvedValue(mockUser);
+    vi.mocked(profileFromAccessToken).mockReturnValue(mockUser);
+    vi.mocked(getPreferredOrg).mockResolvedValue(null);
+    vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
+  });
+
+  test("a preference the token still carries drives the landing redirect", async () => {
+    vi.mocked(getPreferredOrg).mockResolvedValue("org1");
+    vi.mocked(validateOAuthState).mockResolvedValue({ ...mockStateData, redirectTo: undefined });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(getPreferredOrg).toHaveBeenCalledWith("user-123");
+    expect(response.headers.get("Location")).toBe("/org1");
+  });
+
+  test("without a preference the first alias drives the landing redirect", async () => {
+    vi.mocked(validateOAuthState).mockResolvedValue({ ...mockStateData, redirectTo: undefined });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(getPreferredOrg).toHaveBeenCalledWith("user-123");
+    expect(response.headers.get("Location")).toBe("/org1");
+  });
+
+  test("the login stores no org on the session and writes no preference", async () => {
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(mockSession.set).not.toHaveBeenCalledWith("activeOrganization", expect.anything());
+    expect(setPreferredOrg).not.toHaveBeenCalled();
+  });
+
+  test("a state carrying a return path redirects there untouched", async () => {
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/dashboard");
+  });
+
+  test("a zero-org session redirects to the bare root (onboarding funnel)", async () => {
+    vi.mocked(profileFromAccessToken).mockReturnValue(mock.user({ organizations: {} }));
+    vi.mocked(validateOAuthState).mockResolvedValue({ ...mockStateData, redirectTo: undefined });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/");
+    expect(setPreferredOrg).not.toHaveBeenCalled();
   });
 
   test("successful authentication creates session and redirects", async () => {

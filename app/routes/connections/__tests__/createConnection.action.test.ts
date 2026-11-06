@@ -1,12 +1,16 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { authContext } from "~/.server/auth/authMiddleware";
+import { orgEntitlements } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { createAction } from "~/routes/connections/createConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
@@ -50,7 +54,17 @@ vi.mock("~/config", () => ({
 function buildArgs(form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
   ctx.set(authContext, {
-    user: mock.user({ adminScopes: ["org1/lab"], organization: "org1" }),
+    user: mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    }),
+    entitlements: orgEntitlements(
+      mock.user({
+        organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+      }),
+      "org1",
+    ),
+    sessionId: "session-1",
+    requestOrganization: "org1",
     authTokens: { accessToken: "access-token" },
   });
   ctx.set(sessionContext, mock.session({ authTokens: { idToken: "tok" } as never }));

@@ -10,8 +10,11 @@ export type SerializedFavorite = {
   lastModified: string | null;
 };
 
-export async function loadFavorites(userId: string): Promise<SerializedFavorite[]> {
-  const raw = await getFavorites(userId);
+export async function loadFavorites(
+  userId: string,
+  organization: string,
+): Promise<SerializedFavorite[]> {
+  const raw = await getFavorites(userId, organization);
   return raw.map((favorite) => ({
     id: favorite.id,
     connectionId: favorite.connectionId,

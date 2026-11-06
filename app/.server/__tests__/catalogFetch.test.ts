@@ -6,6 +6,10 @@ const { getProviderCatalogMock } = vi.hoisted(() => ({
   getProviderCatalogMock: vi.fn(),
 }));
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
+
 vi.mock("~/.server/providers/providerCatalog.server", () => ({
   getProviderCatalog: getProviderCatalogMock,
 }));
@@ -13,11 +17,11 @@ vi.mock("~/.server/providers/providerCatalog.server", () => ({
 const mockRequestData: HostRequestData = {
   user: {
     sub: "user-123",
-    organization: "testcorp",
     organizationAttributes: {},
     groups: [],
     adminScopes: [],
   } as never,
+  organization: "testcorp",
   identity: undefined,
   authTokens: { accessToken: "access", refreshToken: "refresh", idToken: "id" },
   sessionId: "session-123",

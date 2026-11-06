@@ -1,4 +1,4 @@
-import { type RouteConfig, layout } from "@react-router/dev/routes";
+import { type RouteConfig, layout, prefix, route } from "@react-router/dev/routes";
 
 /** OIDC authentication flow — server-side redirects, no rendered UI, no layout needed. */
 const authRoutes = [
@@ -24,11 +24,24 @@ const authRoutes = [
   },
 ];
 
-/** Main application routes — authenticated, wrapped in protected layout. */
-const appRoutes = [
+/**
+ * Main application routes. Paths are relative to `/:org` — the organization a
+ * view belongs to is the first path segment, so a link is shareable and a
+ * tenant switch is a navigation. `org.layout.tsx` reconciles the alias with the
+ * session before any of these render. An org can never be named after a
+ * reserved top-level route (login, api, recent, …): alias creation refuses
+ * those names, and the reserved list in `utils/orgPath` keeps the layout's
+ * catch-all honest. The org root is the connection list; the object browser is
+ * `/:org/:connectionId/…`.
+ */
+const orgAppRoutes = [
   {
     path: "/",
-    file: "routes/home/home.route.tsx",
+    file: "routes/connections/connections.route.tsx",
+  },
+  {
+    path: ":id/*",
+    file: "routes/objects/objects.route.tsx",
   },
   {
     path: "/recent",
@@ -43,14 +56,6 @@ const appRoutes = [
     file: "routes/config.route.tsx",
   },
   {
-    path: "/connections",
-    file: "routes/connections/connections.layout.tsx",
-    children: [
-      { index: true, file: "routes/connections/connections.route.tsx" },
-      { path: ":id/*", file: "routes/objects/objects.route.tsx" },
-    ],
-  },
-  {
     path: "/plugin/*",
     file: "routes/plugin/plugin.$.tsx",
   },
@@ -60,8 +65,8 @@ const appRoutes = [
   },
 ];
 
-/** Admin routes — scope-gated via adminMiddleware, wrapped in protected layout alongside appRoutes. */
-const adminRoutes = [
+/** Admin routes — scope-gated via adminMiddleware, wrapped in the admin layout. */
+const orgAdminRoutes = [
   layout("routes/layouts/admin.layout.tsx", [
     {
       path: "/admin/users",
@@ -88,24 +93,35 @@ const adminRoutes = [
   ]),
 ];
 
-/** Data endpoints — authenticated, no layout (JSON responses). */
+/**
+ * Data endpoints — authenticated, no layout (JSON responses). Org-scoped
+ * browser endpoints live under `/api/v1/:org/...` (the URL drives the org,
+ * membership-validated by authMiddleware); machine clients (CLI, Cyberduck,
+ * broker, admin-portal) resolve the org from their own single-org tokens and
+ * keep their un-prefixed paths.
+ */
 const apiRoutes = [
   {
-    path: "/api/cyberduck-profile/:id",
+    path: "/api/v1/:org/cyberduck-profile/:id",
     file: "routes/api/cyberduck-profile.$id.ts",
   },
   {
-    path: "/api/provider-catalog",
+    path: "/api/v1/:org/provider-catalog",
     file: "routes/api/provider-catalog.ts",
   },
   {
-    path: "/api/bucket-catalog",
+    path: "/api/v1/:org/bucket-catalog",
     file: "routes/api/bucket-catalog.ts",
   },
-  {
-    path: "/api/plugin/*",
-    file: "routes/api/plugin.$.ts",
-  },
+  // One file, two mounts: org-scoped session endpoints under /api/v1/:org,
+  // org-agnostic carve-outs under /api/plugin. Distinct ids or RR rejects the
+  // duplicate — same pattern the old legacy-redirect layer used.
+  route("/api/v1/:org/plugin/*", "routes/api/plugin.$.ts", {
+    id: "routes/api/plugin-org.$",
+  }),
+  route("/api/plugin/*", "routes/api/plugin.$.ts", {
+    id: "routes/api/plugin-agnostic.$",
+  }),
   {
     path: "/api/broker",
     file: "routes/api/broker.ts",
@@ -115,7 +131,7 @@ const apiRoutes = [
     file: "routes/api/job-grant/callback.ts",
   },
   {
-    path: "/api/job-grant/initiate",
+    path: "/api/v1/:org/job-grant/initiate",
     file: "routes/api/job-grant/initiate.ts",
   },
   {
@@ -130,8 +146,15 @@ const apiRoutes = [
 
 export default [
   ...authRoutes,
-  layout("routes/layouts/protected.layout.tsx", [...appRoutes, ...adminRoutes]),
   ...apiRoutes,
+  layout("routes/layouts/protected.layout.tsx", [
+    layout("routes/layouts/org.layout.tsx", [
+      ...prefix("/:org", [...orgAppRoutes, ...orgAdminRoutes]),
+    ]),
+    // The bare root redirects to the default org (auth first: an
+    // unauthenticated visit takes the login redirect, not a 200 shell).
+    route("/", "routes/rootRedirect.route.ts"),
+  ]),
 
   {
     path: "*",

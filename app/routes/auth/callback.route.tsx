@@ -2,13 +2,15 @@ import { LoaderFunctionArgs, redirect } from "react-router";
 
 import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { getSession } from "~/.server/auth/getSession";
-import { getUserInfo } from "~/.server/auth/getUserInfo";
+import { profileFromAccessToken, resolveActiveOrganization } from "~/.server/auth/getUserInfo";
 import { validateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
+import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import { createLabel } from "~/.server/logging";
 import { cytarioConfig } from "~/config";
 import { type NotificationInput } from "~/utils/notifications";
+import { orgPath } from "~/utils/orgPath";
 
 const label = createLabel("auth-callback", "cyan");
 
@@ -85,15 +87,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return failWithNotification(request, "Authentication failed. Please try again.");
     }
 
-    console.info(`${label} Fetching user info`);
-    const user = await getUserInfo(tokens.access_token);
+    const session = await getSession(request);
+
+    // Derived from the access token issued in this auth-code response —
+    // the refresh path's claim source, no userinfo round-trip.
+    const user = profileFromAccessToken(tokens.access_token);
+    if (!user) {
+      return failWithNotification(request, "Authentication failed. Please try again.");
+    }
 
     const notification: NotificationInput = {
       status: "success",
       message: `Welcome, ${user.email}!`,
     };
 
-    const session = await getSession(request);
     session.set("user", user);
     session.set("authTokens", {
       accessToken: tokens.access_token,
@@ -102,7 +109,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
     session.set("notification", notification);
 
-    const redirectTo = validateRedirectTo(stateData.redirectTo);
+    // The default org for the landing redirect: the persisted preference,
+    // validated against the token's memberships, else the first alias.
+    // Nothing org-flavored is stored on the session; the last-used-org
+    // preference follows the org a later document navigation actually uses.
+    const userSub = idTokenPayload.sub;
+    const preferredOrg =
+      typeof userSub === "string"
+        ? await getPreferredOrg(userSub).catch((error: unknown) => {
+            console.warn(`${label} Org preference lookup failed:`, error);
+            return null;
+          })
+        : null;
+    const defaultOrganization = resolveActiveOrganization(
+      user.organizations,
+      preferredOrg ?? undefined,
+    );
+
+    // Un-prefixed targets land in the default org rather than the 404 fallback.
+    const redirectTo =
+      defaultOrganization && validateRedirectTo(stateData.redirectTo) === "/"
+        ? orgPath(defaultOrganization, "/")
+        : validateRedirectTo(stateData.redirectTo);
     console.info(`${label} Authentication successful, redirecting to:`, redirectTo);
 
     return redirect(redirectTo, {

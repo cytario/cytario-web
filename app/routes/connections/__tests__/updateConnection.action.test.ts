@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { authContext } from "~/.server/auth/authMiddleware";
+import { orgEntitlements } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
@@ -11,6 +12,9 @@ import {
 import { updateAction } from "~/routes/connections/updateConnection.action";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
     connectionConfig: {
@@ -43,7 +47,13 @@ vi.mock("~/routes/connections/connectionGrant.server", async () => {
 
 function buildArgs(user: ReturnType<typeof mock.user>, form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user });
+  ctx.set(authContext, {
+    user,
+    entitlements: orgEntitlements(user, "org1"),
+    sessionId: "session-1",
+    requestOrganization: "org1",
+    authTokens: { accessToken: "access-token" },
+  });
   ctx.set(sessionContext, mock.session({ authTokens: { idToken: "tok" } as never }));
   const request = new Request("http://localhost/connections", {
     method: "POST",
@@ -109,7 +119,9 @@ describe("updateAction — old-bucket revoke on move", () => {
       grants: [mock.connectionGrant({ scope: "org1/lab", accessLevel: "read-write" })],
     } as never);
 
-    const user = mock.user({ adminScopes: ["org1/lab"] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    });
     const result = await updateAction(buildArgs(user, form));
 
     expect(result).toBeInstanceOf(Response);
@@ -134,7 +146,9 @@ describe("updateAction — old-bucket revoke on move", () => {
       grants: [mock.connectionGrant({ scope: "org1/lab/team-a", accessLevel: "read-write" })],
     } as never);
 
-    const user = mock.user({ adminScopes: ["org1/lab"] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    });
     await updateAction(
       buildArgs(user, {
         ...form,
@@ -161,10 +175,17 @@ describe("updateAction — old-bucket revoke on move", () => {
       warning: "catalog gone",
     });
 
-    const user = mock.user({ adminScopes: ["org1/lab"] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    });
     const session = mock.session({ authTokens: { idToken: "tok" } as never });
     const ctx = new Map<unknown, unknown>();
-    ctx.set(authContext, { user });
+    ctx.set(authContext, {
+      user,
+      sessionId: "session-1",
+      requestOrganization: "org1",
+      authTokens: { accessToken: "access-token" },
+    });
     ctx.set(sessionContext, session);
     const request = new Request("http://localhost/connections", {
       method: "POST",

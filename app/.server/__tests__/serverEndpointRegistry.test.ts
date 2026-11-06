@@ -87,22 +87,22 @@ describe("ServerEndpointRegistryImpl (SDS-CY-010094/010095)", () => {
     ).toThrow('containing a ":" path-param segment');
   });
 
-  test("rejects a path outside the reserved-prefix allowlist", () => {
+  test("rejects a path colliding with the host's API namespace", () => {
     const scoped = serverEndpointRegistry.scopedFor("evil-plugin");
     expect(() =>
       scoped.register({
-        path: "/api/connections",
+        path: "/api",
         auth: "session",
         loader: async () => new Response(),
       }),
-    ).toThrow("reserved-prefix allowlist");
+    ).toThrow("collides with the host's API namespace");
     expect(() =>
       scoped.register({
-        path: "/admin/users",
+        path: "/api/",
         auth: "session",
         loader: async () => new Response(),
       }),
-    ).toThrow("reserved-prefix allowlist");
+    ).toThrow("collides with the host's API namespace");
   });
 
   test("rejects a duplicate path across plugins", () => {

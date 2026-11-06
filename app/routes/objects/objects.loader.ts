@@ -45,6 +45,7 @@ export interface BucketRouteLoaderResponse extends BucketRouteServerLoaderRespon
 export const loader = async ({ params, context }: LoaderFunctionArgs) => {
   const {
     user,
+    requestOrganization,
     credentials: connectionsCredentials,
     credentialErrors,
     connectionProviders,
@@ -53,7 +54,7 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
 
   if (!connectionId) throw new Error("Connection id is required");
 
-  const connectionConfig = await getConnection(user, connectionId);
+  const connectionConfig = await getConnection(user, requestOrganization, connectionId);
   if (!connectionConfig) {
     throw new Error("Connection configuration not found");
   }

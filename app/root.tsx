@@ -19,7 +19,7 @@ import {
   type ShouldRevalidateFunction,
 } from "react-router";
 
-import { UserProfile } from "./.server/auth/getUserInfo";
+import { UserProfile, orgEntitlements } from "./.server/auth/getUserInfo";
 import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
@@ -30,6 +30,7 @@ import { cytarioConfig } from "./config";
 import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
 import { toToastVariant, type NotificationInput } from "./utils/notifications";
+import { organizationFromApiPath, organizationFromPath } from "./utils/orgPath";
 
 import "./styles.css";
 import "rc-slider/assets/index.css";
@@ -62,16 +63,23 @@ export const links: LinksFunction = () => [
 export const middleware: MiddlewareFunction[] = [sessionMiddleware];
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
   formAction,
   defaultShouldRevalidate,
 }) => {
   // Only revalidate after form submissions so flash notifications surface.
   if (formAction) return defaultShouldRevalidate;
+  // An organization switch moves the /:org segment; the root loader's user
+  // projection (active org, memberships) must follow or the shell — breadcrumb
+  // root, org-prefixed links — keeps rendering the organization the session
+  // just left.
+  if (currentUrl.pathname.split("/")[1] !== nextUrl.pathname.split("/")[1]) return true;
   return false;
 };
 
 export interface RootLoaderResponse {
-  user?: UserProfile;
+  user?: ClientUser;
   notification?: NotificationInput;
   accountSettingsUrl?: string;
   portalUrl?: string;
@@ -80,9 +88,50 @@ export interface RootLoaderResponse {
   version?: string;
 }
 
-export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
+/**
+ * The browser-side user payload: the profile plus the REQUEST-ORG entitlements
+ * (groups, admin scopes, org attributes) derived at load time from the
+ * membership map, and the alias-only org map (the per-org group paths of the
+ * other memberships stay host-side). This is a response shape, not a
+ * profile: nothing here is ever written back to the session.
+ */
+export interface ClientUser extends UserProfile {
+  groups: string[];
+  adminScopes: string[];
+  organizationAttributes: Readonly<Record<string, readonly string[]>>;
+}
+
+/**
+ * Org map for the browser: every membership's group paths stay host-side
+ * (PII) EXCEPT the request org's — its raw group paths go back into the map
+ * so client-side derivation (canModify in the object browser's admin menu)
+ * resolves real entitlements, admin scopes included, for the org the page
+ * acts in. The same information is already client-visible as
+ * ClientUser.groups/adminScopes; other memberships stay alias-only.
+ */
+function projectOrgAliases(
+  organizations: UserProfile["organizations"] | undefined,
+  urlOrg: string | undefined,
+): UserProfile["organizations"] {
+  const projected: Record<
+    string,
+    { groups: readonly string[]; attributes: Record<string, never> }
+  > = {};
+  for (const alias of Object.keys(organizations ?? {})) {
+    projected[alias] = Object.freeze({
+      groups: Object.freeze(alias === urlOrg ? organizations![alias].groups : []),
+      attributes: Object.freeze({}) as Record<string, never>,
+    });
+  }
+  return Object.freeze(projected) as UserProfile["organizations"];
+}
+
+export const loader = async ({
+  context,
+  request,
+}: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
   const session = context.get(sessionContext);
-  const user = session.get("user");
+  const sessionUser = session.get("user");
   const notification = session.get("notification");
 
   if (notification) {
@@ -90,16 +139,43 @@ export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoade
     await sessionStorage.commitSession(session);
   }
 
-  const accountSettingsUrl = user
+  // The browser receives the REQUEST-ORG entitlements derived here from the
+  // membership map: the groups/admin scopes the client chrome reads
+  // (grant-scope selectors, UserMenu, tours) belong to the org this
+  // document's URL names. The stored profile itself is membership-only —
+  // this payload is a derived view, never round-tripped back to the session.
+  const { pathname } = new URL(request.url);
+  const urlOrg = organizationFromApiPath(pathname) ?? organizationFromPath(pathname);
+  const entitlements =
+    urlOrg && sessionUser?.organizations[urlOrg] ? orgEntitlements(sessionUser, urlOrg) : undefined;
+  const clientUser = sessionUser
+    ? {
+        ...sessionUser,
+        groups: entitlements?.groups ?? [],
+        adminScopes: entitlements?.adminScopes ?? [],
+        organizationAttributes: entitlements?.attributes ?? {},
+        organizations: projectOrgAliases(sessionUser.organizations, urlOrg),
+      }
+    : undefined;
+
+  const accountSettingsUrl = sessionUser
     ? `${cytarioConfig.auth.baseUrl}/account?referrer=${cytarioConfig.auth.clientId}&referrer_uri=${cytarioConfig.endpoints.webapp}`
     : undefined;
 
-  const portalUrl = user ? cytarioConfig.endpoints.portal : undefined;
-  const docsUrl = user ? cytarioConfig.endpoints.docsUrl : undefined;
-  const supportEmail = user ? cytarioConfig.support?.email : undefined;
+  const portalUrl = sessionUser ? cytarioConfig.endpoints.portal : undefined;
+  const docsUrl = sessionUser ? cytarioConfig.endpoints.docsUrl : undefined;
+  const supportEmail = sessionUser ? cytarioConfig.support?.email : undefined;
   const version = process.env.VERSION ?? "unknown";
 
-  return { user, notification, accountSettingsUrl, portalUrl, docsUrl, supportEmail, version };
+  return {
+    user: clientUser,
+    notification,
+    accountSettingsUrl,
+    portalUrl,
+    docsUrl,
+    supportEmail,
+    version,
+  };
 };
 
 // Identity clientLoader. Forces this route off RR's bulk-fetch single-fetch

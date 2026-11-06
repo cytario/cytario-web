@@ -22,7 +22,11 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     return new Response("Connection id is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnection(user, connectionId);
+  const connectionConfig = await getConnection(
+    user,
+    context.get(authContext).requestOrganization,
+    connectionId,
+  );
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }
@@ -91,7 +95,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
           authUrl: `${auth.baseUrl}/protocol/openid-connect/auth`,
           tokenUrl: `${auth.baseUrl}/protocol/openid-connect/token`,
           clientId: auth.cyberduckClientId,
-          scopes: auth.scopes,
+          scopes: auth.externalClientScopes,
           redirectUrl: "x-cyberduck-action:oauth",
         },
       });

@@ -5,10 +5,15 @@ import { createConnection } from "./createConnection.action";
 import { shareFolderSchema } from "./shareFolder.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { assertGrantScope } from "~/routes/admin/assertAdminScope";
+import { orgPath } from "~/utils/orgPath";
 
 /** Create a folder share and apply its bucket-policy grant. Order of
  * enforcement is load-bearing: authorize every SUBMITTED target scope
@@ -17,9 +22,16 @@ import { assertGrantScope } from "~/routes/admin/assertAdminScope";
  * applying the managed grant set (warning, never claiming enforced, when the
  * write is denied). */
 export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId, requestOrganization, entitlements } =
+    context.get(authContext);
   const session = context.get(sessionContext);
-  if (!user.organization) {
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = requestOrganization
+    ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken
+    : "";
+  if (!requestOrganization) {
     throw new Error("Active organization missing from session");
   }
 
@@ -39,12 +51,12 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const data = result.data;
 
   for (const grant of data.grants) {
-    assertGrantScope(grant.scope, user.adminScopes);
+    assertGrantScope(grant.scope, entitlements.adminScopes);
   }
 
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
+    catalog = await getProviderCatalog(requestOrganization, portalAccessToken);
   } catch (error) {
     return {
       formError:
@@ -61,7 +73,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
 
   try {
     const share = await createConnection(
-      user.organization,
+      requestOrganization,
       user.sub,
       {
         name: data.name,
@@ -75,8 +87,12 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
 
     const outcome = await applyGrantsAndRecordStatus(share, {
       user,
-      idToken: session.get("authTokens")?.idToken ?? "",
-      accessToken: session.get("authTokens")?.accessToken ?? "",
+      // The STS mint needs the narrow per-org ID token; the portal lookups the
+      // apply path performs need the narrow access token — the raw session
+      // tokens carry no single org for a multi-org user.
+      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken,
+      accessToken: portalAccessToken,
     });
 
     session.set("notification", {
@@ -87,7 +103,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
           : `Share created. ${outcome.warning}`,
     });
 
-    return redirect(`/connections/${share.id}`, {
+    return redirect(orgPath(requestOrganization, `/${share.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

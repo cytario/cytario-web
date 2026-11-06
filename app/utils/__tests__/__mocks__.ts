@@ -110,10 +110,9 @@ const mock = {
     family_name: "string",
     email: "string",
     policy: ["default-policy"],
-    organization: "org1",
-    organizationAttributes: {},
-    groups: ["org1/lab"],
-    adminScopes: ["org1/lab"],
+    organizations: {
+      org1: { groups: ["org1/lab"], attributes: {} },
+    },
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => {

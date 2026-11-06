@@ -46,8 +46,15 @@ export const middleware = [sessionMiddleware];
 
 const isMutation = (method: string): boolean => method !== "GET" && method !== "HEAD";
 
-function findEndpoint(pathname: string) {
-  return serverEndpointRegistry.list().find((entry) => entry.contribution.path === pathname);
+/** The plugin-relative remainder under `/api/plugin` (org-agnostic carve-outs). */
+function relativeUnderCarveOutPrefix(pathname: string): string {
+  return pathname.slice("/api/plugin".length) || "/";
+}
+
+/** The plugin-relative remainder under `/api/v1/{org}/plugin`. */
+function relativeUnderOrgPrefix(pathname: string): string {
+  const withoutVersion = pathname.replace(/^\/api\/v1\/[^/]+/, "");
+  return withoutVersion.slice("/plugin".length) || "/";
 }
 
 const notFound = () => jsonError(404, "Not Found");
@@ -61,8 +68,8 @@ async function dispatchSession(
   // unknown); runtime always yields a Response — redirect, gate deny,
   // logout, or the plugin handler's return.
   const result = (await authMiddleware(args, async () => {
-    const { user } = args.context.get(authContext);
-    const identity = toIdentity(user);
+    const { user, requestOrganization } = args.context.get(authContext);
+    const identity = toIdentity(user, requestOrganization);
     const handler = isMutation(args.request.method) ? contribution.action : contribution.loader;
     if (!handler) return notFound();
     return handler({ request: args.request, params, identity });
@@ -112,23 +119,40 @@ async function dispatchCarveOut(
 }
 
 export async function loader(args: LoaderFunctionArgs): Promise<Response> {
-  const pathname = new URL(args.request.url).pathname;
-  const entry = findEndpoint(pathname);
+  const { entry, params } = resolve(args);
   if (!entry) return notFound();
   const { contribution } = entry;
-  const params: Record<string, string | undefined> = args.params;
   return contribution.auth === "session"
     ? dispatchSession(args, contribution, params)
     : dispatchCarveOut(args, contribution, params);
 }
 
 export async function action(args: ActionFunctionArgs): Promise<Response> {
-  const pathname = new URL(args.request.url).pathname;
-  const entry = findEndpoint(pathname);
+  const { entry, params } = resolve(args);
   if (!entry) return notFound();
   const { contribution } = entry;
-  const params: Record<string, string | undefined> = args.params;
   return contribution.auth === "session"
     ? dispatchSession(args, contribution, params)
     : dispatchCarveOut(args, contribution, params);
+}
+
+/**
+ * Which registered endpoint this request addresses. The route is mounted at
+ * TWO paths: `/api/v1/:org/plugin/*` (org-scoped — session endpoints, the
+ * org validated by `authMiddleware` via the URL segment) and `/api/plugin/*`
+ * (org-agnostic — carve-out endpoints whose callers carry no session). A
+ * session contribution is only ever reachable through the org-prefixed mount,
+ * and a carve-out only through the plain one.
+ */
+function resolve(args: LoaderFunctionArgs | ActionFunctionArgs) {
+  const pathname = new URL(args.request.url).pathname;
+  const orgScoped = /^\/api\/v1\/[^/]+\/plugin(\/|$)/.test(pathname);
+  const relative = orgScoped
+    ? relativeUnderOrgPrefix(pathname)
+    : relativeUnderCarveOutPrefix(pathname);
+  const entry = orgScoped
+    ? serverEndpointRegistry.findOrgScoped(relative)
+    : serverEndpointRegistry.findOrgAgnostic(relative);
+  const params = { ...args.params, __pluginPath: relative };
+  return { entry, params };
 }
