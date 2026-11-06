@@ -55,9 +55,13 @@ export function orgPath(organization: string | undefined, path: string): string 
  * organization context. Reserved top-level routes are never organizations.
  */
 export function organizationFromPath(pathname: string): string | undefined {
-  const match = ORG_PATH_PATTERN.exec(stripSingleFetchSuffix(pathname));
+  // Strip the single-fetch suffix first so the reserved-root check and the
+  // alias read see the same pathname: `/recent.data` must resolve to the
+  // reserved `/recent`, not to an org alias "recent.data"-adjacent shape.
+  const documentPathname = stripSingleFetchSuffix(pathname);
+  const match = ORG_PATH_PATTERN.exec(documentPathname);
   const alias = match?.[1];
-  if (!alias || isReservedRoot(pathname)) return undefined;
+  if (!alias || isReservedRoot(documentPathname)) return undefined;
   try {
     return decodeURIComponent(alias);
   } catch {
@@ -112,5 +116,10 @@ export function stripSingleFetchSuffix(pathname: string): string {
  */
 export function organizationFromApiPath(pathname: string): string | undefined {
   const match = /^\/api\/v1\/([^/]+)(?:\/|$)/.exec(pathname);
-  return match ? decodeURIComponent(match[1]) : undefined;
+  if (!match) return undefined;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
 }

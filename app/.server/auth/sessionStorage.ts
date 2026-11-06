@@ -138,5 +138,10 @@ export const sessionStorage = createSessionStorage<SessionData, SessionFlashData
   async deleteData(id) {
     console.info(`${label} Delete: ${id}`);
     await redis.hdel(id, "data", EPOCH_FIELD);
+    // A logged-out session must not keep resolving on this replica from the
+    // process cache: the LRU keys on (id, epoch), so drop every epoch's copy.
+    for (const key of sessionCache.keys()) {
+      if (key.startsWith(`${id}:`)) sessionCache.delete(key);
+    }
   },
 });

@@ -249,15 +249,3 @@ async function getOrExchangeOrgScopedToken(
 export function __resetOrgTokenCache(): void {
   tokenCache.clear();
 }
-
-/**
- * Drops this process's cached narrow tokens for `alias`. An org switch must
- * not keep serving the switched-away org's tokens from cache — revocation
- * and membership changes then propagate to this replica's next mint for
- * that org immediately, not at the cached token's expiry.
- */
-export function __dropOrgTokenCacheFor(sessionId: string, alias: string): void {
-  for (const type of ["id-token", "access-token"] as const) {
-    tokenCache.delete(cacheKey(sessionId, alias, type));
-  }
-}

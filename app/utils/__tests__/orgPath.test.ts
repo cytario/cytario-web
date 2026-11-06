@@ -1,6 +1,12 @@
 import { describe, expect, test } from "vitest";
 
-import { organizationFromPath, orgPath, stripOrgPath, switchOrgPath } from "../orgPath";
+import {
+  organizationFromApiPath,
+  organizationFromPath,
+  orgPath,
+  stripOrgPath,
+  switchOrgPath,
+} from "../orgPath";
 
 describe("orgPath", () => {
   test("prefixes an app path with the organization", () => {
@@ -46,6 +52,11 @@ describe("organizationFromPath", () => {
     expect(organizationFromPath("/api/broker")).toBeUndefined();
     expect(organizationFromPath("/recent")).toBeUndefined();
     expect(organizationFromPath("/")).toBeUndefined();
+    // The reserved check runs on the suffix-stripped pathname: the
+    // revalidation form of a reserved route stays reserved.
+    expect(organizationFromPath("/recent.data")).toBeUndefined();
+    expect(organizationFromPath("/recent/_.data")).toBeUndefined();
+    expect(organizationFromPath("/config.data")).toBeUndefined();
   });
 });
 
@@ -102,5 +113,22 @@ describe("single-fetch revalidation URLs", () => {
     expect(organizationFromPath("/second")).toBe("second");
     expect(organizationFromPath("/second/")).toBe("second");
     expect(organizationFromPath("/recent")).toBeUndefined();
+  });
+});
+
+describe("organizationFromApiPath", () => {
+  test("reads the org out of /api/v1/{org}/...", () => {
+    expect(organizationFromApiPath("/api/v1/acme/provider-catalog")).toBe("acme");
+    expect(organizationFromApiPath("/api/v1/team%20alpha/plugin/run")).toBe("team alpha");
+  });
+
+  test("is undefined outside the org-scoped data plane", () => {
+    expect(organizationFromApiPath("/api/plugin/run")).toBeUndefined();
+    expect(organizationFromApiPath("/api/broker")).toBeUndefined();
+    expect(organizationFromApiPath("/acme/recent")).toBeUndefined();
+  });
+
+  test("a malformed percent-escape degrades to the raw segment instead of throwing", () => {
+    expect(organizationFromApiPath("/api/v1/ac%zzme/provider-catalog")).toBe("ac%zzme");
   });
 });

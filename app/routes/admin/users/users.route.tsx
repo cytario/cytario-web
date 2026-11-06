@@ -269,7 +269,7 @@ export default function AdminUsersRoute() {
               {connections.map((conn) => (
                 <li key={conn.name}>
                   <Link
-                    to={orgPath(`/connections/${encodeURIComponent(conn.name)}`)}
+                    to={orgPath(`/${encodeURIComponent(conn.id)}`)}
                     className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:border-border hover:bg-white transition-colors"
                   >
                     <span className="h-2 w-2 rounded-full bg-success shrink-0" />
