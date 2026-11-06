@@ -2,7 +2,13 @@ import { decodeJwt, type JWTPayload } from "jose";
 import { z } from "zod";
 
 import type { Identity } from "@cytario/plugin-api";
-import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { type OrgEntitlements, normalizeGroup, orgEntitlements } from "~/utils/authorization";
+
+// The entitlements derivation is pure domain logic over the membership map
+// and lives in client-shared code (app/utils/authorization.ts); re-exported
+// here so the auth pipeline's existing importers keep their import site.
+export type { OrgEntitlements };
+export { orgEntitlements };
 
 // Accept any value shape (`unknown`) so a Keycloak mapper quirk can't throw
 // out of the whole parse and break login; only `groups` is consumed — other
@@ -62,10 +68,6 @@ const EMAIL_SHAPED = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ATTR_VALUE_BYTES = 256;
 const attrEncoder = new TextEncoder();
 
-function normalizeGroup(group: string): string {
-  return group.replace(/^\//, "");
-}
-
 type OrganizationEntry = NonNullable<UserProfileRaw["organization"]>[string];
 
 /** Drop non-string, oversized (>256B), and email-shaped values (host hygiene). */
@@ -112,22 +114,6 @@ function normalizeOrganizations(claim: UserProfileRaw["organization"]): Organiza
   return Object.freeze(organizations);
 }
 
-interface GroupDerivation {
-  groups: string[];
-  adminScopes: string[];
-}
-
-// Root `/admins` becomes the `*` admin scope — "admin of every owner scope in
-// this org", still bounded by the tenant check (no cross-org power).
-function deriveGroupScopes(rawGroups: readonly string[]): GroupDerivation {
-  const allGroups = rawGroups.map(normalizeGroup);
-  const adminScopes = allGroups
-    .filter((g) => g === "admins" || g.endsWith("/admins"))
-    .map((g) => (g === "admins" ? ORG_ROOT_SCOPE : g.replace(/\/admins$/, "")));
-  const groups = allGroups.filter((g) => g !== "admins" && !g.endsWith("/admins"));
-  return { groups, adminScopes };
-}
-
 /**
  * Deterministic active-org pick: the caller's preferred alias (last used) when
  * the token still carries that membership, else the first alias alphabetically.
@@ -140,44 +126,6 @@ export function resolveActiveOrganization(
   const aliases = Object.keys(organizations).sort();
   if (preferredAlias && aliases.includes(preferredAlias)) return preferredAlias;
   return aliases[0];
-}
-
-/**
- * The org-scoped entitlements a request acts with: derived from the
- * membership map at use, never stored on a profile. Empty (fail closed)
- * when the profile carries no membership for `organization`.
- */
-export interface OrgEntitlements {
-  groups: string[];
-  adminScopes: string[];
-  attributes: Readonly<Record<string, readonly string[]>>;
-}
-
-const EMPTY_ENTITLEMENTS: OrgEntitlements = {
-  groups: [],
-  adminScopes: [],
-  attributes: Object.freeze({}),
-};
-
-/**
- * The single derivation seam: splits the org's membership into non-admin
- * group paths and admin scopes (root `/admins` → the `*` org scope), with
- * the membership's frozen attributes. An org the profile is not a member of
- * yields empty entitlements — a request can never carry one tenant's
- * entitlements under another's alias.
- */
-export function orgEntitlements(
-  user: UserProfile,
-  organization: string | undefined,
-): OrgEntitlements {
-  const membership = organization ? user.organizations[organization] : undefined;
-  if (!membership) return EMPTY_ENTITLEMENTS;
-  const { groups, adminScopes } = deriveGroupScopes(membership.groups);
-  return {
-    groups,
-    adminScopes,
-    attributes: membership.attributes,
-  };
 }
 
 function enrichUserProfile(raw: UserProfileRaw): UserProfile {

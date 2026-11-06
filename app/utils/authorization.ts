@@ -1,5 +1,4 @@
 import type { UserProfile } from "~/.server/auth/getUserInfo";
-import { orgEntitlements } from "~/.server/auth/getUserInfo";
 
 /**
  * Sentinel scope representing the active organization as a whole: as an
@@ -9,6 +8,69 @@ import { orgEntitlements } from "~/.server/auth/getUserInfo";
  * `createGroupSchema`).
  */
 export const ORG_ROOT_SCOPE = "*";
+
+/** Strips the leading slash Keycloak group paths carry. */
+export function normalizeGroup(group: string): string {
+  return group.replace(/^\//, "");
+}
+
+interface GroupDerivation {
+  groups: string[];
+  adminScopes: string[];
+}
+
+// Root `/admins` becomes the `*` admin scope — "admin of every owner scope in
+// this org", still bounded by the tenant check (no cross-org power).
+function deriveGroupScopes(rawGroups: readonly string[]): GroupDerivation {
+  const allGroups = rawGroups.map(normalizeGroup);
+  const adminScopes = allGroups
+    .filter((g) => g === "admins" || g.endsWith("/admins"))
+    .map((g) => (g === "admins" ? ORG_ROOT_SCOPE : g.replace(/\/admins$/, "")));
+  const groups = allGroups.filter((g) => g !== "admins" && !g.endsWith("/admins"));
+  return { groups, adminScopes };
+}
+
+/**
+ * The org-scoped entitlements a request acts with: derived from the
+ * membership map at use, never stored on a profile. Empty (fail closed)
+ * when the profile carries no membership for `organization`.
+ */
+export interface OrgEntitlements {
+  groups: string[];
+  adminScopes: string[];
+  attributes: Readonly<Record<string, readonly string[]>>;
+}
+
+const EMPTY_ENTITLEMENTS: OrgEntitlements = {
+  groups: [],
+  adminScopes: [],
+  attributes: Object.freeze({}),
+};
+
+/**
+ * The single derivation seam: splits the org's membership into non-admin
+ * group paths and admin scopes (root `/admins` → the `*` org scope), with
+ * the membership's frozen attributes. An org the profile is not a member of
+ * yields empty entitlements — a request can never carry one tenant's
+ * entitlements under another's alias.
+ *
+ * Lives here, in client-shared code, deliberately: the derivation is pure
+ * domain logic over the membership map (no IO, no tokens), and the client
+ * graph must be able to reach it — server-only modules are one-directional.
+ */
+export function orgEntitlements(
+  user: UserProfile,
+  organization: string | undefined,
+): OrgEntitlements {
+  const membership = organization ? user.organizations[organization] : undefined;
+  if (!membership) return EMPTY_ENTITLEMENTS;
+  const { groups, adminScopes } = deriveGroupScopes(membership.groups);
+  return {
+    groups,
+    adminScopes,
+    attributes: membership.attributes,
+  };
+}
 
 /**
  * A resource names its intra-org owner scope either as `ownerScope` (users,
