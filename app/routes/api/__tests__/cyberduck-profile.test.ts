@@ -58,7 +58,7 @@ function buildArgs(user: ReturnType<typeof mock.user>, connectionId = "conn-uuid
   const ctx = new Map<unknown, unknown>();
   ctx.set(authContext, { user, authTokens: { accessToken: "t", idToken: "t" } });
   return {
-    request: new Request(`http://localhost/api/cyberduck-profile/${connectionId}`),
+    request: new Request(`http://localhost/api/v1/org1/cyberduck-profile/${connectionId}`),
     params: { id: connectionId },
     context: { get: (k: unknown) => ctx.get(k), set: (k: unknown, v: unknown) => ctx.set(k, v) },
   } as unknown as Parameters<typeof loader>[0];

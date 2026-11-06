@@ -444,6 +444,48 @@ describe("authMiddleware", () => {
       expect(result.status).toBe(302);
       expect((result as Response & { url: string }).url).toBe("/alpha/recent");
     });
+
+    test("an un-prefixed legacy path (reserved first segment) redirects to the default org, never serves in it", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+
+      // /recent matches the /:org subtree with org="recent" — a reserved
+      // word, not a membership. The request must not act in the default org
+      // at this URL; it redirects with the org-agnostic tail kept.
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({ org: "recent" }, true, request, new URL(request.url));
+      const result = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(result.status).toBe(302);
+      expect((result as Response & { url: string }).url).toBe("/alpha/recent");
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(listConnections).not.toHaveBeenCalled();
+    });
+
+    test("the bare root passes through to the redirect route (params carry no org)", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+
+      // "/" matches rootRedirect, not the /:org subtree: no params.org, no
+      // redirect here — the route's own loader lands the user in the default.
+      const request = new Request("http://localhost/");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(redirect).not.toHaveBeenCalledWith(
+        expect.stringContaining("/alpha"),
+        expect.anything(),
+      );
+      expect(mockNext).toHaveBeenCalled();
+    });
   });
 
   describe("Token Refresh Flow", () => {

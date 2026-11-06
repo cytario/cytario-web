@@ -102,7 +102,7 @@ const orgAdminRoutes = [
  */
 const apiRoutes = [
   {
-    path: "/api/cyberduck-profile/:id",
+    path: "/api/v1/:org/cyberduck-profile/:id",
     file: "routes/api/cyberduck-profile.$id.ts",
   },
   {

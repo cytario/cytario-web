@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useSearchParams } from "react-router";
 
 import { RouteModal } from "~/components/RouteModal";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
@@ -16,6 +17,11 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
   const connection = useConnectionsStore(
     connectionId ? select.connection(connectionId) : () => undefined,
   );
+  // The profile download targets the org-scoped data plane: the acting org is
+  // the page's URL org, never a session-derived default. connectionId is
+  // non-null here — the modal renders nothing without it.
+  const orgApiPath = useOrgPath();
+  const profileHref = `/api/v1${orgApiPath(`/cyberduck-profile/${encodeURIComponent(connectionId!)}`)}`;
 
   const handleClose = useCallback(() => {
     setSearchParams(
@@ -63,13 +69,7 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
         </ol>
       </div>
 
-      <ButtonLink
-        href={`/api/cyberduck-profile/${connectionId}`}
-        variant="primary"
-        size="lg"
-        iconLeft="Download"
-        download
-      >
+      <ButtonLink href={profileHref} variant="primary" size="lg" iconLeft="Download" download>
         Download Cyberduck Profile
       </ButtonLink>
     </RouteModal>

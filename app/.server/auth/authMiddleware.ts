@@ -329,7 +329,10 @@ const proceedAuthenticated = async (
   );
 };
 
-export const authMiddleware: MiddlewareFunction = async ({ request, url, context }, next) => {
+export const authMiddleware: MiddlewareFunction = async (
+  { request, url, context, params },
+  next,
+) => {
   console.info(`${label} ${request.method} ${request.url}`);
 
   const session = context.get(sessionContext);
@@ -358,7 +361,13 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
     return gateResponse;
   }
   const urlOrg = organizationFromApiPath(url.pathname) ?? organizationFromPath(url.pathname);
-  if (urlOrg && urlOrg !== requestOrganization) {
+  // A path under the /:org subtree whose first segment is NOT a membership
+  // alias: either a foreign org, or a reserved word (a legacy un-prefixed
+  // path like /recent that the catch-all matched as org="recent"). The
+  // matched route's params carry that raw segment; both cases degrade to
+  // "you are here" — the request never acts in an org its URL doesn't name.
+  const pathOrg = urlOrg ?? params.org;
+  if (pathOrg && pathOrg !== requestOrganization) {
     // Not a member (or the token no longer carries it) — degrade to "you are
     // here" instead of a 403, keeping org-agnostic sub-paths (a reserved
     // route like /recent) and dropping tenant-scoped ones (a connection id
@@ -370,7 +379,7 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
     const to = target
       ? `${orgPath(target, keepTail ? subPath : "/")}${keepTail ? url.search : ""}`
       : "/onboarding";
-    const message = `You don't have access to the organization "${urlOrg}" — showing "${target ?? "onboarding"}" instead.`;
+    const message = `You don't have access to the organization "${pathOrg}" — showing "${target ?? "onboarding"}" instead.`;
     session.set("notification", { status: "warning", message });
     let setCookie: string | undefined;
     try {

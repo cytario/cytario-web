@@ -29,8 +29,10 @@ describe("route table", () => {
     expect(match("/onboarding")).toEqual(["routes/onboarding.route.tsx"]);
     expect(match("/api/broker")).toEqual(["routes/api/broker.ts"]);
     // Un-prefixed app paths are NOT organizations: the router's /:org
-    // catch-all still matches them, and the org layout's membership check
-    // redirects — never a platform route render.
+    // catch-all still matches them (params.org = the reserved word), and
+    // authMiddleware redirects to the default org with the org-agnostic
+    // tail kept — never a platform route render, never a default-org page
+    // served at an org-less URL.
     expect(match("/recent")).toContain("routes/layouts/org.layout.tsx");
   });
 
@@ -40,6 +42,11 @@ describe("route table", () => {
     expect(match("/api/v1/acme/provider-catalog")).toEqual(["routes/api/provider-catalog.ts"]);
     expect(match("/api/v1/acme/bucket-catalog")).toEqual(["routes/api/bucket-catalog.ts"]);
     expect(match("/api/v1/acme/job-grant/initiate")).toEqual(["routes/api/job-grant/initiate.ts"]);
+    // The cyberduck profile download is org-scoped like the rest of the
+    // data plane: the acting org is the browsing org, never a session default.
+    expect(match("/api/v1/acme/cyberduck-profile/conn-1")).toEqual([
+      "routes/api/cyberduck-profile.$id.ts",
+    ]);
     // The callback stays un-prefixed: the Keycloak job-broker client
     // registers exactly that one redirect URI, and the acting org comes from
     // the pending submission, not the URL.
