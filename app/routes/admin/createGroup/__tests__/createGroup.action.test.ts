@@ -109,6 +109,36 @@ describe("createGroupAction", () => {
     });
   });
 
+  test("persists the ORG-NEUTRAL profile even when the token carries a group", async () => {
+    // The stored session user must never carry one org's projection: the
+    // request-org groups are applied per request by authMiddleware. A
+    // pre-fix version of this action persisted the projected profile here.
+    vi.mocked(createGroup).mockResolvedValue({
+      id: "new-id",
+      path: "cytario/lab/Ultivue",
+      adminsGroupId: "admins-id",
+      orgId: "org-uuid",
+    });
+    vi.mocked(profileFromTokenClaims).mockReturnValue({
+      sub: "user-123",
+      organizations: { cytario: { groups: ["cytario/lab"], attributes: {} } },
+      adminScopes: [],
+      groups: [],
+    } as never);
+
+    await callAction(makeRequest("Ultivue"), makeContext());
+
+    const stored = vi
+      .mocked(mockSession.set)
+      .mock.calls.find((call) => call[0] === "user")?.[1] as {
+      groups: string[];
+      adminScopes: string[];
+    };
+    expect(stored).toBeDefined();
+    expect(stored.groups).toEqual([]);
+    expect(stored.adminScopes).toEqual([]);
+  });
+
   test("returns field errors for invalid name", async () => {
     const result = await callAction(makeRequest(""), makeContext());
 

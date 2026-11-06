@@ -276,13 +276,17 @@ describe("authMiddleware", () => {
   });
 
   describe("Default organization (derived when the URL names none)", () => {
+    // Org-neutral stored profile, like the real session shape (enrichUserProfile
+    // clears the projection): the default-org derivation reads the membership
+    // map only.
     const multiOrgUser = () =>
       mock.user({
         organizations: {
           alpha: { groups: ["lab"], attributes: {} },
           zeta: { groups: ["research"], attributes: {} },
         },
-        groups: ["lab"],
+        groups: [],
+        adminScopes: [],
       });
 
     test("the persisted preference wins when the token still carries it", async () => {
@@ -344,13 +348,17 @@ describe("authMiddleware", () => {
   });
 
   describe("Request organization (URL drives org)", () => {
+    // The STORED profile is org-neutral: memberships only, no projected
+    // groups — the request-org projection is derived per request from the
+    // membership map, never read from the session user.
     const multiOrgUser = () =>
       mock.user({
         organizations: {
           alpha: { groups: ["lab"], attributes: {} },
           zeta: { groups: ["research"], attributes: {} },
         },
-        groups: ["lab"],
+        groups: [],
+        adminScopes: [],
       });
 
     test("a URL naming another membership is the request org — no session re-scope", async () => {
