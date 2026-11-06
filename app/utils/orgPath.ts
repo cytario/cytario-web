@@ -76,14 +76,27 @@ export function stripOrgPath(pathname: string): string {
   return match?.[2] ?? "/";
 }
 
+const ORG_AGNOSTIC_ROOT_SET = new Set<string>([
+  "/recent",
+  "/favorites",
+  "/config",
+  "/plugin",
+  "/agent",
+  "/admin",
+]);
+
 /**
  * Whether `subPath` (already org-stripped) names a view that exists in every
- * organization — a reserved route such as `/recent` or `/admin/users`. A
- * connection id or object path does not: it belongs to the tenant it lives
- * in, so redirecting it into another organization would land on a 404.
+ * organization — the org-agnostic views that render under /:org (recent,
+ * favorites, config, plugin pages, admin). A reserved name that is NOT an
+ * org-agnostic view (`/connections` — the legacy name for the org root; no
+ * /:org/connections route exists — or a platform route like /login) must NOT
+ * be carried into another org's URL: the tail would land on the
+ * object-browser catch-all and 404/500. A connection id or object path is
+ * tenant-scoped the same way — it belongs to the tenant it lives in.
  */
 export function isOrgAgnosticPath(subPath: string): boolean {
-  return isReservedRoot(subPath);
+  return ORG_AGNOSTIC_ROOT_SET.has(`/${subPath.split("/").filter(Boolean)[0] ?? ""}`);
 }
 
 /**
