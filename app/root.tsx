@@ -101,9 +101,17 @@ export interface ClientUser extends UserProfile {
   organizationAttributes: Readonly<Record<string, readonly string[]>>;
 }
 
-/** Alias-only org map: `{ acme: { groups: [...] } }` → `{ acme: { groups: [] } }`. */
+/**
+ * Org map for the browser: every membership's group paths stay host-side
+ * (PII) EXCEPT the request org's — its raw group paths go back into the map
+ * so client-side derivation (canModify in the object browser's admin menu)
+ * resolves real entitlements, admin scopes included, for the org the page
+ * acts in. The same information is already client-visible as
+ * ClientUser.groups/adminScopes; other memberships stay alias-only.
+ */
 function projectOrgAliases(
   organizations: UserProfile["organizations"] | undefined,
+  urlOrg: string | undefined,
 ): UserProfile["organizations"] {
   const projected: Record<
     string,
@@ -111,7 +119,7 @@ function projectOrgAliases(
   > = {};
   for (const alias of Object.keys(organizations ?? {})) {
     projected[alias] = Object.freeze({
-      groups: Object.freeze([]),
+      groups: Object.freeze(alias === urlOrg ? organizations![alias].groups : []),
       attributes: Object.freeze({}) as Record<string, never>,
     });
   }
@@ -146,7 +154,7 @@ export const loader = async ({
         groups: entitlements?.groups ?? [],
         adminScopes: entitlements?.adminScopes ?? [],
         organizationAttributes: entitlements?.attributes ?? {},
-        organizations: projectOrgAliases(sessionUser.organizations),
+        organizations: projectOrgAliases(sessionUser.organizations, urlOrg),
       }
     : undefined;
 
