@@ -21,8 +21,8 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps) {
-  // The URL's org, not the session user's — the pointer lags behind a switch
-  // and would link the admin views of the previous org.
+  // The URL's org (useActiveOrg reads the /:org segment first) — the org this
+  // page acts in, so the admin links follow the tenant the user is viewing.
   const organization = useActiveOrg();
   return (
     <Menu

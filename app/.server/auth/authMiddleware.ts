@@ -394,9 +394,11 @@ export const authMiddleware: MiddlewareFunction = async (
     return noOrganizationResponse(request, url.pathname);
   }
 
-  // The pointer follows the org a document navigation actually used — it
-  // seeds the login default and the org-agnostic fallback. Background data
-  // fetches (.data, keep-alive revalidations) must not fight over it.
+  // The last-used-org preference follows the org a document navigation
+  // actually used — it seeds the login default and the org-agnostic fallback.
+  // Background data fetches (.data, keep-alive revalidations) must not write
+  // it: one tab's fetch would silently move another tab's next org-less
+  // navigation.
   const isDataFetch =
     url.pathname.endsWith(".data") ||
     request.headers.get("accept")?.includes("application/json") === true;

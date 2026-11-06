@@ -354,17 +354,17 @@ describe("authMiddleware", () => {
       });
 
     test("a URL naming another membership is the request org — no session re-scope", async () => {
-      // The session pointer sits on alpha; the URL names zeta. The request
-      // acts in zeta (profile projected, credentials sliced) WITHOUT moving
-      // the session pointer for a data fetch.
+      // The preference seeds alpha as the default; the URL names zeta. The
+      // request acts in zeta (identity derived, credentials sliced) WITHOUT
+      // recording zeta as the last-used org for a background fetch.
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
         user: multiOrgUser(),
         credentials: { alpha: { "alpha-conn": mock.credentials() }, zeta: {} },
       });
 
-      // A keep-alive-style background revalidation (.data): re-scopes the
-      // request but must not fight over the preference pointer.
+      // A keep-alive-style background revalidation (.data): acts in the
+      // URL's org but must not write the last-used-org preference.
       const dataUrl = new URL(
         `http://localhost/zeta/connections?_routes=layouts%2Fprotected.layout`,
       );
@@ -381,11 +381,11 @@ describe("authMiddleware", () => {
         }),
       );
       expect(mockNext).toHaveBeenCalled();
-      // The pointer was NOT moved for this background fetch.
+      // The preference was NOT recorded for this background fetch.
       expect(setPreferredOrg).not.toHaveBeenCalledWith("mock-user-id", "zeta");
     });
 
-    test("a document navigation to another membership moves the preference pointer", async () => {
+    test("a document navigation to another membership records the last-used-org preference", async () => {
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
         user: multiOrgUser(),
@@ -943,7 +943,7 @@ describe("authMiddleware", () => {
       // Mirrors a method-aware read-only gate: deny writes, continue on reads.
       vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
 
-      // A reserved-root path — no org in the URL, the pointer drives.
+      // A reserved-root path — no org in the URL, the derived default drives.
       const args = createMiddlewareArgs(
         {},
         true,

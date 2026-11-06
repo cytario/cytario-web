@@ -111,8 +111,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // The default org for the landing redirect: the persisted preference,
     // validated against the token's memberships, else the first alias.
-    // Nothing org-flavored is stored on the session; the preference pointer
-    // follows the org a later document navigation actually uses.
+    // Nothing org-flavored is stored on the session; the last-used-org
+    // preference follows the org a later document navigation actually uses.
     const userSub = idTokenPayload.sub;
     const preferredOrg =
       typeof userSub === "string"

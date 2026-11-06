@@ -7,8 +7,9 @@ import { UserMenu } from "~/components/UserMenu";
 import type { ClientUser } from "~/root";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
-// UserMenu resolves the URL's org (useActiveOrg) with a pointer fallback via
-// useCurrentUser; the root-loader read needs a data router, so mock it.
+// UserMenu resolves the URL's org (useActiveOrg), falling back to the
+// membership map via useCurrentUser; the root-loader read needs a data
+// router, so mock it.
 vi.mock("~/hooks/useCurrentUser", () => ({
   useCurrentUser: vi.fn(() => undefined),
 }));

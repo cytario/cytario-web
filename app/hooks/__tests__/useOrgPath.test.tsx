@@ -20,8 +20,8 @@ afterEach(() => {
 
 describe("useActiveOrg / useOrgPath", () => {
   test("the URL's org segment wins over any other source", () => {
-    // A tab switched to /zeta while the preference still says alpha: links
-    // must be built for zeta, not the stale pointer org.
+    // A tab switched to /zeta while the last-used-org preference still says
+    // alpha: links must be built for zeta — the URL is authoritative.
     mockUser({ alpha: { groups: [] }, zeta: { groups: [] } });
 
     const { result: active } = renderHook(() => useActiveOrg(), {
