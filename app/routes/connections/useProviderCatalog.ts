@@ -19,15 +19,21 @@ interface CatalogState {
  * outright.
  */
 export function useProviderCatalog(): CatalogState {
-  const [state, setState] = useState<CatalogState>({ loading: true });
   const organization = useParams().org;
+  const [state, setState] = useState<CatalogState>(() =>
+    // The forms that mount this hook always render under /:org. If the param
+    // is somehow absent, fail closed without fetching: the org-less path is
+    // not a route.
+    organization
+      ? { loading: true }
+      : { error: "Provider catalog is unavailable.", loading: false },
+  );
 
   useEffect(() => {
+    if (!organization) return;
     const controller = new AbortController();
     // Org-scoped data plane: the org is a path segment under /api/v1.
-    const url = organization
-      ? `/api/v1/${encodeURIComponent(organization)}/provider-catalog`
-      : "/api/provider-catalog";
+    const url = `/api/v1/${encodeURIComponent(organization)}/provider-catalog`;
     fetch(url, { signal: controller.signal })
       .then((res) => res.json())
       .then((body: { catalog?: ClientProviderCatalog; error?: string }) => {

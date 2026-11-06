@@ -27,22 +27,6 @@ function renderHookAt(path: string): { states: State[] } {
 }
 
 describe("useProviderCatalog", () => {
-  test("loads the catalog from the api route without an org segment", async () => {
-    const catalog = toClientCatalog(mock.providerCatalog());
-    const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ catalog }) });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { states } = renderHookAt("/");
-    await waitFor(() => expect(states.at(-1)?.loading).toBe(false));
-
-    expect(states.at(-1)?.catalog).toEqual(catalog);
-    expect(states.at(-1)?.error).toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/provider-catalog",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-  });
-
   test("appends the page's org under a /:org route", async () => {
     const catalog = toClientCatalog(mock.providerCatalog());
     const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ catalog }) });
@@ -89,7 +73,7 @@ describe("useProviderCatalog", () => {
   test("maps a network failure to an error state", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
-    const { states } = renderHookAt("/");
+    const { states } = renderHookAt("/zeta");
     await waitFor(() => expect(states.at(-1)?.loading).toBe(false));
 
     expect(states.at(-1)?.error).toBe("offline");

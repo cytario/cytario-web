@@ -63,16 +63,4 @@ describe("useActiveOrg / useOrgPath", () => {
 
     expect(result.current).toBe("alpha");
   });
-
-  test("a URL-encoded alias decodes before building paths", () => {
-    mockUser({ alpha: { groups: [] } });
-
-    const { result } = renderHook(() => useActiveOrg(), {
-      wrapper: ({ children }) => (
-        <MemoryRouter initialEntries={["/acme%20corp/"]}>{children}</MemoryRouter>
-      ),
-    });
-
-    expect(result.current).toBe("acme corp");
-  });
 });

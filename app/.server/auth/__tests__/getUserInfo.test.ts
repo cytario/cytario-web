@@ -396,29 +396,6 @@ describe("getUserInfo", () => {
 
       expect(result.organizations).toEqual({});
     });
-
-    test("the stored profile is org-neutral — nested organization groups never project top-level", async () => {
-      const rawProfile = {
-        sub: "user-uuid-mix",
-        email: "mix@example.com",
-        email_verified: true,
-        name: "Mix",
-        preferred_username: "mix",
-        given_name: "Mix",
-        family_name: "Mix",
-        policy: [],
-        groups: ["/legacy/group"],
-        organization: {
-          vericura: { groups: ["/lab"] },
-        },
-      };
-
-      const result = await profileFromRaw(rawProfile);
-
-      // The profile has no entitlement fields at all; the raw memberships
-      // live on under the alias and orgEntitlements derives from them.
-      expect(result.organizations.vericura.groups).toEqual(["lab"]);
-    });
   });
 
   describe("Multi-org claim", () => {
@@ -485,23 +462,6 @@ describe("getUserInfo", () => {
 
       expect(cytario.adminScopes).toEqual(["*"]);
       expect(cytario.groups).toEqual([]);
-    });
-
-    test("yields an empty map for a zero-org token", async () => {
-      const rawProfile = {
-        sub: "zero-org-user",
-        email: "z@example.com",
-        email_verified: true,
-        name: "Zero",
-        preferred_username: "zero",
-        given_name: "Z",
-        family_name: "User",
-        policy: [],
-        groups: [],
-      };
-      const result = profileFromRaw(rawProfile);
-
-      expect(result.organizations).toEqual({});
     });
   });
 

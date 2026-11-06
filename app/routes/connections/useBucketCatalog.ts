@@ -23,15 +23,19 @@ interface BucketCatalogState {
  * fallback (an already-created connection is never invalidated).
  */
 export function useBucketCatalog(): BucketCatalogState {
-  const [state, setState] = useState<BucketCatalogState>({ loading: true });
   const organization = useParams().org;
+  const [state, setState] = useState<BucketCatalogState>(() =>
+    // The forms that mount this hook always render under /:org. If the param
+    // is somehow absent, fail closed without fetching: the org-less path is
+    // not a route.
+    organization ? { loading: true } : { error: "Bucket catalog is unavailable.", loading: false },
+  );
 
   useEffect(() => {
+    if (!organization) return;
     const controller = new AbortController();
     // Org-scoped data plane: the org is a path segment under /api/v1.
-    const url = organization
-      ? `/api/v1/${encodeURIComponent(organization)}/bucket-catalog`
-      : "/api/bucket-catalog";
+    const url = `/api/v1/${encodeURIComponent(organization)}/bucket-catalog`;
     fetch(url, { signal: controller.signal })
       .then((res) => res.json())
       .then((body: { source?: "portal" | "oss"; catalog?: BucketCatalog; error?: string }) => {

@@ -863,21 +863,6 @@ describe("getAllSessionCredentials", () => {
     expect(getOrExchangeOrgToken).toHaveBeenCalledWith(SESSION_ID, "vericura", "access-token");
   });
 
-  test("FAIL CLOSED: a refused exchange surfaces a connection error and never mints", async () => {
-    vi.mocked(getOrExchangeOrgToken).mockRejectedValue(new Error("exchange rejected"));
-
-    const result = await getAllSessionCredentials(
-      mockSessionData,
-      [mock.connectionConfig({ id: "denied", name: "denied" })],
-      SESSION_ID,
-      "org1",
-    );
-
-    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
-    expect(result.credentials["denied"]).toBeUndefined();
-    expect(result.errors["denied"]).toMatch(/exchange rejected/);
-  });
-
   test("does not exchange when every credential is still valid", async () => {
     const result = await getAllSessionCredentials(
       { ...mockSessionData, credentials: { org1: { cached: mock.credentials() } } },

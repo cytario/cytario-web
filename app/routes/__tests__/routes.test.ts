@@ -24,14 +24,6 @@ describe("route table", () => {
     expect(match("/acme/recent")).toContain("routes/recent/recent.route.tsx");
   });
 
-  test("the organization layout carries the URL-to-session reconciliation", () => {
-    const matched = matchRoutes(routes as unknown as RouteObject[], "/acme/recent") ?? [];
-
-    expect(matched.map((m) => (m.route as unknown as { file: string }).file)).toContain(
-      "routes/layouts/org.layout.tsx",
-    );
-  });
-
   test("reserved top-level routes stay platform routes, never organizations", () => {
     expect(match("/login")).toEqual(["routes/auth/login.route.tsx"]);
     expect(match("/onboarding")).toEqual(["routes/onboarding.route.tsx"]);

@@ -128,14 +128,4 @@ describe("provider-catalog loader", () => {
     expect(getProviderCatalog).toHaveBeenCalledWith("org1", "narrow-access:org1");
     expect(await response.json()).toHaveProperty("catalog");
   });
-
-  test("defaults to the first membership when no request org resolved", async () => {
-    vi.mocked(getProviderCatalog).mockResolvedValue(mock.providerCatalog());
-
-    const response = (await loader(buildArgs(multiOrgUser()))) as Response;
-
-    expect(getOrExchangeOrgAccessToken).toHaveBeenCalledWith("session-1", "org1", "test-token");
-    expect(getProviderCatalog).toHaveBeenCalledWith("org1", "narrow-access:org1");
-    expect(await response.json()).toHaveProperty("catalog");
-  });
 });

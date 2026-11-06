@@ -51,6 +51,7 @@ describe("organizationFromPath", () => {
     expect(organizationFromPath("/login")).toBeUndefined();
     expect(organizationFromPath("/api/broker")).toBeUndefined();
     expect(organizationFromPath("/recent")).toBeUndefined();
+    expect(organizationFromPath("/connections")).toBeUndefined();
     expect(organizationFromPath("/")).toBeUndefined();
     // The reserved check runs on the suffix-stripped pathname: the
     // revalidation form of a reserved route stays reserved.
@@ -81,18 +82,6 @@ describe("switchOrgPath", () => {
     // object path belongs to the tenant it lives in — the same path in
     // another organization is always a 404.
     expect(switchOrgPath("beta")).toBe("/beta");
-  });
-});
-
-describe("un-prefixed legacy app paths", () => {
-  test("are not organizations and resolve no org from the path", () => {
-    // The redirect layer is gone; legacy paths fall through to the 404
-    // fallback. organizationFromPath still treats their first segment as a
-    // potential org (reserved roots excluded), which is what the fallback
-    // uses to decide whether a bare path could ever have been valid.
-    expect(organizationFromPath("/connections")).toBeUndefined();
-    expect(organizationFromPath("/recent")).toBeUndefined();
-    expect(organizationFromPath("/api/broker")).toBeUndefined();
   });
 });
 

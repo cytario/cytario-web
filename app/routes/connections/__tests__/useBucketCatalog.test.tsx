@@ -27,23 +27,6 @@ function renderHookAt(path: string): { states: State[] } {
 const catalog = { buckets: [] };
 
 describe("useBucketCatalog", () => {
-  test("fetches without ?org outside a /:org route", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({ json: () => Promise.resolve({ source: "portal", catalog }) });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { states } = renderHookAt("/");
-    await waitFor(() => expect(states.at(-1)?.loading).toBe(false));
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/bucket-catalog",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-    expect(states.at(-1)?.source).toBe("portal");
-    expect(states.at(-1)?.catalog).toEqual(catalog);
-  });
-
   test("appends the page's org under a /:org route", async () => {
     const fetchMock = vi
       .fn()
