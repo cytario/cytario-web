@@ -24,9 +24,6 @@ export function jobTokenHostRequestData(binding: ResolvedJobBinding): HostReques
         attributes: Object.freeze({}),
       }),
     }),
-    organizationAttributes: Object.freeze({}),
-    groups: [],
-    adminScopes: [],
   };
   const identity: Identity = Object.freeze({
     sub: binding.owner,
@@ -63,9 +60,6 @@ export function orgAgnosticHostRequestData(): HostRequestData {
     family_name: "",
     policy: [],
     organizations: Object.freeze({}),
-    organizationAttributes: Object.freeze({}),
-    groups: [],
-    adminScopes: [],
   };
   const authTokens: AuthTokens = {
     accessToken: "",

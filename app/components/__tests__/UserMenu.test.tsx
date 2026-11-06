@@ -3,8 +3,8 @@ import { createElement } from "react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
-import type { UserProfile } from "~/.server/auth/getUserInfo";
 import { UserMenu } from "~/components/UserMenu";
+import type { ClientUser } from "~/root";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 // UserMenu resolves the URL's org (useActiveOrg) with a pointer fallback via
@@ -43,7 +43,8 @@ vi.mock("@cytario/design", async () => {
   };
 });
 
-function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
+/** The root loader's client payload shape — request-org entitlements derived. */
+function makeUser(overrides: Partial<ClientUser> = {}): ClientUser {
   return {
     sub: "sub-1",
     email: "user@example.com",
@@ -53,9 +54,9 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
     given_name: "Test",
     family_name: "User",
     policy: [],
+    organizations: {},
     groups: [],
     adminScopes: [],
-    organizations: {},
     organizationAttributes: {},
     ...overrides,
   };
@@ -64,7 +65,7 @@ function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
 const accountSettingsUrl = "https://auth.example.com/account";
 
 /** UserMenu reads the URL's org segment, so it renders inside a router. */
-function renderUserMenu(props: { user: UserProfile; portalUrl?: string }) {
+function renderUserMenu(props: { user: ClientUser; portalUrl?: string }) {
   return render(
     <MemoryRouter initialEntries={["/org1/"]}>
       <UserMenu

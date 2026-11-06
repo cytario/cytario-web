@@ -47,16 +47,13 @@ export interface OrganizationMembership {
 /** Every membership the token carries, keyed by org alias. */
 export type Organizations = Readonly<Record<string, OrganizationMembership>>;
 
-export interface UserProfile extends Omit<UserProfileRaw, "organization"> {
+export interface UserProfile extends Omit<UserProfileRaw, "organization" | "groups"> {
   /** All memberships from the `organization` claim — the authoritative org
    * source. Which org a request acts in is request-local (URL), never stored
-   * here. */
+   * here, and the org-scoped entitlements (groups, admin scopes, attributes)
+   * are DERIVED from the membership at use via `orgEntitlements` — there is
+   * no projected copy on the profile to go stale. */
   organizations: Organizations;
-  /** Attributes of the org the profile is projected to (request-local). */
-  organizationAttributes: Readonly<Record<string, readonly string[]>>;
-  /** Group paths of the org the profile is projected to (request-local). */
-  groups: string[];
-  adminScopes: string[];
 }
 
 // Hygiene so a mapper change can't leak PII to the client: attributes reach
@@ -146,28 +143,40 @@ export function resolveActiveOrganization(
 }
 
 /**
- * Re-derives the org projection (groups, admin scopes, attributes) for
- * `alias`. An alias outside the memberships clears the projection entirely
- * rather than keeping another org's, so a request can never carry one
- * tenant's entitlements under another's alias. The alias itself is not
- * stored on the profile — the caller knows what it projected to.
+ * The org-scoped entitlements a request acts with: derived from the
+ * membership map at use, never stored on a profile. Empty (fail closed)
+ * when the profile carries no membership for `organization`.
  */
-export function withActiveOrganization(user: UserProfile, alias: string | undefined): UserProfile {
-  const membership = alias ? user.organizations[alias] : undefined;
-  if (!alias || !membership) {
-    return {
-      ...user,
-      organizationAttributes: Object.freeze({}),
-      groups: [],
-      adminScopes: [],
-    };
-  }
+export interface OrgEntitlements {
+  groups: string[];
+  adminScopes: string[];
+  attributes: Readonly<Record<string, readonly string[]>>;
+}
+
+const EMPTY_ENTITLEMENTS: OrgEntitlements = {
+  groups: [],
+  adminScopes: [],
+  attributes: Object.freeze({}),
+};
+
+/**
+ * The single derivation seam: splits the org's membership into non-admin
+ * group paths and admin scopes (root `/admins` → the `*` org scope), with
+ * the membership's frozen attributes. An org the profile is not a member of
+ * yields empty entitlements — a request can never carry one tenant's
+ * entitlements under another's alias.
+ */
+export function orgEntitlements(
+  user: UserProfile,
+  organization: string | undefined,
+): OrgEntitlements {
+  const membership = organization ? user.organizations[organization] : undefined;
+  if (!membership) return EMPTY_ENTITLEMENTS;
   const { groups, adminScopes } = deriveGroupScopes(membership.groups);
   return {
-    ...user,
-    organizationAttributes: membership.attributes,
     groups,
     adminScopes,
+    attributes: membership.attributes,
   };
 }
 
@@ -184,9 +193,8 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
     );
   }
 
-  // Org-neutral: memberships only. The request-org projection (groups,
-  // scopes, attributes) is applied per request; the stored session user never
-  // carries one org's entitlements over another's.
+  // Memberships only: the org-scoped entitlements are derived at use via
+  // `orgEntitlements` — nothing org-flavored lives on the profile.
   return {
     sub: raw.sub,
     email: raw.email,
@@ -197,26 +205,25 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
     family_name: raw.family_name,
     policy: raw.policy,
     organizations,
-    organizationAttributes: Object.freeze({}),
-    groups: [],
-    adminScopes: [],
   };
 }
 
 /**
  * Drops PII so it never reaches the client. `organizations` is absent from the
  * plugin-api `Identity` contract, so the multi-org map stays host-side until
- * that interface grows one.
+ * that interface grows one. The org-scoped fields are DERIVED here from the
+ * membership map — the profile itself carries none.
  */
 export function toIdentity(user: UserProfile, organization: string | undefined): Identity {
+  const entitlements = orgEntitlements(user, organization);
   // Frozen — gates share this object; none may mutate it. `organization` is the
   // request org; the profile carries only the membership map.
   return Object.freeze({
     sub: user.sub,
     organization,
-    organizationAttributes: user.organizationAttributes,
-    groups: user.groups,
-    adminScopes: user.adminScopes,
+    organizationAttributes: entitlements.attributes,
+    groups: entitlements.groups,
+    adminScopes: entitlements.adminScopes,
   });
 }
 

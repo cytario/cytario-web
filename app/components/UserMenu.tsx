@@ -7,14 +7,15 @@ import {
   MenuSeparator,
 } from "@cytario/design";
 
-import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
 import { useActiveOrg } from "~/hooks/useOrgPath";
+import type { ClientUser } from "~/root";
 import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 interface UserMenuProps {
-  user: UserProfile;
+  /** The root loader's client payload — request-org entitlements derived at load. */
+  user: ClientUser;
   accountSettingsUrl: string;
   portalUrl?: string;
 }

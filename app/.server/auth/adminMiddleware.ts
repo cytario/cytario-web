@@ -13,13 +13,13 @@ export interface AdminContextData {
 export const adminContext = createContext<AdminContextData>();
 
 export const adminMiddleware: MiddlewareFunction = async ({ request, context }, next) => {
-  const { user, requestOrganization } = context.get(authContext);
+  const { requestOrganization, entitlements } = context.get(authContext);
 
   if (!requestOrganization) {
     throw new Response("No active organization", { status: 400 });
   }
 
-  const { scope, adminUrl } = assertAdminScope(request.url, user.adminScopes);
+  const { scope, adminUrl } = assertAdminScope(request.url, entitlements.adminScopes);
 
   const org = await findOrganizationByAlias(requestOrganization);
   if (!org) {

@@ -3,12 +3,7 @@ import { redirect } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { exchangeAuthCodeForJobGrant } from "~/.server/auth/exchangeAuthCodeForJobGrant";
-import {
-  decodeJwtClaims,
-  profileFromTokenClaims,
-  toIdentity,
-  withActiveOrganization,
-} from "~/.server/auth/getUserInfo";
+import { decodeJwtClaims, profileFromTokenClaims, toIdentity } from "~/.server/auth/getUserInfo";
 import {
   collectCredentialsIfBatchEmpty,
   putBatchCredentials,
@@ -86,14 +81,13 @@ export const loader = async (args: LoaderFunctionArgs) => {
     console.error(`${label} No auth tokens in session`);
     return redirect(jobsPath("?error=no_session"));
   }
-  // Re-read the claims so a group change made since login is visible, then
-  // project to the ACTING org — submit-phase grant resolution is group-scoped
-  // and must see this org's groups, not the session default's. Token-derived —
-  // the same claim set the refresh path re-derives from.
-  const userProfile = withActiveOrganization(
-    profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? sessionUser,
-    organization,
-  );
+  // Re-read the claims so a group change made since login is visible.
+  // toIdentity derives the ACTING org's entitlements from the membership map
+  // (submit-phase grant resolution is group-scoped and must see this org's
+  // groups, not the session default's). Token-derived — the same claim set
+  // the refresh path re-derives from.
+  const userProfile =
+    profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? sessionUser;
   const identity = toIdentity(userProfile, organization);
 
   // The batch's OAuth material is written here — the one point where the

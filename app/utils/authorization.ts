@@ -1,4 +1,5 @@
 import type { UserProfile } from "~/.server/auth/getUserInfo";
+import { orgEntitlements } from "~/.server/auth/getUserInfo";
 
 /**
  * Sentinel scope representing the active organization as a whole: as an
@@ -55,22 +56,32 @@ export function adminScopesCover(adminScopes: string[], targetScope: string): bo
 /** Can the user see/list/inspect the resource (tenant + intra-org rules)?
  * Org-root scope is visible to every org member; group membership in the
  * ownerScope group or a child also grants visibility. A multi-grant connection
- * is visible when ANY of its grants' scopes is visible. */
+ * is visible when ANY of its grants' scopes is visible. The org-scoped
+ * groups/adminScopes are derived from the membership map here — the profile
+ * carries no projected copy. */
 export function canSee(
   user: UserProfile,
   resource: AuthorizationResource,
   organization: string | undefined,
 ): boolean {
   if (!inRequestOrg(organization, resource)) return false;
-  return ownerScopesOf(resource).some((ownerScope) => canSeeScope(user, ownerScope));
+  const { groups, adminScopes } = orgEntitlements(user, organization);
+  return ownerScopesOf(resource).some((ownerScope) =>
+    canSeeScope(user, groups, adminScopes, ownerScope),
+  );
 }
 
-function canSeeScope(user: UserProfile, ownerScope: string): boolean {
+function canSeeScope(
+  user: UserProfile,
+  groups: readonly string[],
+  adminScopes: readonly string[],
+  ownerScope: string,
+): boolean {
   if (ownerScope === ORG_ROOT_SCOPE) return true;
   if (ownerScope === user.sub) return true;
-  if (user.groups.includes(ownerScope)) return true;
-  if (user.groups.some((g) => g.startsWith(ownerScope + "/"))) return true;
-  return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
+  if (groups.includes(ownerScope)) return true;
+  if (groups.some((g) => g.startsWith(ownerScope + "/"))) return true;
+  return adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
 /** Can the user modify/delete the resource? Group membership alone is NOT
@@ -82,12 +93,19 @@ export function canModify(
   organization: string | undefined,
 ): boolean {
   if (!inRequestOrg(organization, resource)) return false;
-  return ownerScopesOf(resource).some((ownerScope) => canModifyScope(user, ownerScope));
+  const { adminScopes } = orgEntitlements(user, organization);
+  return ownerScopesOf(resource).some((ownerScope) =>
+    canModifyScope(user, adminScopes, ownerScope),
+  );
 }
 
-function canModifyScope(user: UserProfile, ownerScope: string): boolean {
+function canModifyScope(
+  user: UserProfile,
+  adminScopes: readonly string[],
+  ownerScope: string,
+): boolean {
   if (ownerScope === user.sub) return true;
-  return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
+  return adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
 /** Can the user create a resource under the target scope? */
@@ -99,7 +117,8 @@ export function canCreate(
   if (!inRequestOrg(organization, resource)) return false;
   const ownerScope = resource.ownerScope ?? resource.scope ?? "";
   if (ownerScope === user.sub) return true;
-  return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
+  const { adminScopes } = orgEntitlements(user, organization);
+  return adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
 export function filterVisible<T extends AuthorizationResource>(

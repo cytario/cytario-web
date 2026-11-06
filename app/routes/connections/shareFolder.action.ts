@@ -22,7 +22,8 @@ import { orgPath } from "~/utils/orgPath";
  * applying the managed grant set (warning, never claiming enforced, when the
  * write is denied). */
 export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
+  const { user, authTokens, sessionId, requestOrganization, entitlements } =
+    context.get(authContext);
   const session = context.get(sessionContext);
   // Portal lookups present a narrow per-org access token: the portal rejects
   // the multi-membership session token a multi-org user carries.
@@ -50,7 +51,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const data = result.data;
 
   for (const grant of data.grants) {
-    assertGrantScope(grant.scope, user.adminScopes);
+    assertGrantScope(grant.scope, entitlements.adminScopes);
   }
 
   let catalog;

@@ -76,7 +76,9 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     vi.mocked(getConnection).mockResolvedValue(sharedConnection());
     vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
     // grants[0] is the org-root read-only grant; the user must still get admin.
-    const user = mock.user({ groups: ["org1/internal"], adminScopes: [] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/internal"], attributes: {} } },
+    });
 
     const response = (await loader(buildArgs(user))) as Response;
 
@@ -87,7 +89,7 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
   test("plain org member (org-root grant only applicable) gets the read-only role", async () => {
     vi.mocked(getConnection).mockResolvedValue(sharedConnection());
     vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
-    const user = mock.user({ groups: [], adminScopes: [] });
+    const user = mock.user({ organizations: { org1: { groups: [], attributes: {} } } });
 
     const response = (await loader(buildArgs(user))) as Response;
 
@@ -113,8 +115,7 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
       }),
     );
     const user = mock.user({
-      groups: ["org1/annotate-team", "org1/rw-team"],
-      adminScopes: [],
+      organizations: { org1: { groups: ["org1/annotate-team", "org1/rw-team"], attributes: {} } },
     });
 
     const response = (await loader(buildArgs(user))) as Response;
@@ -137,7 +138,9 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
         providerRoles: [mock.providerRole({ roleArn: READ_ONLY_ARN })],
       }),
     );
-    const user = mock.user({ groups: ["org1/internal"], adminScopes: [] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/internal"], attributes: {} } },
+    });
 
     const response = (await loader(buildArgs(user))) as Response;
 
@@ -184,7 +187,9 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     test("member gets an anonymous-login profile with no OAuth, STS or rolearn", async () => {
       vi.mocked(getConnection).mockResolvedValue(publicConnection());
       vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog());
-      const user = mock.user({ groups: ["org1/internal"], adminScopes: [] });
+      const user = mock.user({
+        organizations: { org1: { groups: ["org1/internal"], attributes: {} } },
+      });
 
       const response = (await loader(buildArgs(user))) as Response;
 
@@ -206,7 +211,7 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
         }),
       );
       vi.mocked(getProviderCatalog).mockResolvedValue(publicCatalog());
-      const user = mock.user({ groups: [], adminScopes: [] });
+      const user = mock.user({ organizations: { org1: { groups: [], attributes: {} } } });
 
       const response = (await loader(buildArgs(user))) as Response;
 

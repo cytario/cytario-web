@@ -1,11 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
-import {
-  profileFromTokenClaims,
-  resolveActiveOrganization,
-  withActiveOrganization,
-} from "~/.server/auth/getUserInfo";
+import { profileFromTokenClaims, resolveActiveOrganization } from "~/.server/auth/getUserInfo";
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
 import { jsonError } from "~/.server/httpResponse";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -57,9 +53,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!profile || !organization) {
     return jsonError(401, "The token carries no organization to act in.");
   }
-  // Project to the token's org so grant resolution sees its groups — the
-  // stored profile is org-neutral.
-  const user = withActiveOrganization(profile, organization);
+  // The org-scoped entitlements are derived inside canSee/pickGrantForUser
+  // from the membership map — the profile itself stays membership-only.
+  const user = profile;
 
   const connections = await listConnections(user, organization);
 

@@ -71,9 +71,7 @@ describe("getUserInfo", () => {
         expect.objectContaining({
           sub: "user-uuid-123",
           email: "user@example.com",
-          // Org-neutral: memberships only, no request-org projection.
-          groups: [],
-          adminScopes: [],
+          // Memberships only — the profile type has no entitlement fields.
         }),
       );
     });
@@ -130,8 +128,7 @@ describe("getUserInfo", () => {
       expect(result.family_name).toBe("Name");
       expect(result.email).toBe("full@example.com");
       expect(result.policy).toEqual(["default-policy"]);
-      // Org-neutral projection — the membership map keeps the raw groups.
-      expect(result.groups).toEqual([]);
+      // Memberships only — no projected fields exist on the profile.
       expect(result.organizations.testcorp.groups).toEqual(["admin", "users"]);
     });
   });
@@ -157,9 +154,6 @@ describe("getUserInfo", () => {
 
       expect(Object.keys(result.organizations)).toEqual(["vericura"]);
       expect(result.organizations.vericura.groups).toEqual(["lab", "customers/ascent-pharma"]);
-      // The profile carries no request-org projection.
-      expect(result.groups).toEqual([]);
-      expect(result.adminScopes).toEqual([]);
     });
 
     test("root /admins stays nested — the projection is request-local", async () => {
@@ -181,11 +175,9 @@ describe("getUserInfo", () => {
       const result = await profileFromRaw(rawProfile);
 
       expect(result.organizations.cytario.groups).toEqual(["admins"]);
-      expect(result.adminScopes).toEqual([]);
-      expect(result.groups).toEqual([]);
     });
 
-    test("nested admin groups stay nested — withActiveOrganization derives them", async () => {
+    test("nested admin groups stay nested — orgEntitlements derives them", async () => {
       const rawProfile = {
         sub: "user-uuid-789",
         email: "owner@vericura.com",
@@ -207,8 +199,6 @@ describe("getUserInfo", () => {
         "admins",
         "customers/ascent-pharma/admins",
       ]);
-      expect(result.adminScopes).toEqual([]);
-      expect(result.groups).toEqual([]);
     });
 
     test("returns an empty membership map when claim is absent", async () => {
@@ -227,7 +217,6 @@ describe("getUserInfo", () => {
       const result = await profileFromRaw(rawProfile);
 
       expect(result.organizations).toEqual({});
-      expect(result.groups).toEqual([]);
     });
 
     test("captures org attributes (excluding id/groups), preserving the multivalued array shape", async () => {
@@ -405,7 +394,7 @@ describe("getUserInfo", () => {
 
       const result = await profileFromRaw(rawProfile);
 
-      expect(result.organizationAttributes).toEqual({});
+      expect(result.organizations).toEqual({});
     });
 
     test("the stored profile is org-neutral — nested organization groups never project top-level", async () => {
@@ -426,9 +415,8 @@ describe("getUserInfo", () => {
 
       const result = await profileFromRaw(rawProfile);
 
-      // The projection belongs to withActiveOrganization; the raw memberships
-      // live on under the alias.
-      expect(result.groups).toEqual([]);
+      // The profile has no entitlement fields at all; the raw memberships
+      // live on under the alias and orgEntitlements derives from them.
       expect(result.organizations.vericura.groups).toEqual(["lab"]);
     });
   });
@@ -470,41 +458,33 @@ describe("getUserInfo", () => {
       expect(result.organizations.cytario).not.toHaveProperty("id");
     });
 
-    test("the profile carries no request-org projection — groups/scopes stay empty", async () => {
-      const neutral = profileFromRaw(multiOrgProfile());
+    test("orgEntitlements derives the caller's requested alias", async () => {
+      const { orgEntitlements } = await import("../getUserInfo");
+      const profile = profileFromRaw(multiOrgProfile());
 
-      expect(neutral.groups).toEqual([]);
-      expect(neutral.adminScopes).toEqual([]);
-      expect(neutral.organizationAttributes).toEqual({});
+      const vericura = orgEntitlements(profile, "vericura");
+      expect(vericura.groups).toEqual(["lab"]);
+      expect(vericura.adminScopes).toEqual(["lab"]);
+      expect(vericura.attributes).toEqual({ tier: ["pro"] });
     });
 
-    test("withActiveOrganization projects the caller's requested alias", async () => {
-      const { withActiveOrganization } = await import("../getUserInfo");
-      const neutral = profileFromRaw(multiOrgProfile());
-      const projected = withActiveOrganization(neutral, "vericura");
+    test("an alias outside the memberships yields empty entitlements", async () => {
+      const { orgEntitlements } = await import("../getUserInfo");
+      const profile = profileFromRaw(multiOrgProfile());
+      const revoked = orgEntitlements(profile, "revoked-org");
 
-      expect(projected.groups).toEqual(["lab"]);
-      expect(projected.adminScopes).toEqual(["lab"]);
-      expect(projected.organizationAttributes).toEqual({ tier: ["pro"] });
-    });
-
-    test("an alias outside the memberships clears the projection entirely", async () => {
-      const { withActiveOrganization } = await import("../getUserInfo");
-      const neutral = profileFromRaw(multiOrgProfile());
-      const projected = withActiveOrganization(neutral, "revoked-org");
-
-      expect(projected.groups).toEqual([]);
-      expect(projected.adminScopes).toEqual([]);
-      expect(projected.organizationAttributes).toEqual({});
+      expect(revoked.groups).toEqual([]);
+      expect(revoked.adminScopes).toEqual([]);
+      expect(revoked.attributes).toEqual({});
     });
 
     test("the org-root admins group derives the `*` admin scope under its alias", async () => {
-      const { withActiveOrganization } = await import("../getUserInfo");
-      const neutral = profileFromRaw(multiOrgProfile());
-      const projected = withActiveOrganization(neutral, "cytario");
+      const { orgEntitlements } = await import("../getUserInfo");
+      const profile = profileFromRaw(multiOrgProfile());
+      const cytario = orgEntitlements(profile, "cytario");
 
-      expect(projected.adminScopes).toEqual(["*"]);
-      expect(projected.groups).toEqual([]);
+      expect(cytario.adminScopes).toEqual(["*"]);
+      expect(cytario.groups).toEqual([]);
     });
 
     test("yields an empty map for a zero-org token", async () => {
@@ -522,7 +502,6 @@ describe("getUserInfo", () => {
       const result = profileFromRaw(rawProfile);
 
       expect(result.organizations).toEqual({});
-      expect(result.organizationAttributes).toEqual({});
     });
   });
 
@@ -582,12 +561,12 @@ describe("getUserInfo", () => {
       const result = profileFromRaw(profileWithoutPolicy);
 
       expect(result.policy).toEqual([]);
-      expect(result.groups).toEqual([]);
-      expect(result.adminScopes).toEqual([]);
     });
   });
 
   describe("toIdentity", () => {
+    // The membership carries the org-root admins group; toIdentity derives
+    // the `*` admin scope from it (the profile has no entitlement fields).
     const fullProfile: UserProfile = {
       sub: "user-uuid-123",
       email_verified: true,
@@ -599,16 +578,13 @@ describe("getUserInfo", () => {
       policy: ["default-policy"],
       organizations: {
         testcorp: {
-          groups: ["lab"],
+          groups: ["lab", "admins"],
           attributes: { subscription_status: ["active"] },
         },
       },
-      organizationAttributes: { subscription_status: ["active"] },
-      groups: ["lab"],
-      adminScopes: ["*"],
     };
 
-    test("projects the tenant-relevant subset for the request org", () => {
+    test("derives the tenant-relevant subset for the request org", () => {
       expect(toIdentity(fullProfile, "testcorp")).toEqual({
         sub: "user-uuid-123",
         organization: "testcorp",

@@ -843,9 +843,9 @@ describe("getAllSessionCredentials", () => {
       {
         ...mockSessionData,
         user: mock.user({
-          organizations: { vericura: { groups: ["vericura/lab"], attributes: {} } },
-          groups: ["vericura/lab"],
-          adminScopes: ["vericura/lab"],
+          organizations: {
+            vericura: { groups: ["vericura/lab", "vericura/lab/admins"], attributes: {} },
+          },
         }),
       },
       [

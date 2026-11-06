@@ -3,7 +3,6 @@ import { redirect } from "react-router";
 import { authMiddleware, authContext } from "../authMiddleware";
 import { getSessionData } from "../getSession";
 import { getAllSessionCredentials } from "../getSessionCredentials";
-import { withActiveOrganization } from "../getUserInfo";
 import { getPreferredOrg, setPreferredOrg } from "../orgPreference.server";
 import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
@@ -217,10 +216,7 @@ describe("authMiddleware", () => {
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(listConnections).toHaveBeenCalledWith(
-        withActiveOrganization(mockSessionData.user, "org1"),
-        "org1",
-      );
+      expect(listConnections).toHaveBeenCalledWith(mockSessionData.user, "org1");
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
         mockConnectionConfigs,
@@ -285,8 +281,6 @@ describe("authMiddleware", () => {
           alpha: { groups: ["lab"], attributes: {} },
           zeta: { groups: ["research"], attributes: {} },
         },
-        groups: [],
-        adminScopes: [],
       });
 
     test("the persisted preference wins when the token still carries it", async () => {
@@ -357,8 +351,6 @@ describe("authMiddleware", () => {
           alpha: { groups: ["lab"], attributes: {} },
           zeta: { groups: ["research"], attributes: {} },
         },
-        groups: [],
-        adminScopes: [],
       });
 
     test("a URL naming another membership is the request org — no session re-scope", async () => {
@@ -927,10 +919,7 @@ describe("authMiddleware", () => {
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(listConnections).toHaveBeenCalledWith(
-        withActiveOrganization(mockSessionData.user, "org1"),
-        "org1",
-      );
+      expect(listConnections).toHaveBeenCalledWith(mockSessionData.user, "org1");
       expect(mockNext).toHaveBeenCalled();
     });
 

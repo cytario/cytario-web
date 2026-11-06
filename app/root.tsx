@@ -19,7 +19,7 @@ import {
   type ShouldRevalidateFunction,
 } from "react-router";
 
-import { UserProfile, withActiveOrganization } from "./.server/auth/getUserInfo";
+import { UserProfile, orgEntitlements } from "./.server/auth/getUserInfo";
 import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
@@ -79,13 +79,26 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export interface RootLoaderResponse {
-  user?: UserProfile;
+  user?: ClientUser;
   notification?: NotificationInput;
   accountSettingsUrl?: string;
   portalUrl?: string;
   docsUrl?: string;
   supportEmail?: string;
   version?: string;
+}
+
+/**
+ * The browser-side user payload: the profile plus the REQUEST-ORG entitlements
+ * (groups, admin scopes, org attributes) derived at load time from the
+ * membership map, and the alias-only org map (the per-org group paths of the
+ * other memberships stay host-side). This is a response shape, not a
+ * profile: nothing here is ever written back to the session.
+ */
+export interface ClientUser extends UserProfile {
+  groups: string[];
+  adminScopes: string[];
+  organizationAttributes: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Alias-only org map: `{ acme: { groups: [...] } }` → `{ acme: { groups: [] } }`. */
@@ -118,28 +131,32 @@ export const loader = async ({
     await sessionStorage.commitSession(session);
   }
 
-  // The browser receives the REQUEST-ORG projection: the stored profile is
-  // org-neutral (memberships only), so the groups/admin scopes the client
-  // chrome reads (grant-scope selectors, UserMenu) are projected to the org
-  // this document's URL names — mirroring authMiddleware's resolution. The
-  // per-org group paths of the OTHER memberships stay host-side.
+  // The browser receives the REQUEST-ORG entitlements derived here from the
+  // membership map: the groups/admin scopes the client chrome reads
+  // (grant-scope selectors, UserMenu, tours) belong to the org this
+  // document's URL names. The stored profile itself is membership-only —
+  // this payload is a derived view, never round-tripped back to the session.
   const { pathname } = new URL(request.url);
   const urlOrg = organizationFromApiPath(pathname) ?? organizationFromPath(pathname);
-  const user =
-    sessionUser && urlOrg && sessionUser.organizations[urlOrg]
-      ? withActiveOrganization(sessionUser, urlOrg)
-      : sessionUser;
-  const clientUser = user
-    ? { ...user, organizations: projectOrgAliases(user.organizations) }
+  const entitlements =
+    urlOrg && sessionUser?.organizations[urlOrg] ? orgEntitlements(sessionUser, urlOrg) : undefined;
+  const clientUser = sessionUser
+    ? {
+        ...sessionUser,
+        groups: entitlements?.groups ?? [],
+        adminScopes: entitlements?.adminScopes ?? [],
+        organizationAttributes: entitlements?.attributes ?? {},
+        organizations: projectOrgAliases(sessionUser.organizations),
+      }
     : undefined;
 
-  const accountSettingsUrl = user
+  const accountSettingsUrl = sessionUser
     ? `${cytarioConfig.auth.baseUrl}/account?referrer=${cytarioConfig.auth.clientId}&referrer_uri=${cytarioConfig.endpoints.webapp}`
     : undefined;
 
-  const portalUrl = user ? cytarioConfig.endpoints.portal : undefined;
-  const docsUrl = user ? cytarioConfig.endpoints.docsUrl : undefined;
-  const supportEmail = user ? cytarioConfig.support?.email : undefined;
+  const portalUrl = sessionUser ? cytarioConfig.endpoints.portal : undefined;
+  const docsUrl = sessionUser ? cytarioConfig.endpoints.docsUrl : undefined;
+  const supportEmail = sessionUser ? cytarioConfig.support?.email : undefined;
   const version = process.env.VERSION ?? "unknown";
 
   return {

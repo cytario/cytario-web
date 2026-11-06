@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { authContext } from "~/.server/auth/authMiddleware";
+import { orgEntitlements } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
@@ -53,7 +54,15 @@ vi.mock("~/config", () => ({
 function buildArgs(form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
   ctx.set(authContext, {
-    user: mock.user({ adminScopes: ["org1/lab"] }),
+    user: mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    }),
+    entitlements: orgEntitlements(
+      mock.user({
+        organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+      }),
+      "org1",
+    ),
     sessionId: "session-1",
     requestOrganization: "org1",
     authTokens: { accessToken: "access-token" },

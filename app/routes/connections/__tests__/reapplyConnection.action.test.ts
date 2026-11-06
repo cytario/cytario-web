@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { authContext } from "~/.server/auth/authMiddleware";
+import { orgEntitlements } from "~/.server/auth/getUserInfo";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { prisma } from "~/.server/db/prisma";
 import { applyGrantsAndRecordStatus } from "~/routes/connections/connectionGrant.server";
@@ -37,6 +38,7 @@ function buildArgs(user: ReturnType<typeof mock.user>, form: Record<string, stri
   const ctx = new Map<unknown, unknown>();
   ctx.set(authContext, {
     user,
+    entitlements: orgEntitlements(user, "org1"),
     sessionId: "session-1",
     requestOrganization: "org1",
     authTokens: { accessToken: "access-token" },
@@ -65,7 +67,9 @@ describe("reapplyAction", () => {
     });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
-    const user = mock.user({ adminScopes: ["org1/lab"], groups: ["org1/lab"] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    });
     const result = await reapplyAction(buildArgs(user, { connectionId: String(config.id) }));
 
     expect(result).toBeInstanceOf(Response);
@@ -83,7 +87,7 @@ describe("reapplyAction", () => {
     });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
-    const user = mock.user({ adminScopes: [], groups: ["org1/ops"] });
+    const user = mock.user({ organizations: { org1: { groups: ["org1/ops"], attributes: {} } } });
     const response = await reapplyAction(
       buildArgs(user, { connectionId: String(config.id) }),
     ).catch((e: unknown) => e);
@@ -99,7 +103,9 @@ describe("reapplyAction", () => {
     });
     vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
 
-    const user = mock.user({ adminScopes: ["org1/lab"], groups: [] });
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/lab", "org1/lab/admins"], attributes: {} } },
+    });
     const response = await reapplyAction(
       buildArgs(user, { connectionId: String(config.id) }),
     ).catch((e: unknown) => e);

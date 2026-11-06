@@ -20,7 +20,15 @@ function makeContext(
   requestOrganization: string | undefined = "cytario",
 ) {
   const store = new Map<unknown, unknown>();
-  if (user) store.set(authContext, { user, requestOrganization });
+  // The middleware reads the request-scoped entitlements (adminScopes are
+  // derived from the membership map in the real pipeline); these tests
+  // express the derived admin scopes directly on the user record.
+  if (user)
+    store.set(authContext, {
+      user,
+      requestOrganization,
+      entitlements: { groups: [], adminScopes: user.adminScopes ?? [], attributes: {} },
+    });
   const context = {
     get: (ctx: unknown) => store.get(ctx),
     set: (ctx: unknown, value: unknown) => {
@@ -50,7 +58,11 @@ const BASE_USER = { sub: "user-123", adminScopes: ["cytario"] };
 function callMiddlewareNoOrg(url: string) {
   const next = vi.fn().mockResolvedValue(undefined);
   const store = new Map<unknown, unknown>();
-  store.set(authContext, { user: BASE_USER, requestOrganization: undefined });
+  store.set(authContext, {
+    user: BASE_USER,
+    requestOrganization: undefined,
+    entitlements: { groups: [], adminScopes: BASE_USER.adminScopes, attributes: {} },
+  });
   const context = {
     get: (ctx: unknown) => store.get(ctx),
     set: (ctx: unknown, value: unknown) => {

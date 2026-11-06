@@ -60,10 +60,12 @@ describe("protected layout loader", () => {
     const data = await runLoader(
       mock.user({
         sub: "user-123",
-        organizations: { testcorp: { groups: ["testcorp/lab"], attributes: {} } },
-        organizationAttributes: { subscription_status: ["active"] },
-        groups: ["testcorp/lab"],
-        adminScopes: ["*"],
+        organizations: {
+          testcorp: {
+            groups: ["testcorp/lab", "admins"],
+            attributes: { subscription_status: ["active"] },
+          },
+        },
       }),
     );
 

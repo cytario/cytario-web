@@ -4,12 +4,13 @@ import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
 import {
   decodeJwtClaims,
+  orgEntitlements,
   profileFromTokenClaims,
   resolveActiveOrganization,
   toIdentity,
-  withActiveOrganization,
+  type OrgEntitlements,
+  type UserProfile,
 } from "./getUserInfo";
-import type { UserProfile } from "./getUserInfo";
 import { getPreferredOrg, setPreferredOrg } from "./orgPreference.server";
 import { withHostRequestContext } from "../hostRequestContext";
 import { refreshAccessTokenWithLock } from "./refreshAuthTokens";
@@ -44,6 +45,9 @@ export interface AuthContextData extends Omit<SessionData, "credentials"> {
   sessionId: string;
   /** The org this request resolved (URL `/:org` or the session default). */
   requestOrganization: string;
+  /** The request org's entitlements, derived once per request from the
+   * membership map — the profile itself carries no projected copy. */
+  entitlements: OrgEntitlements;
   /** THIS request org's credentials — flat connectionId → Credentials; other
    * orgs' credentials never enter the request context. */
   credentials: ConnectionsCredentials;
@@ -193,13 +197,9 @@ const applyGates = async (
   const outcome = await runGates({
     url: url.toString(),
     method: request.method,
-    // Projected to the request org: gates decide per-org (org attributes).
-    identity: toIdentity(
-      requestOrganization
-        ? withActiveOrganization(sessionData.user, requestOrganization)
-        : sessionData.user,
-      requestOrganization,
-    ),
+    // toIdentity derives the request org's entitlements (groups, scopes,
+    // attributes) from the membership map — gates decide per-org.
+    identity: toIdentity(sessionData.user, requestOrganization),
   });
 
   if (outcome.kind === "redirect") {
@@ -285,21 +285,19 @@ const proceedAuthenticated = async (
   requestOrganization: string,
   persistCredentials: (credentials: SessionData["credentials"]) => Promise<void>,
 ): Promise<unknown> => {
-  // The request org drives everything below: the projected profile (groups,
-  // attributes, admin scopes of THIS org), the slice read/minted, and the
-  // bucket the result is persisted into. Other tabs' orgs are never touched.
-  // The projection is request-local — nothing org-flavored is persisted.
-  const requestSessionData: SessionData = {
-    ...sessionData,
-    user: withActiveOrganization(sessionData.user, requestOrganization),
-  };
+  // The request org drives everything below: the derived entitlements
+  // (groups, admin scopes, attributes of THIS org), the slice read/minted,
+  // and the bucket the result is persisted into. Other tabs' orgs are never
+  // touched; nothing org-flavored is persisted — the stored profile stays
+  // membership-only and the entitlements live in the request context.
+  const entitlements = orgEntitlements(sessionData.user, requestOrganization);
 
   const {
     sessionData: withCredentials,
     connectionConfigs,
     credentialErrors,
     connectionProviders,
-  } = await fetchAllCredentials(requestSessionData, session.id, requestOrganization);
+  } = await fetchAllCredentials(sessionData, session.id, requestOrganization);
 
   // fetchAllCredentials already merged the refreshed slice into the per-org
   // map under the request org; persist that map, and expose the request org's
@@ -308,7 +306,8 @@ const proceedAuthenticated = async (
   await persistCredentials(withCredentials.credentials);
 
   context.set(authContext, {
-    ...requestSessionData,
+    ...sessionData,
+    entitlements,
     credentials: withCredentials.credentials[requestOrganization] ?? {},
     connectionConfigs,
     credentialErrors,
@@ -319,11 +318,11 @@ const proceedAuthenticated = async (
 
   return withHostRequestContext(
     {
-      user: requestSessionData.user,
+      user: sessionData.user,
       // The request org for plugin host capabilities (connections, catalogs).
       organization: requestOrganization,
-      identity: toIdentity(requestSessionData.user, requestOrganization),
-      authTokens: requestSessionData.authTokens,
+      identity: toIdentity(sessionData.user, requestOrganization),
+      authTokens: sessionData.authTokens,
       sessionId: session.id,
     },
     () => next(),

@@ -113,9 +113,6 @@ const mock = {
     organizations: {
       org1: { groups: ["org1/lab"], attributes: {} },
     },
-    organizationAttributes: {},
-    groups: ["org1/lab"],
-    adminScopes: ["org1/lab"],
     ...overrides,
   }),
   treeNode: (overrides?: Partial<TreeNode>): TreeNode => {

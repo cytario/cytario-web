@@ -18,7 +18,8 @@ import { orgPath } from "~/utils/orgPath";
  * Authorizes every grant's scope server-side before minting any write
  * session. */
 export const reapplyAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
+  const { user, authTokens, sessionId, requestOrganization, entitlements } =
+    context.get(authContext);
   const session = context.get(sessionContext);
   if (!requestOrganization) {
     throw new Error("Active organization missing from session");
@@ -44,7 +45,7 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
   }
 
   for (const grant of config.grants) {
-    assertGrantScope(grant.scope, user.adminScopes);
+    assertGrantScope(grant.scope, entitlements.adminScopes);
   }
 
   // The bucket-policy write session is an STS mint: it needs the narrow

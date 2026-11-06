@@ -29,18 +29,19 @@ const cytarioConfig = mock.connectionConfig({
   grants: [mock.connectionGrant({ scope: "cytario", accessLevel: "read-only" })],
 });
 
-const adminUser = mock.user({
-  sub: "admin-user-id",
-  groups: ["cytario"],
-  adminScopes: ["cytario"],
-});
-const regularUser = mock.user({ sub: "regular-user-id", groups: ["cytario"], adminScopes: [] });
-const orgRootAdmin = mock.user({ sub: "org-root-admin-id", groups: [], adminScopes: ["*"] });
-const outsideUser = mock.user({
-  sub: "outside-user-id",
-  groups: ["other-org"],
-  adminScopes: ["other-org"],
-});
+// The request org in these tests is "org1"; the entitlements the old
+// projected fields carried now live in the org1 membership itself
+// (deriveGroupScopes splits the /admins paths back out).
+const org1Member = (sub: string, membershipGroups: string[]) =>
+  mock.user({
+    sub,
+    organizations: { org1: { groups: membershipGroups, attributes: {} } },
+  });
+
+const adminUser = org1Member("admin-user-id", ["cytario", "cytario/admins"]);
+const regularUser = org1Member("regular-user-id", ["cytario"]);
+const orgRootAdmin = org1Member("org-root-admin-id", ["admins"]);
+const outsideUser = org1Member("outside-user-id", ["other-org", "other-org/admins"]);
 
 const validUpdates = {
   name: "updated-connection",
