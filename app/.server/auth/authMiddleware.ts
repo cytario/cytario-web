@@ -423,15 +423,20 @@ export const authMiddleware: MiddlewareFunction = async ({ request, url, context
 
   const refreshedSessionData = await refreshSessionTokens(session, updatedSessionData);
   if (refreshedSessionData) {
-    // The refresh re-derived the membership map from the fresh token; the
-    // request org survives when the fresh token still carries it, else the
-    // derived default takes the request (the next navigation will see the
-    // foreign-org redirect if the URL keeps naming the lost org).
+    // The refresh re-derived the membership map from the fresh token. The
+    // request org survives when the fresh token still carries it; when the
+    // only remaining membership is elsewhere, the derived default takes the
+    // request. With no membership left, fail closed to the zero-org funnel
+    // rather than falling back to the org that was just removed — serving it
+    // would read a revoked tenant with the fresh token's own claims.
     const stillMember =
       refreshedSessionData.user.organizations?.[requestOrganization] !== undefined;
     const refreshedRequestOrg = stillMember
       ? requestOrganization
-      : ((await defaultOrganization(refreshedSessionData.user)) ?? requestOrganization);
+      : await defaultOrganization(refreshedSessionData.user);
+    if (!refreshedRequestOrg) {
+      return noOrganizationResponse(request, url.pathname);
+    }
     return proceedAuthenticated(
       { context, session, next },
       refreshedSessionData,

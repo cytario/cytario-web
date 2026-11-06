@@ -63,7 +63,16 @@ function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
               <MenuItem
                 key={crumb.alias}
                 id={crumb.alias}
-                href={switchOrgPath(crumb.alias)}
+                // A switch is a full document navigation, not a router one:
+                // the CSP connect-src is derived per HTML response from the
+                // org its URL names, so a client-side switch would leave the
+                // browser holding the previous org's host allowlist and the
+                // new org's bucket fetches would be blocked until a reload.
+                // The menu item acts instead of linking so react-aria's
+                // router binding can't intercept it.
+                onAction={() => {
+                  window.location.assign(switchOrgPath(crumb.alias));
+                }}
                 endContent={crumb.isActive ? <Icon icon="Check" size="sm" /> : undefined}
                 className={crumb.isActive ? "font-semibold text-primary" : undefined}
               >

@@ -161,11 +161,15 @@ describe("Breadcrumbs", () => {
     renderBreadcrumbs();
     await userEvent.click(screen.getByRole("button", { name: "Switch organization" }));
 
-    // Menu items render as links, so the switch is a real navigation the org
-    // layout's middleware then reconciles into a session change. The target is
-    // the chosen org's connection list — never the same sub-path, which in
-    // another tenant is always a 404.
-    expect(await screen.findByRole("menuitem", { name: "beta" })).toHaveAttribute("href", "/beta");
-    expect(screen.getByRole("menuitem", { name: "acme" })).toHaveAttribute("href", "/acme");
+    // The switch is a DOCUMENT navigation (window.location.assign), not a
+    // router one: the CSP connect-src is derived per HTML response for the
+    // org its URL names, so a client-side switch would leave the browser
+    // holding the previous org's host allowlist. The menu item acts instead
+    // of linking; the target is the chosen org's connection list — never the
+    // same sub-path, which in another tenant is always a 404.
+    const assign = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
+    await userEvent.click(await screen.findByRole("menuitem", { name: "beta" }));
+    expect(assign).toHaveBeenCalledWith("/beta");
   });
 });

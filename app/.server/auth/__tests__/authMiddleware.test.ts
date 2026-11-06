@@ -526,6 +526,52 @@ describe("authMiddleware", () => {
       );
     });
 
+    test("fails closed to the zero-org funnel when the fresh token carries no membership", async () => {
+      // The last membership was revoked mid-session: the fresh token's
+      // organization claim is empty. The request must not fall back to the
+      // removed org (the pre-fix `?? requestOrganization` did exactly that).
+      const expiringAccessToken = mock.idToken({
+        exp: Math.floor(Date.now() / 1000) + 30,
+      });
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organizations: { org1: { groups: ["org1/lab"], attributes: {} } } }),
+        authTokens: {
+          ...mockSessionData.authTokens,
+          accessToken: expiringAccessToken,
+        },
+      });
+      const emptiedAccessToken = forgeToken({
+        sub: "user-123",
+        email_verified: true,
+        name: "string",
+        preferred_username: "string",
+        given_name: "string",
+        family_name: "string",
+        email: "string",
+        organization: {},
+      });
+      vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
+        accessToken: emptiedAccessToken,
+        idToken: "refreshed-id-token",
+        refreshToken: validRefreshToken,
+      });
+
+      const args = createMiddlewareArgs();
+
+      const result = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(result).toBeInstanceOf(Response);
+      // Document requests redirect to /onboarding (the zero-org funnel),
+      // never the removed org's subtree.
+      expect(redirect).toHaveBeenCalledWith("/onboarding");
+      expect(listConnections).not.toHaveBeenCalled();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
     test("does not refresh when the access token is fresh", async () => {
       const args = createMiddlewareArgs();
 
