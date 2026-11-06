@@ -12,12 +12,17 @@ import { parseGrants } from "./createConnection.action";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { canCreate, canModify, canSee } from "~/utils/authorization";
 import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
+import { orgPath } from "~/utils/orgPath";
 
 export interface UpdateConnectionInput {
   name: string;
@@ -35,23 +40,20 @@ function isValidPublicEndpointScheme(endpoint: string): boolean {
 
 export async function updateConnection(
   user: UserProfile,
+  organization: string,
   connectionId: string,
   updates: UpdateConnectionInput,
 ) {
-  if (!user.organization) {
-    throw new Error("Active organization missing from session");
-  }
-
   const config = await prisma.connectionConfig.findFirst({
-    where: { id: connectionId, organization: user.organization },
+    where: { id: connectionId, organization },
     include: { grants: true },
   });
 
-  if (!config || !canSee(user, config)) {
+  if (!config || !canSee(user, config, organization)) {
     throw new Error("Connection not found");
   }
 
-  if (!canModify(user, config)) {
+  if (!canModify(user, config, organization)) {
     throw new Error("Not authorized to modify this connection");
   }
 
@@ -60,14 +62,14 @@ export async function updateConnection(
 
   for (const grant of updates.grants) {
     if (!existingScopes.has(grant.scope)) {
-      if (!canCreate(user, { organization: user.organization, ownerScope: grant.scope })) {
+      if (!canCreate(user, { organization, ownerScope: grant.scope }, organization)) {
         throw new Error(`Not authorized to create a grant for scope "${grant.scope}"`);
       }
     }
   }
   for (const grant of config.grants) {
     if (!submittedScopes.has(grant.scope)) {
-      if (!canModify(user, { organization: user.organization, ownerScope: grant.scope })) {
+      if (!canModify(user, { organization, ownerScope: grant.scope }, organization)) {
         throw new Error(`Not authorized to remove the grant for scope "${grant.scope}"`);
       }
     }
@@ -117,8 +119,14 @@ export async function updateConnection(
 }
 
 export const updateAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
   const session = context.get(sessionContext);
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = requestOrganization
+    ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken
+    : "";
   const formData = await request.formData();
 
   const connectionId = String(formData.get("connectionId") ?? "");
@@ -127,7 +135,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     return { errors: { name: ["Connection id is required"] }, status: "error" as const };
   }
 
-  if (!user.organization) {
+  if (!requestOrganization) {
     return { formError: "Active organization missing from session", status: "error" as const };
   }
 
@@ -148,7 +156,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
   let catalog;
   try {
-    catalog = await getProviderCatalog(user.organization, session.get("authTokens")?.accessToken);
+    catalog = await getProviderCatalog(requestOrganization, portalAccessToken);
   } catch (error) {
     return {
       formError:
@@ -177,8 +185,8 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   }
 
   const bucketRef = await validateBucketRef(
-    user.organization,
-    session.get("authTokens")?.accessToken ?? "",
+    requestOrganization,
+    portalAccessToken,
     validated,
     refs.providerConnection,
   );
@@ -190,7 +198,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   }
 
   try {
-    const updatedConfig = await updateConnection(user, connectionId, {
+    const updatedConfig = await updateConnection(user, requestOrganization, connectionId, {
       name: validated.name,
       bucketName: validated.bucketName,
       prefix: validated.prefix,
@@ -203,10 +211,14 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     delete credentials[updatedConfig.id];
     session.set("credentials", credentials);
 
+    // The bucket-policy write session is an STS mint: it needs the narrow
+    // per-org ID token (the raw session token carries no ORG tag for a
+    // multi-org user, and the write role's trust policy rejects it).
     const acting = {
       user,
-      idToken: session.get("authTokens")?.idToken ?? "",
-      accessToken: session.get("authTokens")?.accessToken ?? "",
+      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken,
+      accessToken: portalAccessToken,
     };
 
     const outcome = await applyGrantsAndRecordStatus(updatedConfig, acting);
@@ -218,7 +230,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     if (bucketMoved) {
       const oldBucketOutcome = await applyBucketGrantSet(
         {
-          organization: user.organization,
+          organization: requestOrganization,
           providerConnectionId: updatedConfig.previousProviderConnectionId,
           bucketName: updatedConfig.previousBucketName,
         },
@@ -247,7 +259,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
             .join(" ")}`,
     });
 
-    return redirect(`/connections/${updatedConfig.id}`, {
+    return redirect(orgPath(requestOrganization, `/${updatedConfig.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

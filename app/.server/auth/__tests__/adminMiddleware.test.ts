@@ -15,9 +15,12 @@ const { findOrganizationByAlias } = await import("~/.server/auth/keycloakAdmin")
 
 const mockOrg = { id: "org-uuid", name: "Cytario", alias: "cytario" };
 
-function makeContext(user: Record<string, unknown> | undefined) {
+function makeContext(
+  user: Record<string, unknown> | undefined,
+  requestOrganization: string | undefined = "cytario",
+) {
   const store = new Map<unknown, unknown>();
-  if (user) store.set(authContext, { user });
+  if (user) store.set(authContext, { user, requestOrganization });
   const context = {
     get: (ctx: unknown) => store.get(ctx),
     set: (ctx: unknown, value: unknown) => {
@@ -41,7 +44,27 @@ function callMiddleware(url: string, user: Record<string, unknown> | undefined) 
   return { next, result, store };
 }
 
-const BASE_USER = { sub: "user-123", organization: "cytario", adminScopes: ["cytario"] };
+const BASE_USER = { sub: "user-123", adminScopes: ["cytario"] };
+
+/** Same as callMiddleware but the authContext resolves no request org. */
+function callMiddlewareNoOrg(url: string) {
+  const next = vi.fn().mockResolvedValue(undefined);
+  const store = new Map<unknown, unknown>();
+  store.set(authContext, { user: BASE_USER, requestOrganization: undefined });
+  const context = {
+    get: (ctx: unknown) => store.get(ctx),
+    set: (ctx: unknown, value: unknown) => {
+      store.set(ctx, value);
+    },
+  } as unknown as Parameters<typeof adminMiddleware>[0]["context"];
+  const result = adminMiddleware(
+    { request: new Request(url), context, params: {} } as unknown as Parameters<
+      typeof adminMiddleware
+    >[0],
+    next,
+  ) as Promise<unknown>;
+  return { next, result, store };
+}
 
 describe("adminMiddleware", () => {
   beforeEach(() => {
@@ -51,7 +74,7 @@ describe("adminMiddleware", () => {
 
   test("resolves org and scope, stashes them in context, and calls next", async () => {
     const { next, result, store } = callMiddleware(
-      "http://localhost/admin/users?scope=cytario%2Flab",
+      "http://localhost/cytario/admin/users?scope=cytario%2Flab",
       BASE_USER,
     );
 
@@ -62,15 +85,14 @@ describe("adminMiddleware", () => {
     expect(store.get(adminContext)).toEqual({
       org: mockOrg,
       scope: "cytario/lab",
-      adminUrl: "/admin/users?scope=cytario%2Flab",
+      adminUrl: "/cytario/admin/users?scope=cytario%2Flab",
     });
   });
 
   test("throws 400 when the session has no active organization", async () => {
-    const { next, result } = callMiddleware("http://localhost/admin/users?scope=cytario", {
-      ...BASE_USER,
-      organization: undefined,
-    });
+    const { next, result } = callMiddlewareNoOrg(
+      "http://localhost/cytario/admin/users?scope=cytario",
+    );
 
     const error = (await result.catch((e: unknown) => e)) as Response;
     expect(error).toBeInstanceOf(Response);
@@ -79,7 +101,7 @@ describe("adminMiddleware", () => {
   });
 
   test("throws 400 when the scope query param is missing", async () => {
-    const { next, result } = callMiddleware("http://localhost/admin/users", BASE_USER);
+    const { next, result } = callMiddleware("http://localhost/cytario/admin/users", BASE_USER);
 
     const error = (await result.catch((e: unknown) => e)) as Response;
     expect(error).toBeInstanceOf(Response);
@@ -88,10 +110,13 @@ describe("adminMiddleware", () => {
   });
 
   test("throws 403 when the user does not administer the scope", async () => {
-    const { next, result } = callMiddleware("http://localhost/admin/users?scope=other-org", {
-      ...BASE_USER,
-      adminScopes: ["cytario"],
-    });
+    const { next, result } = callMiddleware(
+      "http://localhost/cytario/admin/users?scope=other-org",
+      {
+        ...BASE_USER,
+        adminScopes: ["cytario"],
+      },
+    );
 
     const error = (await result.catch((e: unknown) => e)) as Response;
     expect(error).toBeInstanceOf(Response);
@@ -103,7 +128,7 @@ describe("adminMiddleware", () => {
     vi.mocked(findOrganizationByAlias).mockResolvedValue(undefined);
 
     const { next, result } = callMiddleware(
-      "http://localhost/admin/users?scope=cytario",
+      "http://localhost/cytario/admin/users?scope=cytario",
       BASE_USER,
     );
 
@@ -114,10 +139,13 @@ describe("adminMiddleware", () => {
   });
 
   test("an org-root admin (*) can target a child scope", async () => {
-    const { result, store } = callMiddleware("http://localhost/admin/users?scope=cytario%2Flab", {
-      ...BASE_USER,
-      adminScopes: ["*"],
-    });
+    const { result, store } = callMiddleware(
+      "http://localhost/cytario/admin/users?scope=cytario%2Flab",
+      {
+        ...BASE_USER,
+        adminScopes: ["*"],
+      },
+    );
 
     await result;
 
@@ -125,7 +153,7 @@ describe("adminMiddleware", () => {
   });
 
   test("denies scope=* for a non-org-root admin (403)", async () => {
-    const { next, result } = callMiddleware("http://localhost/admin/users?scope=*", {
+    const { next, result } = callMiddleware("http://localhost/cytario/admin/users?scope=*", {
       ...BASE_USER,
       adminScopes: ["cytario"],
     });
@@ -146,7 +174,7 @@ describe("adminMiddleware", () => {
 
     await adminMiddleware(
       {
-        request: new Request("http://localhost/admin/users?scope=cytario%2Flab"),
+        request: new Request("http://localhost/cytario/admin/users?scope=cytario%2Flab"),
         context,
         params: {},
       } as unknown as Parameters<typeof adminMiddleware>[0],
@@ -157,7 +185,7 @@ describe("adminMiddleware", () => {
     expect(downstream).toEqual({
       org: mockOrg,
       scope: "cytario/lab",
-      adminUrl: "/admin/users?scope=cytario%2Flab",
+      adminUrl: "/cytario/admin/users?scope=cytario%2Flab",
     });
   });
 });

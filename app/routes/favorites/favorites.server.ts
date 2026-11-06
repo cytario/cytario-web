@@ -47,9 +47,13 @@ export async function removeFavorite(
   await prisma.pinnedPath.deleteMany({ where: { userId, connectionId, pathName } });
 }
 
-export async function getFavorites(userId: string): Promise<PinnedPath[]> {
+/**
+ * The user's favorites in `organization` only. The connection relation
+ * carries the org — a row from another tenant never reaches the loader.
+ */
+export async function getFavorites(userId: string, organization: string): Promise<PinnedPath[]> {
   return prisma.pinnedPath.findMany({
-    where: { userId },
+    where: { userId, connection: { organization } },
     orderBy: { id: "desc" },
   });
 }

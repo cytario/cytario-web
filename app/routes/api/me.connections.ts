@@ -1,7 +1,11 @@
 import { type LoaderFunctionArgs } from "react-router";
 
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
-import { profileFromTokenClaims } from "~/.server/auth/getUserInfo";
+import {
+  profileFromTokenClaims,
+  resolveActiveOrganization,
+  withActiveOrganization,
+} from "~/.server/auth/getUserInfo";
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
 import { jsonError } from "~/.server/httpResponse";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -47,18 +51,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return jsonError(401, "The presented token is invalid or expired.");
   }
 
-  const user = profileFromTokenClaims(payload);
-  const organizationClaim = payload.organization;
-  const organizationCount =
-    organizationClaim && typeof organizationClaim === "object"
-      ? Object.keys(organizationClaim).length
-      : 0;
-  if (!user?.organization || organizationCount !== 1) {
-    return jsonError(401, "The token carries no single active organization.");
+  const profile = profileFromTokenClaims(payload);
+  // Single-org CLI token: the alias the token's organization claim carries.
+  const organization = profile ? resolveActiveOrganization(profile.organizations) : undefined;
+  if (!profile || !organization) {
+    return jsonError(401, "The token carries no organization to act in.");
   }
-  const organization = user.organization;
+  // Project to the token's org so grant resolution sees its groups — the
+  // stored profile is org-neutral.
+  const user = withActiveOrganization(profile, organization);
 
-  const connections = await listConnections(user);
+  const connections = await listConnections(user, organization);
 
   const catalog = await getProviderCatalog(organization, token).catch((error: unknown) => {
     console.error("[me/connections] provider catalog lookup failed", error);

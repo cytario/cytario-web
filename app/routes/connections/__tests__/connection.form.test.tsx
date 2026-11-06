@@ -74,7 +74,7 @@ function renderForm(adminScopes: string[] = []) {
 function renderFormAt(path: string, adminScopes: string[] = [], defaultScope?: string) {
   const Stub = createRoutesStub([
     {
-      path: "/connections",
+      path: "/",
       Component: () => (
         <ConnectionForm
           adminScopes={adminScopes}
@@ -220,7 +220,7 @@ describe("ConnectionForm — submit target", () => {
     // An explicit action path resolves without the current search params, so a
     // submit from inside a modal must carry them explicitly — otherwise the
     // modal unmounts on submit and a server error banner never renders.
-    renderFormAt("/connections?modal=add-connection", ["lab"], "lab");
+    renderFormAt("/?modal=add-connection", ["lab"], "lab");
     const user = await openProviderSelect();
     await user.click(screen.getByRole("option", { name: /Prod/ }));
 
@@ -247,7 +247,7 @@ describe("ConnectionForm — submit target", () => {
     });
     expect(mockSubmit.mock.calls[0][1]).toMatchObject({
       method: "post",
-      action: "/connections?modal=add-connection",
+      action: "/?modal=add-connection",
     });
   });
 });

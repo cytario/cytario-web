@@ -22,7 +22,8 @@ vi.mock("~/config", () => ({
     auth: {
       baseUrl: "http://localhost:8080/realms/master",
       cyberduckClientId: "cyberduck-client",
-      scopes: ["openid", "profile"],
+      scopes: ["openid", "profile", "organization:*"],
+      externalClientScopes: ["openid", "profile", "organization"],
     },
     endpoints: { webapp: "https://cytario.example.com" },
     providers: { catalogFailureBackoffMs: 5_000 },

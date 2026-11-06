@@ -167,3 +167,15 @@ model JobGrantCredential {
   /// The batch the credentials belong to.
   batch                 Batch @relation(fields: [batchId], references: [id])
 }
+
+/// Persistent per-user preferences (org preference, tour completion, …) — one
+/// row per (user, key) with a JSON value, so a new preference is a key, not a
+/// migration.
+model UserPreference {
+  userId    String
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, key])
+}

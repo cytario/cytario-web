@@ -114,20 +114,25 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(response.status).toBe(401);
   });
 
-  test("401 when the token carries no single active organization", async () => {
+  test("401 when the token carries no organization", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(cliToken({ organization: undefined }) as never);
     const response = (await loader(buildArgs("token"))) as Response;
     expect(response.status).toBe(401);
     expect(listConnections).not.toHaveBeenCalled();
   });
 
-  test("401 when the token carries multiple organizations", async () => {
+  test("acts in the token's first alias when it carries several organizations", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(
-      cliToken({ organization: { org1: { groups: [] }, org2: { groups: [] } } }) as never,
+      cliToken({ organization: { zulu: { groups: [] }, alpha: { groups: [] } } }) as never,
     );
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
     const response = (await loader(buildArgs("token"))) as Response;
-    expect(response.status).toBe(401);
-    expect(listConnections).not.toHaveBeenCalled();
+
+    expect(response.status).toBe(200);
+    expect(getProviderCatalog).toHaveBeenCalledWith("alpha", "token");
   });
 
   test("connection with no applicable grant is listed without a role", async () => {

@@ -31,9 +31,11 @@ function ownerScopesOf(resource: AuthorizationResource): string[] {
   return single ? [single] : [];
 }
 
-/** Tenant boundary: a resource must belong to the user's active organization. */
-function inActiveOrg(user: UserProfile, resource: AuthorizationResource): boolean {
-  return user.organization !== undefined && user.organization === resource.organization;
+/** Tenant boundary: a resource must belong to the org the request acts in.
+ * The org is the caller's request org — never read off the profile, which
+ * carries only the membership map. */
+function inRequestOrg(organization: string | undefined, resource: AuthorizationResource): boolean {
+  return organization !== undefined && organization === resource.organization;
 }
 
 /** Single source of truth for "does this admin scope cover that target scope",
@@ -54,8 +56,12 @@ export function adminScopesCover(adminScopes: string[], targetScope: string): bo
  * Org-root scope is visible to every org member; group membership in the
  * ownerScope group or a child also grants visibility. A multi-grant connection
  * is visible when ANY of its grants' scopes is visible. */
-export function canSee(user: UserProfile, resource: AuthorizationResource): boolean {
-  if (!inActiveOrg(user, resource)) return false;
+export function canSee(
+  user: UserProfile,
+  resource: AuthorizationResource,
+  organization: string | undefined,
+): boolean {
+  if (!inRequestOrg(organization, resource)) return false;
   return ownerScopesOf(resource).some((ownerScope) => canSeeScope(user, ownerScope));
 }
 
@@ -70,8 +76,12 @@ function canSeeScope(user: UserProfile, ownerScope: string): boolean {
 /** Can the user modify/delete the resource? Group membership alone is NOT
  * sufficient — admin ancestry is required. A multi-grant connection is
  * modifiable when ANY of its grants' scopes is administered. */
-export function canModify(user: UserProfile, resource: AuthorizationResource): boolean {
-  if (!inActiveOrg(user, resource)) return false;
+export function canModify(
+  user: UserProfile,
+  resource: AuthorizationResource,
+  organization: string | undefined,
+): boolean {
+  if (!inRequestOrg(organization, resource)) return false;
   return ownerScopesOf(resource).some((ownerScope) => canModifyScope(user, ownerScope));
 }
 
@@ -81,13 +91,21 @@ function canModifyScope(user: UserProfile, ownerScope: string): boolean {
 }
 
 /** Can the user create a resource under the target scope? */
-export function canCreate(user: UserProfile, resource: AuthorizationResource): boolean {
-  if (!inActiveOrg(user, resource)) return false;
+export function canCreate(
+  user: UserProfile,
+  resource: AuthorizationResource,
+  organization: string | undefined,
+): boolean {
+  if (!inRequestOrg(organization, resource)) return false;
   const ownerScope = resource.ownerScope ?? resource.scope ?? "";
   if (ownerScope === user.sub) return true;
   return user.adminScopes.some((scope) => adminCovers(scope, ownerScope));
 }
 
-export function filterVisible<T extends AuthorizationResource>(user: UserProfile, resources: T[]) {
-  return resources.filter((r) => canSee(user, r));
+export function filterVisible<T extends AuthorizationResource>(
+  user: UserProfile,
+  resources: T[],
+  organization: string | undefined,
+) {
+  return resources.filter((r) => canSee(user, r, organization));
 }

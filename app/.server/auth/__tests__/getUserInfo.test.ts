@@ -1,4 +1,9 @@
-import { getUserInfo, toIdentity, type UserProfile } from "../getUserInfo";
+import {
+  profileFromAccessToken,
+  resolveActiveOrganization,
+  toIdentity,
+  type UserProfile,
+} from "../getUserInfo";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
 
 vi.mock("../wellKnownEndpoints", () => ({
@@ -7,6 +12,25 @@ vi.mock("../wellKnownEndpoints", () => ({
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
+
+/** An unsigned JWT carrying `claims` — profileFromAccessToken decodes, never verifies. */
+const forgeToken = (claims: Record<string, unknown>): string => {
+  const b64url = (obj: unknown) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  return `${b64url({ alg: "none", typ: "JWT" })}.${b64url(claims)}.`;
+};
+
+/** The claims payload each test built for the (removed) userinfo fetch.
+ * Asserts non-null so test bodies keep the old getUserInfo ergonomics. */
+const profileFromRaw = (raw: Record<string, unknown>) => {
+  const profile = profileFromAccessToken(forgeToken(raw));
+  if (!profile) throw new Error(`test payload produced no profile: ${JSON.stringify(raw)}`);
+  return profile;
+};
 
 describe("getUserInfo", () => {
   const mockUserinfoEndpoint = "https://auth.example.com/userinfo";
@@ -36,21 +60,20 @@ describe("getUserInfo", () => {
         family_name: "string",
         policy: ["default-policy"],
         groups: ["/org1/lab", "/org1/lab/admins"],
+        organization: {
+          org1: { groups: ["/org1/lab", "/org1/lab/admins"] },
+        },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
-
-      const result = await getUserInfo("access-token-123");
+      const result = await profileFromRaw(rawProfile);
 
       expect(result).toEqual(
         expect.objectContaining({
           sub: "user-uuid-123",
           email: "user@example.com",
-          groups: ["org1/lab"],
-          adminScopes: ["org1/lab"],
+          // Org-neutral: memberships only, no request-org projection.
+          groups: [],
+          adminScopes: [],
         }),
       );
     });
@@ -68,27 +91,20 @@ describe("getUserInfo", () => {
       ...overrides,
     });
 
-    test("uses correct userinfo endpoint from wellKnown", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile()),
-      });
+    test("derives the profile without any network fetch", async () => {
+      const result = profileFromRaw(rawProfile());
 
-      await getUserInfo("access-token");
-
-      expect(mockFetch).toHaveBeenCalledWith(mockUserinfoEndpoint, expect.any(Object));
+      expect(result).toEqual(expect.objectContaining({ sub: "uuid-default" }));
+      // The userinfo round-trip is gone: login derives from the ID token.
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    test("sends Bearer token in Authorization header", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile()),
-      });
-
-      await getUserInfo("my-access-token-xyz");
-
-      const [, options] = mockFetch.mock.calls[0];
-      expect(options.headers.Authorization).toBe("Bearer my-access-token-xyz");
+    test("an empty-claims token yields the schema defaults", () => {
+      // A token whose claims parse to the schema's minimum: no userinfo to
+      // fall back on — the defaults are the contract.
+      const result = profileFromRaw({ sub: "only-sub" });
+      expect(result?.sub).toBe("only-sub");
+      expect(result?.organizations).toEqual({});
     });
 
     test("returns all user profile fields", async () => {
@@ -101,15 +117,10 @@ describe("getUserInfo", () => {
         family_name: "Name",
         email: "full@example.com",
         policy: ["default-policy"],
-        groups: ["admin", "users"],
+        organization: { testcorp: { groups: ["/admin", "/users"] } },
       });
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(fullProfile),
-      });
-
-      const result = await getUserInfo("token");
+      const result = await profileFromRaw(fullProfile);
 
       expect(result.sub).toBe("uuid-456");
       expect(result.email_verified).toBe(true);
@@ -119,12 +130,14 @@ describe("getUserInfo", () => {
       expect(result.family_name).toBe("Name");
       expect(result.email).toBe("full@example.com");
       expect(result.policy).toEqual(["default-policy"]);
-      expect(result.groups).toEqual(["admin", "users"]);
+      // Org-neutral projection — the membership map keeps the raw groups.
+      expect(result.groups).toEqual([]);
+      expect(result.organizations.testcorp.groups).toEqual(["admin", "users"]);
     });
   });
 
   describe("Organization Claim", () => {
-    test("extracts active org alias and nested groups", async () => {
+    test("captures every membership alias with its nested groups", async () => {
       const rawProfile = {
         sub: "user-uuid-123",
         email: "user@vericura.com",
@@ -140,19 +153,16 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBe("vericura");
-      expect(result.groups).toEqual(["lab", "customers/ascent-pharma"]);
+      expect(Object.keys(result.organizations)).toEqual(["vericura"]);
+      expect(result.organizations.vericura.groups).toEqual(["lab", "customers/ascent-pharma"]);
+      // The profile carries no request-org projection.
+      expect(result.groups).toEqual([]);
       expect(result.adminScopes).toEqual([]);
     });
 
-    test("root /admins becomes the `*` (org-root) admin scope", async () => {
+    test("root /admins stays nested — the projection is request-local", async () => {
       const rawProfile = {
         sub: "user-uuid-456",
         email: "admin@cytar.io",
@@ -168,19 +178,14 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBe("cytario");
-      expect(result.adminScopes).toEqual(["*"]);
+      expect(result.organizations.cytario.groups).toEqual(["admins"]);
+      expect(result.adminScopes).toEqual([]);
       expect(result.groups).toEqual([]);
     });
 
-    test("nested admin groups become their parent scopes", async () => {
+    test("nested admin groups stay nested — withActiveOrganization derives them", async () => {
       const rawProfile = {
         sub: "user-uuid-789",
         email: "owner@vericura.com",
@@ -196,19 +201,17 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBe("vericura");
-      expect(result.adminScopes).toEqual(["*", "customers/ascent-pharma"]);
+      expect(result.organizations.vericura.groups).toEqual([
+        "admins",
+        "customers/ascent-pharma/admins",
+      ]);
+      expect(result.adminScopes).toEqual([]);
       expect(result.groups).toEqual([]);
     });
 
-    test("returns undefined organization when claim is absent", async () => {
+    test("returns an empty membership map when claim is absent", async () => {
       const rawProfile = {
         sub: "user-uuid-000",
         email: "new@example.com",
@@ -221,14 +224,9 @@ describe("getUserInfo", () => {
         groups: [],
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBeUndefined();
+      expect(result.organizations).toEqual({});
       expect(result.groups).toEqual([]);
     });
 
@@ -253,22 +251,16 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBe("testcorp");
       // Multivalued attrs keep all their values — the host does not collapse.
-      expect(result.organizationAttributes).toEqual({
+      expect(result.organizations.testcorp.attributes).toEqual({
         subscription_status: ["active"],
         subscription_period_end: ["2026-12-31", "ignored"],
       });
       // Host-owned keys never leak into the opaque attribute map.
-      expect(result.organizationAttributes).not.toHaveProperty("id");
-      expect(result.organizationAttributes).not.toHaveProperty("groups");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("id");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("groups");
     });
 
     test("passes through seat-plan org attributes unchanged", async () => {
@@ -293,15 +285,9 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBe("testcorp");
-      expect(result.organizationAttributes).toEqual({
+      expect(result.organizations.testcorp.attributes).toEqual({
         viewing_seats: ["10"],
         analysis_seats: ["3"],
         analyst_group: ["analysts"],
@@ -332,19 +318,16 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
+      const result = await profileFromRaw(rawProfile);
+
+      expect(result.organizations.testcorp.attributes).toEqual({
+        subscription_status: ["active"],
       });
-
-      const result = await getUserInfo("access-token");
-
-      expect(result.organizationAttributes).toEqual({ subscription_status: ["active"] });
-      expect(result.organizationAttributes).not.toHaveProperty("billing_email");
-      expect(result.organizationAttributes).not.toHaveProperty("oversized");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("billing_email");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("oversized");
     });
 
-    test("freezes the attribute map so a consumer cannot mutate it", async () => {
+    test("freezes the membership entries so a consumer cannot mutate them", async () => {
       const rawProfile = {
         sub: "user-uuid-frozen",
         email: "frozen@example.com",
@@ -358,11 +341,10 @@ describe("getUserInfo", () => {
         organization: { testcorp: { id: "id", groups: [], subscription_status: ["active"] } },
       };
 
-      mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(rawProfile) });
+      const result = profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(Object.isFrozen(result.organizationAttributes)).toBe(true);
+      expect(Object.isFrozen(result.organizations.testcorp)).toBe(true);
+      expect(Object.isFrozen(result.organizations.testcorp.attributes)).toBe(true);
     });
 
     test("tolerates scalar, array, and id-shape variants without throwing", async () => {
@@ -393,23 +375,19 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
+      const result = await profileFromRaw(rawProfile);
 
-      const result = await getUserInfo("access-token");
-
-      expect(result.organization).toBe("testcorp");
       // Scalar is wrapped to a one-element array; a multivalued attr keeps all
       // its (string) values; empty and non-string-only attrs are dropped.
-      expect(result.organizationAttributes).toEqual({
+      expect(result.organizations.testcorp.attributes).toEqual({
         subscription_status: ["active"],
         plan: ["pro", "ignored"],
       });
-      expect(result.organizationAttributes).not.toHaveProperty("id");
-      expect(result.organizationAttributes).not.toHaveProperty("empty_attr");
-      expect(result.organizationAttributes).not.toHaveProperty("numeric_attr");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("id");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("empty_attr");
+      expect(result.organizations.testcorp.attributes).not.toHaveProperty("numeric_attr");
+      // The array-shaped id resolves to its first usable value.
+      expect(result.organizations.testcorp.id).toBe("42c3-id");
     });
 
     test("defaults org attributes to empty object when claim is absent", async () => {
@@ -425,17 +403,12 @@ describe("getUserInfo", () => {
         groups: [],
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
-      });
-
-      const result = await getUserInfo("access-token");
+      const result = await profileFromRaw(rawProfile);
 
       expect(result.organizationAttributes).toEqual({});
     });
 
-    test("nested organization groups take precedence over top-level legacy groups", async () => {
+    test("the stored profile is org-neutral — nested organization groups never project top-level", async () => {
       const rawProfile = {
         sub: "user-uuid-mix",
         email: "mix@example.com",
@@ -443,7 +416,7 @@ describe("getUserInfo", () => {
         name: "Mix",
         preferred_username: "mix",
         given_name: "Mix",
-        family_name: "User",
+        family_name: "Mix",
         policy: [],
         groups: ["/legacy/group"],
         organization: {
@@ -451,33 +424,145 @@ describe("getUserInfo", () => {
         },
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(rawProfile),
+      const result = await profileFromRaw(rawProfile);
+
+      // The projection belongs to withActiveOrganization; the raw memberships
+      // live on under the alias.
+      expect(result.groups).toEqual([]);
+      expect(result.organizations.vericura.groups).toEqual(["lab"]);
+    });
+  });
+
+  describe("Multi-org claim", () => {
+    const multiOrgProfile = (overrides?: Record<string, unknown>) => ({
+      sub: "uuid-multi",
+      email: "multi@example.com",
+      email_verified: true,
+      name: "Multi",
+      preferred_username: "multi",
+      given_name: "Multi",
+      family_name: "Org",
+      policy: [],
+      groups: [],
+      organization: {
+        vericura: { id: "org-vericura", groups: ["/lab", "/lab/admins"], tier: ["pro"] },
+        ascent: { id: "org-ascent", groups: ["/research"], tier: ["basic"] },
+        cytario: { groups: ["/admins"] },
+      },
+      ...overrides,
+    });
+
+    test("exposes every membership with its own attributes and groups", async () => {
+      const result = profileFromRaw(multiOrgProfile());
+
+      expect(Object.keys(result.organizations).sort()).toEqual(["ascent", "cytario", "vericura"]);
+      expect(result.organizations.vericura).toEqual({
+        id: "org-vericura",
+        groups: ["lab", "lab/admins"],
+        attributes: { tier: ["pro"] },
       });
+      expect(result.organizations.ascent).toEqual({
+        id: "org-ascent",
+        groups: ["research"],
+        attributes: { tier: ["basic"] },
+      });
+      // No `id` in the claim → the key is absent, never an undefined value.
+      expect(result.organizations.cytario).not.toHaveProperty("id");
+    });
 
-      const result = await getUserInfo("access-token");
+    test("the profile carries no request-org projection — groups/scopes stay empty", async () => {
+      const neutral = profileFromRaw(multiOrgProfile());
 
-      expect(result.groups).toEqual(["lab"]);
+      expect(neutral.groups).toEqual([]);
+      expect(neutral.adminScopes).toEqual([]);
+      expect(neutral.organizationAttributes).toEqual({});
+    });
+
+    test("withActiveOrganization projects the caller's requested alias", async () => {
+      const { withActiveOrganization } = await import("../getUserInfo");
+      const neutral = profileFromRaw(multiOrgProfile());
+      const projected = withActiveOrganization(neutral, "vericura");
+
+      expect(projected.groups).toEqual(["lab"]);
+      expect(projected.adminScopes).toEqual(["lab"]);
+      expect(projected.organizationAttributes).toEqual({ tier: ["pro"] });
+    });
+
+    test("an alias outside the memberships clears the projection entirely", async () => {
+      const { withActiveOrganization } = await import("../getUserInfo");
+      const neutral = profileFromRaw(multiOrgProfile());
+      const projected = withActiveOrganization(neutral, "revoked-org");
+
+      expect(projected.groups).toEqual([]);
+      expect(projected.adminScopes).toEqual([]);
+      expect(projected.organizationAttributes).toEqual({});
+    });
+
+    test("the org-root admins group derives the `*` admin scope under its alias", async () => {
+      const { withActiveOrganization } = await import("../getUserInfo");
+      const neutral = profileFromRaw(multiOrgProfile());
+      const projected = withActiveOrganization(neutral, "cytario");
+
+      expect(projected.adminScopes).toEqual(["*"]);
+      expect(projected.groups).toEqual([]);
+    });
+
+    test("yields an empty map for a zero-org token", async () => {
+      const rawProfile = {
+        sub: "zero-org-user",
+        email: "z@example.com",
+        email_verified: true,
+        name: "Zero",
+        preferred_username: "zero",
+        given_name: "Z",
+        family_name: "User",
+        policy: [],
+        groups: [],
+      };
+      const result = profileFromRaw(rawProfile);
+
+      expect(result.organizations).toEqual({});
+      expect(result.organizationAttributes).toEqual({});
+    });
+  });
+
+  describe("resolveActiveOrganization", () => {
+    const membership = { groups: [], attributes: {} };
+
+    test("returns undefined for an empty membership map", () => {
+      expect(resolveActiveOrganization({})).toBeUndefined();
+    });
+
+    test("returns the preferred alias when present", () => {
+      const organizations = { alpha: membership, zeta: membership };
+
+      expect(resolveActiveOrganization(organizations, "zeta")).toBe("zeta");
+    });
+
+    test("ignores a preferred alias that is not a membership", () => {
+      const organizations = { beta: membership, alpha: membership };
+
+      expect(resolveActiveOrganization(organizations, "gamma")).toBe("alpha");
+    });
+
+    test("picks the first alias alphabetically, independent of claim order", () => {
+      const organizations = { zulu: membership, alpha: membership, mike: membership };
+
+      expect(resolveActiveOrganization(organizations)).toBe("alpha");
     });
   });
 
   describe("Zod Validation", () => {
-    test("throws ZodError for malformed userinfo response", async () => {
+    test("a claims payload that fails the schema yields null", async () => {
+      // sub typed wrong — the schema's identity floor. A payload failing
+      // validation yields null; the auth callback turns that into the
+      // failed-login notification.
       const malformedProfile = {
-        sub: "uuid-123",
+        sub: 123,
         email: "user@example.com",
-        // Missing required fields: name, preferred_username, etc.
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(malformedProfile),
-      });
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-      await expect(getUserInfo("access-token")).rejects.toThrow();
-      consoleSpy.mockRestore();
+      expect(profileFromAccessToken(forgeToken(malformedProfile))).toBeNull();
     });
 
     test("defaults policy and groups to [] when omitted by Keycloak", async () => {
@@ -494,12 +579,7 @@ describe("getUserInfo", () => {
         email: "test@example.com",
       };
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(profileWithoutPolicy),
-      });
-
-      const result = await getUserInfo("access-token");
+      const result = profileFromRaw(profileWithoutPolicy);
 
       expect(result.policy).toEqual([]);
       expect(result.groups).toEqual([]);
@@ -517,14 +597,19 @@ describe("getUserInfo", () => {
       family_name: "Doe",
       email: "alice@example.com",
       policy: ["default-policy"],
-      organization: "testcorp",
+      organizations: {
+        testcorp: {
+          groups: ["lab"],
+          attributes: { subscription_status: ["active"] },
+        },
+      },
       organizationAttributes: { subscription_status: ["active"] },
       groups: ["lab"],
       adminScopes: ["*"],
     };
 
-    test("projects the tenant-relevant subset", () => {
-      expect(toIdentity(fullProfile)).toEqual({
+    test("projects the tenant-relevant subset for the request org", () => {
+      expect(toIdentity(fullProfile, "testcorp")).toEqual({
         sub: "user-uuid-123",
         organization: "testcorp",
         organizationAttributes: { subscription_status: ["active"] },
@@ -533,8 +618,13 @@ describe("getUserInfo", () => {
       });
     });
 
+    test("the org comes from the argument, never the profile", () => {
+      const identity = toIdentity(fullProfile, "another-org");
+      expect(identity.organization).toBe("another-org");
+    });
+
     test("drops PII fields (name, email, preferred_username, policy)", () => {
-      const identity = toIdentity(fullProfile) as unknown as Record<string, unknown>;
+      const identity = toIdentity(fullProfile, "testcorp") as unknown as Record<string, unknown>;
       expect(identity).not.toHaveProperty("name");
       expect(identity).not.toHaveProperty("email");
       expect(identity).not.toHaveProperty("preferred_username");
@@ -543,44 +633,13 @@ describe("getUserInfo", () => {
   });
 
   describe("Error Cases", () => {
-    test("throws on non-200 response with error message", async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 401,
-        text: () => Promise.resolve("Invalid token"),
-      });
-
-      await expect(getUserInfo("invalid-token")).rejects.toThrow(
-        "UserInfo fetch failed: 401 - Invalid token",
-      );
+    test("a malformed access token yields null, not a throw", () => {
+      expect(profileFromAccessToken("not-a-jwt")).toBeNull();
     });
 
-    test("throws on 403 forbidden response", async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 403,
-        text: () => Promise.resolve("Access denied"),
-      });
-
-      await expect(getUserInfo("access-token")).rejects.toThrow(
-        "UserInfo fetch failed: 403 - Access denied",
-      );
-    });
-
-    test("throws on network failure", async () => {
-      mockFetch.mockRejectedValue(new Error("Network error"));
-
-      await expect(getUserInfo("access-token")).rejects.toThrow("Network error");
-    });
-
-    test("throws when wellKnown endpoints fetch fails", async () => {
-      vi.mocked(getWellKnownEndpoints).mockRejectedValue(
-        new Error("Failed to fetch well-known configuration"),
-      );
-
-      await expect(getUserInfo("access-token")).rejects.toThrow(
-        "Failed to fetch well-known configuration",
-      );
+    test("a valid JWT whose claims fail the schema yields null", () => {
+      // sub missing — the schema's one required identity field.
+      expect(profileFromAccessToken(forgeToken({ email: "x@y.z" }))).toBeNull();
     });
   });
 });

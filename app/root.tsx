@@ -19,7 +19,7 @@ import {
   type ShouldRevalidateFunction,
 } from "react-router";
 
-import { UserProfile } from "./.server/auth/getUserInfo";
+import { UserProfile, withActiveOrganization } from "./.server/auth/getUserInfo";
 import { sessionContext, sessionMiddleware } from "./.server/auth/sessionMiddleware";
 import { sessionStorage } from "./.server/auth/sessionStorage";
 import { AppHeader } from "./components/AppHeader";
@@ -30,6 +30,7 @@ import { cytarioConfig } from "./config";
 import { type SerializedFavorite } from "./routes/favorites/favorites.loader";
 import { FavoritesProvider } from "./routes/favorites/useFavorite";
 import { toToastVariant, type NotificationInput } from "./utils/notifications";
+import { organizationFromApiPath, organizationFromPath } from "./utils/orgPath";
 
 import "./styles.css";
 import "rc-slider/assets/index.css";
@@ -62,11 +63,18 @@ export const links: LinksFunction = () => [
 export const middleware: MiddlewareFunction[] = [sessionMiddleware];
 
 export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
   formAction,
   defaultShouldRevalidate,
 }) => {
   // Only revalidate after form submissions so flash notifications surface.
   if (formAction) return defaultShouldRevalidate;
+  // An organization switch moves the /:org segment; the root loader's user
+  // projection (active org, memberships) must follow or the shell — breadcrumb
+  // root, org-prefixed links — keeps rendering the organization the session
+  // just left.
+  if (currentUrl.pathname.split("/")[1] !== nextUrl.pathname.split("/")[1]) return true;
   return false;
 };
 
@@ -80,15 +88,50 @@ export interface RootLoaderResponse {
   version?: string;
 }
 
-export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
+/** Alias-only org map: `{ acme: { groups: [...] } }` → `{ acme: { groups: [] } }`. */
+function projectOrgAliases(
+  organizations: UserProfile["organizations"] | undefined,
+): UserProfile["organizations"] {
+  const projected: Record<
+    string,
+    { groups: readonly string[]; attributes: Record<string, never> }
+  > = {};
+  for (const alias of Object.keys(organizations ?? {})) {
+    projected[alias] = Object.freeze({
+      groups: Object.freeze([]),
+      attributes: Object.freeze({}) as Record<string, never>,
+    });
+  }
+  return Object.freeze(projected) as UserProfile["organizations"];
+}
+
+export const loader = async ({
+  context,
+  request,
+}: LoaderFunctionArgs): Promise<RootLoaderResponse> => {
   const session = context.get(sessionContext);
-  const user = session.get("user");
+  const sessionUser = session.get("user");
   const notification = session.get("notification");
 
   if (notification) {
     session.unset("notification");
     await sessionStorage.commitSession(session);
   }
+
+  // The browser receives the REQUEST-ORG projection: the stored profile is
+  // org-neutral (memberships only), so the groups/admin scopes the client
+  // chrome reads (grant-scope selectors, UserMenu) are projected to the org
+  // this document's URL names — mirroring authMiddleware's resolution. The
+  // per-org group paths of the OTHER memberships stay host-side.
+  const { pathname } = new URL(request.url);
+  const urlOrg = organizationFromApiPath(pathname) ?? organizationFromPath(pathname);
+  const user =
+    sessionUser && urlOrg && sessionUser.organizations[urlOrg]
+      ? withActiveOrganization(sessionUser, urlOrg)
+      : sessionUser;
+  const clientUser = user
+    ? { ...user, organizations: projectOrgAliases(user.organizations) }
+    : undefined;
 
   const accountSettingsUrl = user
     ? `${cytarioConfig.auth.baseUrl}/account?referrer=${cytarioConfig.auth.clientId}&referrer_uri=${cytarioConfig.endpoints.webapp}`
@@ -99,7 +142,15 @@ export const loader = async ({ context }: LoaderFunctionArgs): Promise<RootLoade
   const supportEmail = user ? cytarioConfig.support?.email : undefined;
   const version = process.env.VERSION ?? "unknown";
 
-  return { user, notification, accountSettingsUrl, portalUrl, docsUrl, supportEmail, version };
+  return {
+    user: clientUser,
+    notification,
+    accountSettingsUrl,
+    portalUrl,
+    docsUrl,
+    supportEmail,
+    version,
+  };
 };
 
 // Identity clientLoader. Forces this route off RR's bulk-fetch single-fetch

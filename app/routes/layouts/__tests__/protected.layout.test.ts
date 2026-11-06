@@ -27,6 +27,9 @@ const buildContext = (user = mock.user()) => ({
     if (ctx === authContext) {
       return {
         user,
+        requestOrganization: user.organizations.testcorp
+          ? "testcorp"
+          : Object.keys(user.organizations)[0],
         connectionConfigs: [],
         credentials: { "test-conn": mock.credentials() },
       };
@@ -57,7 +60,7 @@ describe("protected layout loader", () => {
     const data = await runLoader(
       mock.user({
         sub: "user-123",
-        organization: "testcorp",
+        organizations: { testcorp: { groups: ["testcorp/lab"], attributes: {} } },
         organizationAttributes: { subscription_status: ["active"] },
         groups: ["testcorp/lab"],
         adminScopes: ["*"],

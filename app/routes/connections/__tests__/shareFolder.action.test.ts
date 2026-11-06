@@ -8,6 +8,9 @@ import { applyGrantsAndRecordStatus } from "~/routes/connections/connectionGrant
 import { shareAction } from "~/routes/connections/shareFolder.action";
 import mock from "~/utils/__tests__/__mocks__";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 // All vi.mock calls are hoisted above the imports by vitest.
 vi.mock("~/.server/db/prisma", () => ({
   prisma: {
@@ -43,7 +46,12 @@ vi.mock("~/routes/connections/connectionGrant.server", async () => {
 
 function buildArgs(user: ReturnType<typeof mock.user>, form: Record<string, string>) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user });
+  ctx.set(authContext, {
+    user,
+    sessionId: "session-1",
+    requestOrganization: "org1",
+    authTokens: { accessToken: "access-token" },
+  });
   ctx.set(sessionContext, mock.session({ authTokens: { idToken: "tok" } as never }));
   const request = new Request("http://localhost/connections", {
     method: "POST",
@@ -80,7 +88,7 @@ const validForm = {
 describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109)", () => {
   test("rejects an unauthorized target scope with HTTP 403 before any mint or write", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(catalog);
-    const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
+    const user = mock.user({ adminScopes: ["lab"] });
     const args = buildArgs(user, { ...validForm, "grants[0].scope": "ops" });
 
     const response = await shareAction(args).catch((e: unknown) => e);
@@ -114,7 +122,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
       result: { status: "applied" },
     });
 
-    const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
+    const user = mock.user({ adminScopes: ["lab"] });
     const args = buildArgs(user, { ...validForm, "grants[0].accessLevel": "read-only" });
 
     await shareAction(args);
@@ -132,7 +140,7 @@ describe("shareAction — server-side grant authorization (SRS-CY-32607 / 413109
     });
     vi.mocked(prisma.connectionConfig.create).mockResolvedValue(created);
 
-    const user = mock.user({ adminScopes: ["lab"], organization: "org1" });
+    const user = mock.user({ adminScopes: ["lab"] });
     const args = buildArgs(user, validForm);
 
     const result = await shareAction(args);

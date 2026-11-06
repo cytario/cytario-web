@@ -1,4 +1,5 @@
 import type { ImageMetadata } from "./imageMetadata";
+import type { OrgPathHelpers } from "./orgPaths";
 import type { StoragePicker } from "./storagePicker";
 
 /**
@@ -16,4 +17,7 @@ export interface ClientCapabilities {
   storagePicker: StoragePicker | null;
   /** The host's image-metadata reads, or null in the server realm. */
   imageMetadata: ImageMetadata | null;
+  /** Org-aware URL builders for the org the current page acts in, or null in
+   * the server realm. Plugins never hand-assemble org-prefixed URLs. */
+  orgPaths: OrgPathHelpers | null;
 }

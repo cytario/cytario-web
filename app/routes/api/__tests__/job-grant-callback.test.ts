@@ -14,12 +14,16 @@ vi.mock("~/.server/auth/exchangeAuthCodeForJobGrant", () => ({
   exchangeAuthCodeForJobGrant: exchangeMock,
 }));
 
-const getUserInfoMock = vi.hoisted(() => vi.fn());
+const profileFromTokenClaimsMock = vi.hoisted(() => vi.fn());
 const toIdentityMock = vi.hoisted(() => vi.fn());
-vi.mock("~/.server/auth/getUserInfo", () => ({
-  getUserInfo: getUserInfoMock,
-  toIdentity: toIdentityMock,
-}));
+vi.mock("~/.server/auth/getUserInfo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/.server/auth/getUserInfo")>();
+  return {
+    ...actual,
+    profileFromTokenClaims: profileFromTokenClaimsMock,
+    toIdentity: toIdentityMock,
+  };
+});
 
 const withHostRequestContextMock = vi.hoisted(() => vi.fn());
 vi.mock("~/.server/hostRequestContext", () => ({
@@ -71,7 +75,7 @@ beforeEach(() => {
   putBatchCredentialsMock.mockResolvedValue(undefined);
   collectCredentialsIfBatchEmptyMock.mockReset();
   collectCredentialsIfBatchEmptyMock.mockResolvedValue(undefined);
-  getUserInfoMock.mockResolvedValue({ sub: "u1", organization: "testcorp" });
+  profileFromTokenClaimsMock.mockReturnValue({ sub: "u1", organizations: {} });
   toIdentityMock.mockReturnValue({
     sub: "u1",
     organization: "testcorp",

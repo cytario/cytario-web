@@ -1,3 +1,4 @@
+import { getOrExchangeOrgAccessToken } from "./auth/orgTokenExchange";
 import { hostRequestStorage } from "./hostRequestContext";
 import { getProviderCatalog } from "./providers/providerCatalog.server";
 import type { AppCatalog } from "~/utils/providerCatalog.schema";
@@ -46,8 +47,16 @@ export async function catalogFetch(
   url: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const { user, authTokens } = requireRequestData();
-  const catalog = await getProviderCatalog(user.organization!, authTokens.accessToken);
+  const { authTokens, sessionId, organization } = requireRequestData();
+  if (!organization) {
+    throw new Error("Active organization missing from request context");
+  }
+  // The portal rejects the multi-membership session token a multi-org user
+  // carries; its lookups go out with a narrow per-org access token instead.
+  const portalToken = (
+    await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
+  ).accessToken;
+  const catalog = await getProviderCatalog(organization, portalToken);
 
   const appCatalog = findCatalog(catalog.appCatalogs, connectionName);
   if (!appCatalog) {

@@ -9,6 +9,7 @@ import { type ShareFolderFormData, shareFolderSchema } from "./shareFolder.schem
 import { useBucketCatalog } from "./useBucketCatalog";
 import { useProviderCatalog } from "./useProviderCatalog";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { useOrgPath } from "~/hooks/useOrgPath";
 import { type AccessLevel } from "~/utils/providerCatalog.schema";
 
 const ACCESS_LEVEL_LABELS: Record<AccessLevel, string> = {
@@ -42,6 +43,7 @@ export const ShareFolderForm = ({
 }: ShareFolderFormProps) => {
   const submit = useSubmit();
   const navigation = useNavigation();
+  const connectionsPath = useOrgPath()("/");
   const { catalog, error: catalogError, loading: catalogLoading } = useProviderCatalog();
   const { catalog: bucketCatalog } = useBucketCatalog();
   const actionData = useActionData<{
@@ -105,7 +107,7 @@ export const ShareFolderForm = ({
     // An explicit action path resolves without the current search params, so
     // the modal's `?modal=` param would be dropped and the dialog unmounted
     // mid-submit — its error banner would never render. Preserve the search.
-    submit(formData, { method: "post", action: `/connections${location.search}` });
+    submit(formData, { method: "post", action: `${connectionsPath}${location.search}` });
   };
 
   return (

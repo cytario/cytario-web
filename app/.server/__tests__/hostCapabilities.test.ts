@@ -6,6 +6,9 @@ import type { Identity } from "@cytario/plugin-api";
 import { noopHostCapabilities } from "~/lib/noopHostCapabilities";
 import type { ProviderCatalog } from "~/utils/providerCatalog.schema";
 
+vi.mock("~/.server/auth/orgTokenExchange", async () =>
+  (await import("~/utils/__tests__/orgTokenExchangeMock")).orgTokenExchangeMocks(),
+);
 const {
   getProviderCatalogMock,
   resolveConnectionProviderMock,
@@ -61,11 +64,11 @@ const mockIdentity: Identity = {
 const mockRequestData: HostRequestData = {
   user: {
     sub: "user-123",
-    organization: "testcorp",
     organizationAttributes: {},
     groups: [],
     adminScopes: [],
   } as never,
+  organization: "testcorp",
   identity: mockIdentity,
   authTokens: { accessToken: "access", refreshToken: "refresh", idToken: "id" },
   sessionId: "session-123",
@@ -284,6 +287,15 @@ describe("HostCapabilities (SDS-CY-010097/010098/010099)", () => {
     expect(session.executionRoleArn).toBe(executionRoleArn);
     expect(session.imagePullSecretRef).toBe(imagePullSecretRef);
     expect(typeof session.signedFetch).toBe("function");
+
+    // Narrow per-org tokens, never the multi-membership session tokens:
+    // the portal catalog lookup takes the access token, the ARWWI mint the
+    // ID token.
+    expect(getProviderCatalogMock).toHaveBeenCalledWith("testcorp", "narrow-access:testcorp");
+    const stsInput = (stsSendMock.mock.calls[0][0] as { input: unknown }).input as {
+      WebIdentityToken: string;
+    };
+    expect(stsInput.WebIdentityToken).toBe("narrow-id:testcorp");
   });
 
   test("assumeComputeRole returns a null imagePullSecretRef when the provider has no connected catalog", async () => {
@@ -1424,7 +1436,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     vi.spyOn(prisma.batch, "deleteMany").mockResolvedValue({ count: 1 } as never);
     const orgAgnosticRequestData: HostRequestData = {
       ...mockRequestData,
-      user: { ...mockRequestData.user, organization: undefined },
+      organization: undefined,
       identity: undefined,
     };
     await withHostRequestContext(orgAgnosticRequestData, async () => {
@@ -1601,7 +1613,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
       await hostCapabilities.assumeComputeRole(undefined, "othercorp");
     });
 
-    expect(getProviderCatalogMock).toHaveBeenCalledWith("othercorp", "access");
+    expect(getProviderCatalogMock).toHaveBeenCalledWith("othercorp", "narrow-access:othercorp");
   });
 
   test("assumeComputeRole() with no arg uses the context org (session path)", async () => {
@@ -1642,13 +1654,13 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
     await withHostRequestContext(mockRequestData, async () => {
       await hostCapabilities.assumeComputeRole();
     });
-    expect(getProviderCatalogMock).toHaveBeenCalledWith("testcorp", "access");
+    expect(getProviderCatalogMock).toHaveBeenCalledWith("testcorp", "narrow-access:testcorp");
   });
 
   test("assumeComputeRole throws when neither an override nor a context org is present (deployment-secret path)", async () => {
     const noOrgData: HostRequestData = {
       ...mockRequestData,
-      user: { ...mockRequestData.user, organization: undefined } as never,
+      organization: undefined,
     };
     await expect(
       withHostRequestContext(noOrgData, async () => hostCapabilities.assumeComputeRole()),
@@ -1658,7 +1670,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
   test("update throws when the session has no active organization", async () => {
     const noOrgData: HostRequestData = {
       ...mockRequestData,
-      user: { ...mockRequestData.user, organization: undefined },
+      organization: undefined,
     };
     await expect(
       withHostRequestContext(noOrgData, async () =>
@@ -1670,7 +1682,7 @@ describe("JobLedger tenant isolation (SDS-CY-080900/010099)", () => {
   test("record throws when the session has no active organization", async () => {
     const noOrgData: HostRequestData = {
       ...mockRequestData,
-      user: { ...mockRequestData.user, organization: undefined } as never,
+      organization: undefined,
     };
     await expect(
       withHostRequestContext(noOrgData, async () =>

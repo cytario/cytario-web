@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
+import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
@@ -9,7 +10,8 @@ export const middleware = [requestDurationMiddleware, authMiddleware];
 
 /**
  * The active organization's registered-bucket catalog for the bucket picker.
- * Present only in admin-portal builds; OSS builds get `{ source: "oss" }` and
+ * Served under /api/v1/:org/... (the URL drives the org). Present only in
+ * admin-portal builds; OSS builds get `{ source: "oss" }` and
  * the bucket is entered as free text. Advisory: on a stale/unavailable lookup
  * this returns `{ error }` with 200 so the client degrades to a clear message
  * and never blocks an already-created connection.
@@ -21,8 +23,9 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     return Response.json({ source: "oss" }, { headers: { "Cache-Control": "no-store, private" } });
   }
 
-  const { user, authTokens } = context.get(authContext);
-  if (!user.organization) {
+  const { authTokens, sessionId, requestOrganization } = context.get(authContext);
+  const organization = requestOrganization;
+  if (!organization) {
     return Response.json(
       { source: "portal", error: "No active organization." },
       { status: 200, headers: { "Cache-Control": "no-store, private" } },
@@ -30,12 +33,23 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   }
 
   try {
-    const catalog = await getBucketCatalog(user.organization, authTokens.accessToken);
+    // A narrow per-org token: the portal rejects the multi-membership session
+    // token a multi-org user carries.
+    const portalToken = (
+      await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
+    ).accessToken;
+    const catalog = await getBucketCatalog(organization, portalToken);
     return Response.json(
       { source: "portal", catalog },
       { headers: { "Cache-Control": "no-store, private" } },
     );
   } catch (error) {
+    // Advisory 200 to the client, so the failure would otherwise leave no
+    // server-side trace — log which stage failed (exchange vs lookup) with the
+    // org it happened for.
+    console.warn(
+      `[providers] Bucket catalog lookup for organization "${organization}" failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return Response.json(
       {
         source: "portal",

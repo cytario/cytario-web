@@ -21,9 +21,9 @@ vi.mock("~/.server/auth/authMiddleware", async (importOriginal) => {
 });
 
 vi.mock("~/.server/auth/getUserInfo", () => ({
-  toIdentity: vi.fn((user: { sub: string; organization?: string }) => ({
+  toIdentity: vi.fn((user: { sub: string }, organization?: string) => ({
     sub: user.sub,
-    organization: user.organization,
+    organization,
     organizationAttributes: {},
     groups: [],
     adminScopes: [],
@@ -77,13 +77,11 @@ function buildArgs(method: string, pathname: string, init?: { headers?: Record<s
   } as unknown as Parameters<typeof loader>[0];
 }
 
-async function seedAuthUser(
-  args: Parameters<typeof loader>[0],
-  user: { sub?: string; organization?: string },
-) {
+async function seedAuthUser(args: Parameters<typeof loader>[0], organization?: string) {
   const token = await authContext;
   (args.context as unknown as { set: (k: unknown, v: unknown) => void }).set(token, {
-    user: { sub: "test-user", ...user },
+    user: { sub: "test-user" },
+    requestOrganization: organization,
   });
 }
 
@@ -101,13 +99,13 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const loaderFn = vi.fn(async () => Response.json({ ok: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/catalog",
+      path: "/catalog",
       auth: "session",
       loader: loaderFn,
     });
 
-    const args = buildArgs("GET", "/api/plugin/catalog");
-    await seedAuthUser(args, { organization: "testcorp" });
+    const args = buildArgs("GET", "/api/v1/testcorp/plugin/catalog");
+    await seedAuthUser(args, "testcorp");
 
     const response = (await loader(args)) as Response;
 
@@ -115,7 +113,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     expect(toIdentity).toHaveBeenCalledOnce();
     expect(loaderFn).toHaveBeenCalledWith({
       request: args.request,
-      params: {},
+      params: { __pluginPath: "/catalog" },
       identity: {
         sub: "test-user",
         organization: "testcorp",
@@ -133,14 +131,14 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const loaderFn = vi.fn(async () => Response.json({ unused: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/run",
+      path: "/run",
       auth: "session",
       loader: loaderFn,
       action: actionFn,
     });
 
-    const args = buildArgs("POST", "/api/plugin/run");
-    await seedAuthUser(args, { organization: "testcorp" });
+    const args = buildArgs("POST", "/api/v1/testcorp/plugin/run");
+    await seedAuthUser(args, "testcorp");
 
     await action(args);
 
@@ -154,7 +152,8 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ brokered: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/credential-broker",
+      path: "/credential-broker",
+      scope: "org-agnostic",
       auth: "job-token",
       action: actionFn,
     });
@@ -171,7 +170,7 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     expect(actionFn).toHaveBeenCalledOnce();
     expect(actionFn).toHaveBeenCalledWith({
       request: args.request,
-      params: {},
+      params: { __pluginPath: "/credential-broker" },
       identity: {
         sub: "submitting-user-42",
         organization: "testcorp",
@@ -188,13 +187,14 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     let observedSub: string | undefined;
     const actionFn = vi.fn(async () => {
       const data = hostRequestStorage.getStore();
-      observedOrg = data?.user.organization;
+      observedOrg = data?.organization;
       observedSub = data?.user.sub;
       return Response.json({ ok: true });
     });
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/credential-broker",
+      path: "/credential-broker",
+      scope: "org-agnostic",
       auth: "job-token",
       action: actionFn,
     });
@@ -215,7 +215,8 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ brokered: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/credential-broker",
+      path: "/credential-broker",
+      scope: "org-agnostic",
       auth: "job-token",
       action: actionFn,
     });
@@ -230,7 +231,8 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ brokered: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/credential-broker",
+      path: "/credential-broker",
+      scope: "org-agnostic",
       auth: "job-token",
       action: actionFn,
     });
@@ -252,7 +254,8 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     const loaderFn = vi.fn(async () => Response.json({ cached: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/catalog-cache-webhook",
+      path: "/catalog-cache-webhook",
+      scope: "org-agnostic",
       auth: "webhook-secret",
       loader: loaderFn,
     });
@@ -272,12 +275,13 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
     let observedOrg: string | undefined;
     const actionFn = vi.fn(async () => {
       const data = hostRequestStorage.getStore();
-      observedOrg = data?.user.organization;
+      observedOrg = data?.organization;
       return Response.json({ reconciled: true });
     });
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/job-reconciliation",
+      path: "/job-reconciliation",
+      scope: "org-agnostic",
       auth: "deployment-secret",
       action: actionFn,
     });
@@ -296,7 +300,8 @@ describe("/api/plugin/* dispatch (SDS-CY-010094/010095)", () => {
 
   test("GET on an endpoint with only an action returns 404 (no loader)", async () => {
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/action-only",
+      path: "/action-only",
+      scope: "org-agnostic",
       auth: "job-token",
       action: async () => Response.json({ ok: true }),
     });
@@ -311,7 +316,8 @@ describe("/api/plugin/* carve-out secret verification (SDS-CY-010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/job-reconciliation",
+      path: "/job-reconciliation",
+      scope: "org-agnostic",
       auth: "deployment-secret",
       action: actionFn,
     });
@@ -330,7 +336,8 @@ describe("/api/plugin/* carve-out secret verification (SDS-CY-010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/job-reconciliation",
+      path: "/job-reconciliation",
+      scope: "org-agnostic",
       auth: "deployment-secret",
       action: actionFn,
     });
@@ -352,7 +359,8 @@ describe("/api/plugin/* carve-out secret verification (SDS-CY-010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/job-reconciliation",
+      path: "/job-reconciliation",
+      scope: "org-agnostic",
       auth: "deployment-secret",
       action: actionFn,
     });
@@ -369,7 +377,8 @@ describe("/api/plugin/* carve-out secret verification (SDS-CY-010095)", () => {
     const actionFn = vi.fn(async () => Response.json({ reconciled: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/job-reconciliation",
+      path: "/job-reconciliation",
+      scope: "org-agnostic",
       auth: "deployment-secret",
       action: actionFn,
     });
@@ -389,7 +398,8 @@ describe("/api/plugin/* carve-out secret verification (SDS-CY-010095)", () => {
     const loaderFn = vi.fn(async () => Response.json({ cached: true }));
 
     serverEndpointRegistry.scopedFor("compute-plugin").register({
-      path: "/api/plugin/catalog-cache-webhook",
+      path: "/catalog-cache-webhook",
+      scope: "org-agnostic",
       auth: "webhook-secret",
       loader: loaderFn,
     });

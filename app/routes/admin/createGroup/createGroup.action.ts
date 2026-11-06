@@ -4,13 +4,18 @@ import { createGroupSchema } from "./createGroup.schema";
 import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
-import { getUserInfo } from "~/.server/auth/getUserInfo";
+import {
+  decodeJwtClaims,
+  profileFromTokenClaims,
+  withActiveOrganization,
+} from "~/.server/auth/getUserInfo";
 import { addUserToOrganizationGroup, createGroup } from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
+import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 
 export const createGroupAction: ActionFunction = async ({ request, context }) => {
-  const { user, authTokens } = context.get(authContext);
+  const { user, authTokens, requestOrganization } = context.get(authContext);
   const { org, adminUrl, scope } = context.get(adminContext);
 
   const formData = await request.formData();
@@ -27,10 +32,15 @@ export const createGroupAction: ActionFunction = async ({ request, context }) =>
 
     await addUserToOrganizationGroup(orgId, adminsGroupId, user.sub);
 
-    const refreshedUser = await getUserInfo(authTokens.accessToken);
-    session.set("user", refreshedUser);
+    // Re-read the claims so the just-created group is visible; token-derived
+    // (the refresh path's claim set). Re-projected to the request org so the
+    // session user carries this org's groups for the rest of the request;
+    // nothing org-flavored is persisted.
+    const refreshedUser = profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? user;
+    const projectedUser = withActiveOrganization(refreshedUser, requestOrganization);
+    session.set("user", projectedUser);
 
-    const newScopeUrl = `/admin/users?scope=${encodeURIComponent(path)}`;
+    const newScopeUrl = adminUsersPath(org.alias, path);
 
     session.set("notification", {
       status: "success",

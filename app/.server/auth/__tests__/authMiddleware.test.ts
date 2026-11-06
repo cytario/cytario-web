@@ -3,6 +3,8 @@ import { redirect } from "react-router";
 import { authMiddleware, authContext } from "../authMiddleware";
 import { getSessionData } from "../getSession";
 import { getAllSessionCredentials } from "../getSessionCredentials";
+import { withActiveOrganization } from "../getUserInfo";
+import { getPreferredOrg, setPreferredOrg } from "../orgPreference.server";
 import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
@@ -17,6 +19,11 @@ vi.mock("../getSession", () => ({
 
 vi.mock("../getSessionCredentials", () => ({
   getAllSessionCredentials: vi.fn(),
+}));
+
+vi.mock("../orgPreference.server", () => ({
+  getPreferredOrg: vi.fn(),
+  setPreferredOrg: vi.fn(),
 }));
 
 vi.mock("../refreshAuthTokens", () => ({
@@ -73,6 +80,17 @@ describe("authMiddleware", () => {
     iss: "https://auth.example.com/realms/test",
   };
 
+  /** An unsigned JWT with an arbitrary JSON payload (decode-only paths read it). */
+  const forgeToken = (payload: Record<string, unknown>): string => {
+    const b64url = (obj: unknown) =>
+      Buffer.from(JSON.stringify(obj))
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+    return `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(payload)}.`;
+  };
+
   // Valid and expired refresh tokens (lightweight base64 check only)
   const validRefreshToken = mock.idToken({
     exp: Math.floor(Date.now() / 1000) + 86400,
@@ -88,14 +106,20 @@ describe("authMiddleware", () => {
       idToken: "valid-id-token",
       refreshToken: validRefreshToken,
     },
-    credentials: {},
+    credentials: { org1: {} },
     notification: undefined,
   } satisfies SessionData;
+
+  /** A URL naming an org (the `/:org` route prefix). */
+  const orgUrl = (org: string, path = "/") =>
+    new URL(`http://localhost/${org}${path === "/" ? "" : path}`);
 
   const createMiddlewareArgs = (
     params: Record<string, string> = {},
     hasSession = true,
-    request: Request = new Request("http://localhost/test"),
+    // Default URL names the session's own org — a bare path like /test would
+    // read as a foreign `/:org` segment and hit the foreign-org redirect.
+    request: Request = new Request("http://localhost/org1"),
     url: URL = new URL(request.url),
   ) => {
     const context = new Map();
@@ -122,12 +146,16 @@ describe("authMiddleware", () => {
     vi.mocked(sessionStorage.commitSession).mockResolvedValue("session-cookie");
     vi.mocked(sessionStorage.destroySession).mockResolvedValue("destroy-cookie");
     vi.mocked(listConnections).mockResolvedValue(mockConnectionConfigs);
-    // Return the same credentials by default (no change = no session commit)
-    vi.mocked(getAllSessionCredentials).mockImplementation(async (sessionData) => ({
-      credentials: sessionData.credentials,
-      errors: {},
-      providers: {},
-    }));
+    // By default the request org's slice is returned unchanged (no mint =
+    // no change = no session commit). The mock honors the slice contract:
+    // result.credentials is the ORG SLICE of the passed session data.
+    vi.mocked(getAllSessionCredentials).mockImplementation(
+      async (sessionData, _connectionConfigs, _sessionId, organization) => ({
+        credentials: sessionData.credentials[organization] ?? {},
+        errors: {},
+        providers: {},
+      }),
+    );
     vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
       accessToken: "new-access-token",
       idToken: "new-id-token",
@@ -135,6 +163,8 @@ describe("authMiddleware", () => {
     });
     // No plugin loaded by default → gates short-circuit to continue.
     vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
+    vi.mocked(getPreferredOrg).mockResolvedValue(null);
+    vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
   });
 
   describe("Session Context", () => {
@@ -187,10 +217,15 @@ describe("authMiddleware", () => {
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(listConnections).toHaveBeenCalledWith(mockSessionData.user);
+      expect(listConnections).toHaveBeenCalledWith(
+        withActiveOrganization(mockSessionData.user, "org1"),
+        "org1",
+      );
       expect(getAllSessionCredentials).toHaveBeenCalledWith(
         expect.objectContaining({ user: expect.any(Object) }),
         mockConnectionConfigs,
+        mockSession.id,
+        "org1",
       );
     });
 
@@ -223,7 +258,9 @@ describe("authMiddleware", () => {
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(mockSession.set).toHaveBeenCalledWith("credentials", newCredentials);
+      expect(mockSession.set).toHaveBeenCalledWith("credentials", {
+        org1: newCredentials,
+      });
       expect(sessionStorage.commitSession).toHaveBeenCalledWith(mockSession);
     });
 
@@ -235,6 +272,177 @@ describe("authMiddleware", () => {
       await expect(
         authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext),
       ).rejects.toThrow("STS service unavailable");
+    });
+  });
+
+  describe("Default organization (derived when the URL names none)", () => {
+    const multiOrgUser = () =>
+      mock.user({
+        organizations: {
+          alpha: { groups: ["lab"], attributes: {} },
+          zeta: { groups: ["research"], attributes: {} },
+        },
+        groups: ["lab"],
+      });
+
+    test("the persisted preference wins when the token still carries it", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+      vi.mocked(getPreferredOrg).mockResolvedValue("zeta");
+
+      // No org in the URL (a reserved-root path): the preference drives.
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(getPreferredOrg).toHaveBeenCalledWith("mock-user-id");
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ requestOrganization: "zeta" }),
+      );
+      // Nothing org-flavored is persisted on the session.
+      expect(mockSession.set).not.toHaveBeenCalledWith("activeOrganization", expect.anything());
+    });
+
+    test("falls back to the first alias when there is no preference", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+      vi.mocked(getPreferredOrg).mockResolvedValue(null);
+
+      // No org in the URL (a reserved-root path): the derived default drives.
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ requestOrganization: "alpha" }),
+      );
+    });
+
+    test("falls back to the first alias when the preference is no longer a membership", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+      vi.mocked(getPreferredOrg).mockResolvedValue("revoked");
+
+      // No org in the URL (a reserved-root path): the derived default drives.
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ requestOrganization: "alpha" }),
+      );
+    });
+  });
+
+  describe("Request organization (URL drives org)", () => {
+    const multiOrgUser = () =>
+      mock.user({
+        organizations: {
+          alpha: { groups: ["lab"], attributes: {} },
+          zeta: { groups: ["research"], attributes: {} },
+        },
+        groups: ["lab"],
+      });
+
+    test("a URL naming another membership is the request org — no session re-scope", async () => {
+      // The session pointer sits on alpha; the URL names zeta. The request
+      // acts in zeta (profile projected, credentials sliced) WITHOUT moving
+      // the session pointer for a data fetch.
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+        credentials: { alpha: { "alpha-conn": mock.credentials() }, zeta: {} },
+      });
+
+      // A keep-alive-style background revalidation (.data): re-scopes the
+      // request but must not fight over the preference pointer.
+      const dataUrl = new URL(
+        `http://localhost/zeta/connections?_routes=layouts%2Fprotected.layout`,
+      );
+      const request = new Request(dataUrl, { headers: { accept: "application/json" } });
+      const args = createMiddlewareArgs({}, true, request, dataUrl);
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      // The context carries zeta's projected profile and request org.
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({
+          requestOrganization: "zeta",
+          credentials: {},
+        }),
+      );
+      expect(mockNext).toHaveBeenCalled();
+      // The pointer was NOT moved for this background fetch.
+      expect(setPreferredOrg).not.toHaveBeenCalledWith("mock-user-id", "zeta");
+    });
+
+    test("a document navigation to another membership moves the preference pointer", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+        credentials: { alpha: {}, zeta: {} },
+      });
+
+      const url = orgUrl("zeta");
+      const request = new Request(url, { headers: { accept: "text/html" } });
+      const args = createMiddlewareArgs({}, true, request, url);
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(setPreferredOrg).toHaveBeenCalledWith("mock-user-id", "zeta");
+    });
+
+    test("a foreign URL org redirects back to the session's org before credential work", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+
+      const url = orgUrl("foreign", "/some/conn");
+      const request = new Request(url);
+      const args = createMiddlewareArgs({}, true, request, url);
+      const result = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      // Redirected before any tenant read; the banner names both orgs.
+      expect(result.status).toBe(302);
+      expect((result as Response & { url: string }).url).toBe("/alpha");
+      expect(mockNext).not.toHaveBeenCalled();
+      expect(listConnections).not.toHaveBeenCalled();
+      expect(mockSession.set).toHaveBeenCalledWith(
+        "notification",
+        expect.objectContaining({ status: "warning" }),
+      );
+    });
+
+    test("a revoked membership in the URL degrades to the session's org with the org-agnostic tail kept", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+
+      // "omega" is NOT in the membership map (revoked mid-session), the tail
+      // is a reserved route, so the redirect keeps it under the session's org.
+      const url = orgUrl("omega", "/recent");
+      const request = new Request(url);
+      const args = createMiddlewareArgs({}, true, request, url);
+      const result = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      expect(result.status).toBe(302);
+      expect((result as Response & { url: string }).url).toBe("/alpha/recent");
     });
   });
 
@@ -270,6 +478,52 @@ describe("authMiddleware", () => {
 
       expect(refreshAccessTokenWithLock).toHaveBeenCalledWith(mockSession.id, validRefreshToken);
       expect(verifyIdToken).not.toHaveBeenCalled();
+    });
+
+    test("re-derives the membership map from the fresh access token on refresh", async () => {
+      // A second org was granted since login; the fresh access token carries
+      // it, and the refresh path must surface it without a re-login.
+      const expiringAccessToken = mock.idToken({
+        exp: Math.floor(Date.now() / 1000) + 30,
+      });
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organizations: { org1: { groups: ["org1/lab"], attributes: {} } } }),
+        authTokens: {
+          ...mockSessionData.authTokens,
+          accessToken: expiringAccessToken,
+        },
+      });
+      const refreshedAccessToken = forgeToken({
+        sub: "user-123",
+        email_verified: true,
+        name: "string",
+        preferred_username: "string",
+        given_name: "string",
+        family_name: "string",
+        email: "string",
+        organization: { org1: { groups: ["org1/lab"] }, org2: { groups: ["org2/x"] } },
+      });
+      vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
+        accessToken: refreshedAccessToken,
+        idToken: "refreshed-id-token",
+        refreshToken: validRefreshToken,
+      });
+
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      // The session now carries both memberships.
+      expect(mockSession.set).toHaveBeenCalledWith(
+        "user",
+        expect.objectContaining({
+          organizations: expect.objectContaining({
+            org1: expect.anything(),
+            org2: expect.anything(),
+          }),
+        }),
+      );
     });
 
     test("does not refresh when the access token is fresh", async () => {
@@ -330,6 +584,8 @@ describe("authMiddleware", () => {
           }),
         }),
         mockConnectionConfigs,
+        mockSession.id,
+        "org1",
       );
     });
 
@@ -404,13 +660,20 @@ describe("authMiddleware", () => {
   });
 
   describe("Onboarding Redirect", () => {
+    // A zero-org session has no memberships, so any `/:org` URL would read as
+    // a foreign org — these tests use reserved-root paths (no org segment).
+    const zeroOrgArgs = () => {
+      const request = new Request("http://localhost/recent");
+      return createMiddlewareArgs({}, true, request, new URL(request.url));
+    };
+
     test("redirects zero-org sessions to /onboarding before fetching credentials", async () => {
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
-        user: mock.user({ organization: undefined }),
+        user: mock.user({ organizations: {} }),
       });
 
-      const args = createMiddlewareArgs();
+      const args = zeroOrgArgs();
 
       const result = await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
@@ -423,6 +686,50 @@ describe("authMiddleware", () => {
       expect(listConnections).not.toHaveBeenCalled();
       expect(getAllSessionCredentials).not.toHaveBeenCalled();
       expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test("answers a JSON-accepting zero-org request with a 401, not a redirect", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organizations: {} }),
+      });
+
+      const args = zeroOrgArgs();
+      args.request.headers.set("accept", "application/json");
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).status).toBe(401);
+      await expect((result as Response).json()).resolves.toEqual({
+        error: "no-organization",
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    test("answers a zero-org API-path request with a 401 regardless of Accept", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organizations: {} }),
+      });
+
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/api/connections", {
+          headers: { accept: "text/html" },
+        }),
+      );
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      expect((result as Response).status).toBe(401);
     });
   });
 
@@ -447,19 +754,20 @@ describe("authMiddleware", () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    test("passes url, method, and the PII-free identity projection to the gate", async () => {
+    test("passes url, method, and the request-org identity projection to the gate", async () => {
       const args = createMiddlewareArgs(
         {},
         true,
-        new Request("http://localhost/protected", { method: "POST" }),
+        new Request("http://localhost/org1/protected", { method: "POST" }),
       );
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(runGates).toHaveBeenCalledWith({
-        url: "http://localhost/protected",
+        url: "http://localhost/org1/protected",
         method: "POST",
-        identity: expect.objectContaining({ organization: "org1" }),
+        // Gates see the request org — their decisions read org attributes.
+        identity: expect.objectContaining({ organization: "org1", sub: "mock-user-id" }),
       });
       const [{ identity }] = vi.mocked(runGates).mock.calls[0];
       expect(identity).not.toHaveProperty("email");
@@ -547,10 +855,11 @@ describe("authMiddleware", () => {
       // Mirrors a method-aware read-only gate: deny writes, continue on reads.
       vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
 
+      // A reserved-root path — no org in the URL, the pointer drives.
       const args = createMiddlewareArgs(
         {},
         true,
-        new Request("http://localhost/slide", { method: "GET" }),
+        new Request("http://localhost/recent", { method: "GET" }),
       );
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
@@ -564,7 +873,10 @@ describe("authMiddleware", () => {
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
-      expect(listConnections).toHaveBeenCalledWith(mockSessionData.user);
+      expect(listConnections).toHaveBeenCalledWith(
+        withActiveOrganization(mockSessionData.user, "org1"),
+        "org1",
+      );
       expect(mockNext).toHaveBeenCalled();
     });
 
@@ -572,10 +884,12 @@ describe("authMiddleware", () => {
       vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
-        user: mock.user({ organization: undefined }),
+        user: mock.user({ organizations: {} }),
       });
 
-      const args = createMiddlewareArgs();
+      // Reserved-root path: no org segment for a zero-org session to miss.
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
 
       const result = await authMiddleware(
         args as unknown as Parameters<typeof authMiddleware>[0],
@@ -681,13 +995,15 @@ describe("authMiddleware", () => {
       const args = createMiddlewareArgs(
         {},
         true,
-        new Request("http://localhost/protected/page?query=test"),
+        // A reserved-root path: no org segment, so the logout redirect (not
+        // the foreign-org branch) is what handles this request.
+        new Request("http://localhost/recent/page?query=test"),
       );
 
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(redirect).toHaveBeenCalledWith(
-        `/login?redirect=${encodeURIComponent("/protected/page?query=test")}`,
+        `/login?redirect=${encodeURIComponent("/recent/page?query=test")}`,
         expect.any(Object),
       );
     });

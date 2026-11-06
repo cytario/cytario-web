@@ -39,10 +39,10 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const { user, connectionConfigs } = context.get(authContext);
+  const { user, connectionConfigs, requestOrganization } = context.get(authContext);
   return {
     connectionConfigs,
-    favorites: await loadFavorites(user.sub),
+    favorites: await loadFavorites(user.sub, requestOrganization),
   };
 };
 

@@ -3,7 +3,7 @@ import { describe, expect, test, vi, beforeEach } from "vitest";
 import { createGroupAction } from "../createGroup.action";
 import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getUserInfo } from "~/.server/auth/getUserInfo";
+import { profileFromTokenClaims } from "~/.server/auth/getUserInfo";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 
 vi.mock("~/.server/auth/keycloakAdmin", () => ({
@@ -11,9 +11,10 @@ vi.mock("~/.server/auth/keycloakAdmin", () => ({
   addUserToOrganizationGroup: vi.fn(),
 }));
 
-vi.mock("~/.server/auth/getUserInfo", () => ({
-  getUserInfo: vi.fn(),
-}));
+vi.mock("~/.server/auth/getUserInfo", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/.server/auth/getUserInfo")>();
+  return { ...actual, profileFromTokenClaims: vi.fn() };
+});
 
 vi.mock("~/.server/auth/getSession", () => ({
   getSession: vi.fn(),
@@ -34,7 +35,7 @@ function makeRequest(name: string, scope = "cytario/lab") {
   const form = new FormData();
   form.append("name", name);
   return new Request(
-    `http://localhost/admin/users/create-group?scope=${encodeURIComponent(scope)}`,
+    `http://localhost/cytario/admin/users/create-group?scope=${encodeURIComponent(scope)}`,
     { method: "POST", body: form },
   );
 }
@@ -46,7 +47,8 @@ function makeContext(
 ) {
   const ctx = new Map();
   ctx.set(authContext, {
-    user: { sub: "user-123", adminScopes, organization },
+    user: { sub: "user-123", adminScopes },
+    requestOrganization: organization,
     authTokens: { accessToken: "access-token", idToken: "id-token", refreshToken: "refresh-token" },
   });
   ctx.set(adminContext, {
@@ -70,10 +72,10 @@ describe("createGroupAction", () => {
     vi.clearAllMocks();
     mockSession = { set: vi.fn(), get: vi.fn() };
     vi.mocked(getSession).mockResolvedValue(mockSession as never);
-    vi.mocked(getUserInfo).mockResolvedValue({
+    vi.mocked(profileFromTokenClaims).mockReturnValue({
       sub: "user-123",
-      adminScopes: ["cytario"],
-      organization: "cytario",
+      organizations: { cytario: { groups: [], attributes: {} } },
+      adminScopes: [],
       groups: [],
     } as never);
   });
@@ -90,15 +92,15 @@ describe("createGroupAction", () => {
 
     expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue", "cytario");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
-    expect(getUserInfo).toHaveBeenCalledWith("access-token");
+    expect(profileFromTokenClaims).toHaveBeenCalled();
     expect(mockSession.set).toHaveBeenCalledWith(
       "user",
-      expect.objectContaining({ sub: "user-123" }),
+      expect.objectContaining({ sub: "user-123", groups: [], adminScopes: [] }),
     );
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get("location")).toBe(
-      "/admin/users?scope=cytario%2Flab%2FUltivue",
+      "/cytario/admin/users?scope=cytario%2Flab%2FUltivue",
     );
 
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
@@ -160,6 +162,6 @@ describe("createGroupAction", () => {
 
     expect(createGroup).toHaveBeenCalledWith("*", "Lab", "cytario");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
-    expect((response as Response).headers.get("location")).toBe("/admin/users?scope=Lab");
+    expect((response as Response).headers.get("location")).toBe("/cytario/admin/users?scope=Lab");
   });
 });

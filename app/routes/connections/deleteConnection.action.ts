@@ -4,29 +4,28 @@ import { applyBucketGrantSet } from "./connectionGrant.server";
 import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
+import { getOrExchangeOrgToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
 import { canModify, canSee } from "~/utils/authorization";
+import { orgPath } from "~/utils/orgPath";
 
 export async function deleteConnection(
   user: UserProfile,
+  organization: string,
   connectionId: string,
 ): Promise<ConnectionConfigWithGrants> {
-  if (!user.organization) {
-    throw new Error("Active organization missing from session");
-  }
-
   const config = await prisma.connectionConfig.findFirst({
-    where: { id: connectionId, organization: user.organization },
+    where: { id: connectionId, organization },
     include: { grants: true },
   });
 
-  if (!config || !canSee(user, config)) {
+  if (!config || !canSee(user, config, organization)) {
     throw new Error("Connection config not found");
   }
 
-  if (!canModify(user, config)) {
+  if (!canModify(user, config, organization)) {
     throw new Error("Not authorized to delete this connection config");
   }
 
@@ -35,7 +34,7 @@ export async function deleteConnection(
 }
 
 export const deleteAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
   const session = context.get(sessionContext);
   const formData = await request.formData();
   const connectionId = String(formData.get("connectionId") ?? "");
@@ -46,11 +45,11 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   let deleted: ConnectionConfigWithGrants;
   try {
-    deleted = await deleteConnection(user, connectionId);
+    deleted = await deleteConnection(user, requestOrganization!, connectionId);
   } catch (error) {
     if (error instanceof Error) {
       session.set("notification", { status: "error", message: error.message });
-      return redirect("/connections", {
+      return redirect(orgPath(requestOrganization, "/"), {
         headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
       });
     }
@@ -67,17 +66,23 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
   // all-or-nothing. When the acting session cannot apply the revoke, warn and
   // do NOT claim the grant was withdrawn.
   let notification = { status: "success" as "success" | "warning", message: "Connection deleted." };
-  if (user.organization) {
+  if (requestOrganization) {
     const outcome = await applyBucketGrantSet(
       {
-        organization: user.organization,
+        organization: requestOrganization,
         providerConnectionId: deleted.providerConnectionId,
         bucketName: deleted.bucketName,
       },
       deleted,
       {
         user,
-        idToken: session.get("authTokens")?.idToken ?? "",
+        // The bucket-policy write session is an STS mint: it needs the
+        // narrow per-org ID token (the raw session token carries no ORG
+        // tag for a multi-org user, and the write role's trust policy
+        // rejects it).
+        idToken: (
+          await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken)
+        ).accessToken,
         accessToken: session.get("authTokens")?.accessToken ?? "",
       },
     );
@@ -91,7 +96,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
 
   session.set("notification", notification);
 
-  return redirect("/connections", {
+  return redirect(orgPath(requestOrganization, "/"), {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
   });
 };

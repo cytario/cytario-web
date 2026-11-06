@@ -4,6 +4,10 @@ import { connectionSchema } from "./connection.schema";
 import { applyGrantsAndRecordStatus } from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import {
@@ -15,6 +19,7 @@ import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { cytarioConfig } from "~/config";
 import { canCreate } from "~/utils/authorization";
 import { isProbingAllowedEndpoint } from "~/utils/egressGuard";
+import { orgPath } from "~/utils/orgPath";
 import { getPrefix } from "~/utils/pathUtils";
 import { constructS3Url } from "~/utils/resourceId";
 
@@ -179,10 +184,15 @@ async function probePublicBucket(
 }
 
 export const createAction = async ({ request, context }: ActionFunctionArgs) => {
-  const { user, authTokens } = context.get(authContext);
-  if (!user.organization) {
+  const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
+  if (!requestOrganization) {
     throw new Error("Active organization missing from session");
   }
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = (
+    await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken)
+  ).accessToken;
 
   const formData = await request.formData();
 
@@ -202,7 +212,13 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   const data = result.data;
 
   for (const grant of data.grants) {
-    if (!canCreate(user, { organization: user.organization, ownerScope: grant.scope })) {
+    if (
+      !canCreate(
+        user,
+        { organization: requestOrganization, ownerScope: grant.scope },
+        requestOrganization,
+      )
+    ) {
       return {
         errors: { grants: [`Not authorized to create a grant for scope "${grant.scope}"`] },
         status: "error" as const,
@@ -211,7 +227,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   }
 
   const validated = await validateConnectionAgainstCatalogs(
-    user.organization,
+    requestOrganization,
     authTokens.accessToken,
     data,
   );
@@ -228,7 +244,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
   // A public provider's bucket must be anonymously listable before the row is
   // written — the connection would otherwise be created unusable.
-  const providerCatalog = await getProviderCatalog(user.organization, authTokens.accessToken).catch(
+  const providerCatalog = await getProviderCatalog(requestOrganization, portalAccessToken).catch(
     () => undefined,
   );
   const providerIsPublic = providerCatalog?.providerConnections.some(
@@ -250,7 +266,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   let publicProbeWarning: string | undefined;
   let discoveredRegion: string | null = null;
   if (providerIsPublic) {
-    const probe = await probePublicBucket(user.organization, authTokens.accessToken, {
+    const probe = await probePublicBucket(requestOrganization, portalAccessToken, {
       providerConnectionId: data.providerConnectionId,
       bucketName: data.bucketName,
       prefix: data.prefix,
@@ -267,7 +283,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
   try {
     const created = await createConnectionRecord(
-      user.organization,
+      requestOrganization,
       user.sub,
       {
         name: data.name,
@@ -279,10 +295,14 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       },
       data.grants,
     );
+    // The bucket-policy write session is an STS mint: it needs the narrow
+    // per-org ID token (the raw session token carries no ORG tag for a
+    // multi-org user, and the write role's trust policy rejects it).
     const outcome = await applyGrantsAndRecordStatus(created, {
       user,
-      idToken: session.get("authTokens")?.idToken ?? "",
-      accessToken: session.get("authTokens")?.accessToken ?? "",
+      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken,
+      accessToken: portalAccessToken,
     });
     session.set("notification", {
       status: outcome.status === "applied" && !publicProbeWarning ? "success" : "warning",
@@ -297,7 +317,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
               .join(" ")}`,
     });
 
-    return redirect(`/connections/${created.id}`, {
+    return redirect(orgPath(requestOrganization, `/${created.id}`), {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {

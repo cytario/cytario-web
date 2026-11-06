@@ -6,6 +6,7 @@ import { toIdentity } from "~/.server/auth/getUserInfo";
 import { routeRegistry } from "~/.server/routeRegistry";
 import { Section } from "~/components/Container";
 import { clientRouteRegistry } from "~/lib/clientRouteRegistry";
+import { stripOrgPath } from "~/utils/orgPath";
 
 /**
  * Plugin-contributed route dispatch. Plugins register `/plugin/*` routes via
@@ -40,8 +41,8 @@ export async function loader(args: LoaderFunctionArgs): Promise<Response> {
   const path = resolvePath(args.params);
   const entry = routeRegistry.findByPath(path);
   if (!entry?.contribution.loader) return notFoundResponse();
-  const { user } = args.context.get(authContext);
-  const identity = toIdentity(user);
+  const { user, requestOrganization } = args.context.get(authContext);
+  const identity = toIdentity(user, requestOrganization);
   return entry.contribution.loader({ request: args.request, params: args.params, identity });
 }
 
@@ -49,8 +50,8 @@ export async function action(args: ActionFunctionArgs): Promise<Response> {
   const path = resolvePath(args.params);
   const entry = routeRegistry.findByPath(path);
   if (!entry?.contribution.action) return notFoundResponse();
-  const { user } = args.context.get(authContext);
-  const identity = toIdentity(user);
+  const { user, requestOrganization } = args.context.get(authContext);
+  const identity = toIdentity(user, requestOrganization);
   return entry.contribution.action({ request: args.request, params: args.params, identity });
 }
 
@@ -75,7 +76,9 @@ export default function PluginRoute() {
     );
   }
 
-  const entry = clientRouteRegistry.findByPath(location.pathname);
+  // Plugin contributions are registered against the app-relative path, so the
+  // organization prefix the route renders under has to come off first.
+  const entry = clientRouteRegistry.findByPath(stripOrgPath(location.pathname));
   const element = entry?.contribution.element;
 
   if (typeof element !== "function") {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useRouteLoaderData } from "react-router";
+import { useRouteLoaderData } from "react-router";
 
 import type {
   ContextMenuActivationContext,
@@ -9,7 +9,8 @@ import type {
   NavNavigate,
 } from "@cytario/plugin-api";
 import { contextMenuRegistry } from "~/components/contextMenuRegistry";
-import type { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { useOrgNavigate } from "~/hooks/useOrgPath";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
 
 /**
@@ -30,7 +31,7 @@ export function usePluginContextMenuEntries(node: TreeNode): VisiblePluginEntry[
     "routes/layouts/protected.layout",
   );
   const identity = layoutData?.identity as Identity | undefined;
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
 
   const [visible, setVisible] = useState<VisiblePluginEntry[]>([]);
 

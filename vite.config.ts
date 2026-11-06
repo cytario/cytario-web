@@ -24,7 +24,24 @@ const localDevelopment = buildLocalDevelopmentConfig(localPaths);
 export default defineConfig({
   plugins: [cytarioPlugins(), tailwindcss(), reactRouter(), tsconfigPaths()],
 
-  resolve: localDevelopment.resolve,
+  resolve: {
+    ...localDevelopment.resolve,
+    // A file:-linked plugin (local harness, paired CI) resolves its own
+    // @cytario/design from its own node_modules, whose react-aria-components
+    // import then resolves to a second physical copy — two overlay stacks,
+    // each ariaHideOutside pass inerts "everything outside my modal", so two
+    // stacked modals (a plugin dialog + the host storage picker) both end up
+    // inert with focus dead on <body>. Pin the shared runtime singletons to
+    // this app's copies regardless of which node_modules tree they resolve
+    // from; an npm-registry layout is a single tree already, so this is a
+    // no-op there.
+    dedupe: [
+      "react",
+      "react-dom",
+      "react-aria-components",
+      ...(localDevelopment.resolve?.dedupe ?? []),
+    ],
+  },
 
   optimizeDeps: {
     include: ["@codemirror/lang-json", "@codemirror/lang-yaml", "@uiw/react-codemirror"],

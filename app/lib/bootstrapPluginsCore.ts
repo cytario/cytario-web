@@ -98,6 +98,7 @@ export async function bootstrapPluginsCore(
   const client: ClientCapabilities = registries?.client ?? {
     storagePicker: null,
     imageMetadata: null,
+    orgPaths: null,
   };
   // The default only covers tests that call this helper without registries.
   const env: PluginContext["env"] = registries?.env ?? "client";

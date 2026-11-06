@@ -9,7 +9,7 @@ import {
 } from "react-joyride";
 import { useLocation, useNavigate, useRouteLoaderData } from "react-router";
 
-import { GETTING_STARTED_TOUR_ID, type TourDefinition } from "./tourRegistry";
+import { GETTING_STARTED_TOUR_ID, visibleSteps, type TourDefinition } from "./tourRegistry";
 import { tourRegistry } from "./tours/registry";
 import { useTourControllerStore } from "./useTourController";
 import { useTourProgressStore } from "./useTourProgress";
@@ -62,6 +62,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
   // user menu renders its Admin Groups section from. Memoized so the effect
   // deps below stay referentially stable.
   const adminScopes = useMemo(() => user?.adminScopes ?? [], [user]);
+  const organizationCount = useMemo(() => Object.keys(user?.organizations ?? {}).length, [user]);
 
   const isComplete = useTourProgressStore((state) => state.isComplete);
   const completeTour = useTourProgressStore((state) => state.completeTour);
@@ -94,6 +95,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
           leafName: location.pathname.split("/").filter(Boolean).pop() ?? "",
           connectionCount,
           adminScopes,
+          organizationCount,
         }) &&
         !isComplete(sub, tour.id),
     );
@@ -103,7 +105,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
       setActiveTour((current) => current ?? { definition: candidate });
     }, AUTOSTART_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [sub, location.pathname, connectionCount, adminScopes, isComplete]);
+  }, [sub, location.pathname, connectionCount, adminScopes, organizationCount, isComplete]);
 
   const navigateRef = useRef(navigate);
   const signalHelpMenuRevealRef = useRef(useTourControllerStore.getState().signalHelpMenuReveal);
@@ -114,7 +116,13 @@ export function TourProvider({ children }: { children?: ReactNode }) {
   const decoratedSteps = useMemo<Step[]>(() => {
     if (!activeTour) return [];
     const targetWaitMs = activeTour.definition.targetWaitMs ?? TARGET_WAIT_MS;
-    return activeTour.definition.steps.map((step) => {
+    return visibleSteps(activeTour.definition, {
+      pathname: location.pathname,
+      leafName: location.pathname.split("/").filter(Boolean).pop() ?? "",
+      connectionCount,
+      adminScopes,
+      organizationCount,
+    }).map((step) => {
       const target = typeof step.target === "string" ? step.target : null;
       if (!target || target === "body") return { ...step, data: step.data };
 
@@ -132,6 +140,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
               leafName: location.pathname.split("/").filter(Boolean).pop() ?? "",
               connectionCount,
               adminScopes,
+              organizationCount,
             }),
           );
         }
@@ -156,7 +165,7 @@ export function TourProvider({ children }: { children?: ReactNode }) {
     });
     // location/connectionCount/adminScopes feed the context the before hooks
     // close over, so they belong to this memo's dependencies.
-  }, [activeTour, location.pathname, connectionCount, adminScopes]);
+  }, [activeTour, location.pathname, connectionCount, adminScopes, organizationCount]);
 
   // joyride's FINISHED/SKIPPED statuses are transient (reset() lands on READY
   // right after TOUR_END), so completion is captured from the TOUR_END event

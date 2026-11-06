@@ -1,4 +1,5 @@
 import { getExtension } from "./fileType";
+import { orgPath } from "./orgPath";
 
 export interface ResourceIdParts {
   connectionId: string;
@@ -58,9 +59,15 @@ export function ancestorDirIds(connectionId: string, pathName: string): string[]
 
 /** Builds a routable URL path from a connection id and an object path.
  *  A trailing slash is preserved — it is the discriminator between a file
- *  (`slide.ome.tiff`) and a directory (`slide.ome.tiff/`). */
-export function buildConnectionPath(connectionId: string, pathName: string): string {
-  return pathName ? `/connections/${connectionId}/${pathName}` : `/connections/${connectionId}`;
+ *  (`slide.ome.tiff`) and a directory (`slide.ome.tiff/`). Callers inside the
+ *  app pass the active organization so the link carries its tenant prefix. */
+export function buildConnectionPath(
+  connectionId: string,
+  pathName: string,
+  organization?: string,
+): string {
+  const path = pathName ? `/${connectionId}/${pathName}` : `/${connectionId}`;
+  return organization ? orgPath(organization, path) : path;
 }
 
 /**

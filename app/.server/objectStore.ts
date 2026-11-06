@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import type { ConnectionConfigWithGrants } from "./auth/authMiddleware";
+import { getOrExchangeOrgAccessToken, getOrExchangeOrgToken } from "./auth/orgTokenExchange";
 import { hostRequestStorage } from "./hostRequestContext";
 import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
@@ -53,20 +54,23 @@ async function resolveWritableConnection(
   accessLevel: AccessLevel;
   providerType: "aws" | "rustfs";
 }> {
-  const { user, authTokens } = requireRequestData();
-  const configs = await listConnections(user);
+  const { user, authTokens, sessionId, organization } = requireRequestData();
+  const configs = await listConnections(user, organization);
   const config = configs.find((c) => c.id === connectionId);
   if (!config) {
     throw new Error(`Connection "${connectionId}" not found or not visible to the user`);
   }
-  if (!canSee(user, config)) {
+  if (!organization || !canSee(user, config, organization)) {
     throw new Error(`Connection "${connectionId}" not found or not visible to the user`);
   }
 
-  const catalog = await getProviderCatalog(user.organization!, authTokens.accessToken);
-  const bucketCatalog = await getBucketCatalog(user.organization!, authTokens.accessToken).catch(
-    () => undefined,
-  );
+  // Portal lookups present a narrow per-org access token (the portal rejects
+  // the multi-membership session token a multi-org user carries).
+  const portalToken = (
+    await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
+  ).accessToken;
+  const catalog = await getProviderCatalog(organization, portalToken);
+  const bucketCatalog = await getBucketCatalog(organization, portalToken).catch(() => undefined);
   const connectionProvider = resolveConnectionProviderWithGrants(catalog, config, bucketCatalog);
   if (!connectionProvider) {
     throw new Error(`Connection "${connectionId}" has a stale provider reference`);
@@ -97,6 +101,61 @@ async function resolveWritableConnection(
   };
 }
 
+/**
+ * Mints object-store STS credentials from the narrow per-org ID token — the
+ * multi-membership session ID token carries no single-valued ORG claim for
+ * the role trusts.
+ */
+async function mintObjectStoreCredentials(args: {
+  user: { sub: string };
+  authTokens: { accessToken: string };
+  sessionId: string;
+  organization: string;
+  roleArn: string | null;
+  region: string;
+  endpoint: string | null;
+  providerType: "aws" | "rustfs";
+  bucketName: string;
+  prefix: string;
+  accessLevel: AccessLevel;
+}): Promise<{
+  Credentials?: { AccessKeyId?: string; SecretAccessKey?: string; SessionToken?: string };
+  providerConfig: ReturnType<typeof getS3ProviderConfig>;
+}> {
+  const { user, authTokens, sessionId, organization } = args;
+  const narrowIdToken = await getOrExchangeOrgToken(
+    sessionId,
+    organization,
+    authTokens.accessToken,
+  );
+
+  const { buildSessionPolicy } = await import("./auth/sessionPolicy");
+  const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
+
+  const providerConfig = getS3ProviderConfig(args.endpoint, args.region, args.providerType);
+  const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region: args.region });
+  const Policy = providerConfig.isAwsS3
+    ? buildSessionPolicy({
+        bucketName: args.bucketName,
+        prefix: args.prefix,
+        region: args.region,
+        accessLevel: args.accessLevel,
+      })
+    : undefined;
+
+  const { Credentials } = await stsClient.send(
+    new AssumeRoleWithWebIdentityCommand({
+      RoleArn: providerConfig.sendsRoleArn ? (args.roleArn ?? undefined) : undefined,
+      RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
+      WebIdentityToken: narrowIdToken.accessToken,
+      DurationSeconds: 900,
+      ...(Policy ? { Policy } : {}),
+    }),
+  );
+
+  return { Credentials, providerConfig };
+}
+
 // The plugin-supplied key is relative to the connection's prefix — the host
 // prepends the prefix so the plugin cannot write outside the connection's scope.
 function buildS3Key(prefix: string, key: string): string {
@@ -112,31 +171,21 @@ class ObjectStoreImpl implements ObjectStore {
   async put(connectionId: string, key: string, body: BodyInit): Promise<void> {
     const { config, roleArn, region, endpoint, accessLevel, providerType } =
       await resolveWritableConnection(connectionId, true);
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
 
-    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
-    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
-
-    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
-    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
-    const Policy = providerConfig.isAwsS3
-      ? buildSessionPolicy({
-          bucketName: config.bucketName,
-          prefix: config.prefix,
-          region,
-          accessLevel,
-        })
-      : undefined;
-
-    const { Credentials } = await stsClient.send(
-      new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
-        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
-        WebIdentityToken: authTokens.idToken,
-        DurationSeconds: 900,
-        ...(Policy ? { Policy } : {}),
-      }),
-    );
+    const { Credentials, providerConfig } = await mintObjectStoreCredentials({
+      user,
+      authTokens,
+      sessionId,
+      organization: config.organization,
+      roleArn,
+      region,
+      endpoint,
+      providerType,
+      bucketName: config.bucketName,
+      prefix: config.prefix,
+      accessLevel,
+    });
 
     if (!Credentials) throw new Error("STS returned no credentials for object store");
 
@@ -164,31 +213,21 @@ class ObjectStoreImpl implements ObjectStore {
   async get(connectionId: string, key: string): Promise<Response> {
     const { config, roleArn, region, endpoint, accessLevel, providerType } =
       await resolveWritableConnection(connectionId, false);
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
 
-    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
-    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
-
-    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
-    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
-    const Policy = providerConfig.isAwsS3
-      ? buildSessionPolicy({
-          bucketName: config.bucketName,
-          prefix: config.prefix,
-          region,
-          accessLevel,
-        })
-      : undefined;
-
-    const { Credentials } = await stsClient.send(
-      new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
-        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
-        WebIdentityToken: authTokens.idToken,
-        DurationSeconds: 900,
-        ...(Policy ? { Policy } : {}),
-      }),
-    );
+    const { Credentials, providerConfig } = await mintObjectStoreCredentials({
+      user,
+      authTokens,
+      sessionId,
+      organization: config.organization,
+      roleArn,
+      region,
+      endpoint,
+      providerType,
+      bucketName: config.bucketName,
+      prefix: config.prefix,
+      accessLevel,
+    });
 
     if (!Credentials) throw new Error("STS returned no credentials for object store");
 
@@ -217,31 +256,21 @@ class ObjectStoreImpl implements ObjectStore {
   async delete(connectionId: string, key: string): Promise<void> {
     const { config, roleArn, region, endpoint, accessLevel, providerType } =
       await resolveWritableConnection(connectionId, true);
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
 
-    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
-    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
-
-    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
-    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
-    const Policy = providerConfig.isAwsS3
-      ? buildSessionPolicy({
-          bucketName: config.bucketName,
-          prefix: config.prefix,
-          region,
-          accessLevel,
-        })
-      : undefined;
-
-    const { Credentials } = await stsClient.send(
-      new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
-        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
-        WebIdentityToken: authTokens.idToken,
-        DurationSeconds: 900,
-        ...(Policy ? { Policy } : {}),
-      }),
-    );
+    const { Credentials, providerConfig } = await mintObjectStoreCredentials({
+      user,
+      authTokens,
+      sessionId,
+      organization: config.organization,
+      roleArn,
+      region,
+      endpoint,
+      providerType,
+      bucketName: config.bucketName,
+      prefix: config.prefix,
+      accessLevel,
+    });
 
     if (!Credentials) throw new Error("STS returned no credentials for object store");
 
@@ -263,31 +292,21 @@ class ObjectStoreImpl implements ObjectStore {
   async list(connectionId: string, prefix: string): Promise<readonly StorageEntry[]> {
     const { config, roleArn, region, endpoint, accessLevel, providerType } =
       await resolveWritableConnection(connectionId, false);
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
 
-    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
-    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
-
-    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
-    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
-    const Policy = providerConfig.isAwsS3
-      ? buildSessionPolicy({
-          bucketName: config.bucketName,
-          prefix: config.prefix,
-          region,
-          accessLevel,
-        })
-      : undefined;
-
-    const { Credentials } = await stsClient.send(
-      new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
-        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
-        WebIdentityToken: authTokens.idToken,
-        DurationSeconds: 900,
-        ...(Policy ? { Policy } : {}),
-      }),
-    );
+    const { Credentials, providerConfig } = await mintObjectStoreCredentials({
+      user,
+      authTokens,
+      sessionId,
+      organization: config.organization,
+      roleArn,
+      region,
+      endpoint,
+      providerType,
+      bucketName: config.bucketName,
+      prefix: config.prefix,
+      accessLevel,
+    });
 
     if (!Credentials) throw new Error("STS returned no credentials for object store");
 
@@ -338,31 +357,21 @@ class ObjectStoreImpl implements ObjectStore {
   async size(connectionId: string, key: string): Promise<number | null> {
     const { config, roleArn, region, endpoint, accessLevel, providerType } =
       await resolveWritableConnection(connectionId, false);
-    const { user, authTokens } = requireRequestData();
+    const { user, authTokens, sessionId } = requireRequestData();
 
-    const { buildSessionPolicy } = await import("./auth/sessionPolicy");
-    const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
-
-    const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
-    const stsClient = new STSClient({ endpoint: providerConfig.stsEndpoint, region });
-    const Policy = providerConfig.isAwsS3
-      ? buildSessionPolicy({
-          bucketName: config.bucketName,
-          prefix: config.prefix,
-          region,
-          accessLevel,
-        })
-      : undefined;
-
-    const { Credentials } = await stsClient.send(
-      new AssumeRoleWithWebIdentityCommand({
-        RoleArn: providerConfig.sendsRoleArn ? (roleArn ?? undefined) : undefined,
-        RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
-        WebIdentityToken: authTokens.idToken,
-        DurationSeconds: 900,
-        ...(Policy ? { Policy } : {}),
-      }),
-    );
+    const { Credentials, providerConfig } = await mintObjectStoreCredentials({
+      user,
+      authTokens,
+      sessionId,
+      organization: config.organization,
+      roleArn,
+      region,
+      endpoint,
+      providerType,
+      bucketName: config.bucketName,
+      prefix: config.prefix,
+      accessLevel,
+    });
 
     if (!Credentials) throw new Error("STS returned no credentials for object store");
 

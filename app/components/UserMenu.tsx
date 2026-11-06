@@ -9,6 +9,8 @@ import {
 
 import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { useActiveOrg } from "~/hooks/useOrgPath";
+import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 interface UserMenuProps {
@@ -18,6 +20,9 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps) {
+  // The URL's org, not the session user's — the pointer lags behind a switch
+  // and would link the admin views of the previous org.
+  const organization = useActiveOrg();
   return (
     <Menu
       content={
@@ -40,7 +45,7 @@ export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps)
                   <MenuItem
                     key={scope}
                     id={`admin-${scope}`}
-                    href={`/admin/users?scope=${encodeURIComponent(scope)}`}
+                    href={adminUsersPath(organization, scope)}
                   >
                     <ScopePill scope={scope} />
                   </MenuItem>

@@ -4,6 +4,7 @@ import { type RefObject } from "react";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useModal } from "~/hooks/useModal";
+import { useActiveOrg } from "~/hooks/useOrgPath";
 import { canModify } from "~/utils/authorization";
 import { select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
@@ -21,11 +22,13 @@ export function BucketAdminItems({
   const connection = useConnectionsStore(select.connection(node.connectionId));
   const connectionConfig = connection?.connectionConfig;
   const user = useCurrentUser();
+  const activeOrg = useActiveOrg();
   const { openModal } = useModal();
 
   if (node.type !== "bucket") return null;
 
-  const userCanModify = user && connectionConfig ? canModify(user, connectionConfig) : false;
+  const userCanModify =
+    user && connectionConfig ? canModify(user, connectionConfig, activeOrg) : false;
   if (!userCanModify || !connectionConfig) return null;
 
   const showReapply =

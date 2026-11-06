@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useRouteLoaderData } from "react-router";
+import { useRouteLoaderData } from "react-router";
 
 import type {
   Identity,
@@ -8,6 +8,7 @@ import type {
   SidebarNavEntry,
 } from "@cytario/plugin-api";
 import { sidebarNavRegistry } from "~/components/sidebarNavRegistry";
+import { useOrgNavigate } from "~/hooks/useOrgPath";
 import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected.layout";
 
 /**
@@ -28,7 +29,7 @@ export function usePluginNavEntries(): VisiblePluginNavEntry[] {
     "routes/layouts/protected.layout",
   );
   const identity = layoutData?.identity as Identity | undefined;
-  const navigate = useNavigate();
+  const navigate = useOrgNavigate();
 
   const [visible, setVisible] = useState<VisiblePluginNavEntry[]>([]);
 

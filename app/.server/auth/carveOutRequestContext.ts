@@ -18,7 +18,12 @@ export function jobTokenHostRequestData(binding: ResolvedJobBinding): HostReques
     given_name: "",
     family_name: "",
     policy: [],
-    organization: binding.organization,
+    organizations: Object.freeze({
+      [binding.organization]: Object.freeze({
+        groups: Object.freeze([]),
+        attributes: Object.freeze({}),
+      }),
+    }),
     organizationAttributes: Object.freeze({}),
     groups: [],
     adminScopes: [],
@@ -37,6 +42,8 @@ export function jobTokenHostRequestData(binding: ResolvedJobBinding): HostReques
   };
   return {
     user,
+    // The job's own org — the token's authority is the ledger row.
+    organization: binding.organization,
     identity,
     authTokens,
     sessionId: `job-token:${binding.providerJobId}`,
@@ -55,7 +62,7 @@ export function orgAgnosticHostRequestData(): HostRequestData {
     given_name: "",
     family_name: "",
     policy: [],
-    organization: undefined,
+    organizations: Object.freeze({}),
     organizationAttributes: Object.freeze({}),
     groups: [],
     adminScopes: [],

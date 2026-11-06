@@ -20,14 +20,36 @@ import type { RouteAction, RouteLoader } from "./routes";
 export type ServerEndpointAuth = "session" | "job-token" | "webhook-secret" | "deployment-secret";
 
 /**
+ * The org relationship of a server endpoint.
+ *
+ * - `"org"` — the endpoint acts in one organization: it is served under
+ *   `/api/v1/{org}/…` and, for `"session"` auth, runs with the request-org
+ *   identity (the org the caller's URL names, membership-validated by the
+ *   host). The default.
+ * - `"org-agnostic"` — the endpoint has no single-org caller: served under
+ *   `/api/plugin/…`. Only valid for the carve-out auth modes (job-token,
+ *   webhook-secret, deployment-secret), which are org-agnostic by
+ *   construction; a `"session"` endpoint marked org-agnostic is rejected at
+ *   registration (a session always has an org to act in).
+ */
+export type ServerEndpointScope = "org" | "org-agnostic";
+
+/**
  * A single server-endpoint contribution from a plugin. Server-only: the host
  * wires `ctx.serverEndpoints` into `PluginContext` only when
  * `ctx.env === "server"`; on the client entry the registry is a no-op sink
  * whose `register` is `() => {}`.
+ *
+ * `path` is PLUGIN-RELATIVE (`/status`, `/catalog/run`): the host composes the
+ * full URL from the declared scope — `/api/v1/{org}` + path for org-scoped
+ * endpoints, `/api/plugin` + path for org-agnostic ones — so a plugin can
+ * never accidentally shadow a core route or a foreign tenant's namespace.
  */
 export interface ServerEndpointContribution {
   path: string;
   auth: ServerEndpointAuth;
+  /** Default `"org"` — the endpoint acts in one organization. */
+  scope?: ServerEndpointScope;
   loader?: RouteLoader;
   action?: RouteAction;
 }

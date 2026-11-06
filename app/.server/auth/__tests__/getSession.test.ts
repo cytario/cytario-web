@@ -78,7 +78,9 @@ describe("getSessionData", () => {
 
   test("extracts credentials from session", async () => {
     const credentials = {
-      "bucket-1": mock.credentials(),
+      org1: {
+        "bucket-1": mock.credentials(),
+      },
     };
     const session = mock.session({
       credentials,
@@ -128,7 +130,7 @@ describe("getSessionData", () => {
       idToken: "id",
       refreshToken: "refresh",
     };
-    const credentials = { bucket: mock.credentials() };
+    const credentials = { org1: { bucket: mock.credentials() } };
     const notification = {
       message: "Info",
       status: "info" as const,

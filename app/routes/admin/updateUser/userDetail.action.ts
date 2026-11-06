@@ -28,10 +28,10 @@ function extractGroupIds(formData: FormData, prefix: string): string[] {
 }
 
 export const userDetailAction: ActionFunction = async ({ request, context, params }) => {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization } = context.get(authContext);
   const { org, adminUrl, scope } = context.get(adminContext);
 
-  await assertUsersInScope([params.userId!], scope, user.organization);
+  await assertUsersInScope([params.userId!], scope, requestOrganization);
 
   const formData = await request.formData();
   const rawData = Object.fromEntries(formData);
@@ -50,12 +50,12 @@ export const userDetailAction: ActionFunction = async ({ request, context, param
   const adds = extractGroupIds(formData, ADD_PREFIX);
   const removes = extractGroupIds(formData, REMOVE_PREFIX);
 
-  const groupTree = await assertGroupsInScope([...adds, ...removes], scope, user.organization);
+  const groupTree = await assertGroupsInScope([...adds, ...removes], scope, requestOrganization);
 
   for (const groupId of adds) {
     const groupPath = findGroupPathInTree(groupTree, groupId);
     if (groupPath) {
-      await consultUserMgmtGate(toIdentity(user), {
+      await consultUserMgmtGate(toIdentity(user, requestOrganization), {
         kind: "addToGroup",
         groupPath,
         addCount: 1,

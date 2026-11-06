@@ -6,6 +6,10 @@ import type { Identity, TokenGrant } from "@cytario/plugin-api";
 
 export interface HostRequestData {
   user: UserProfile;
+  /** The org this request acts in — the URL's `/:org` (or the derived default)
+   * for session requests, the token's org for carve-outs. Undefined for
+   * org-agnostic carve-outs. The profile itself carries only memberships. */
+  organization?: string;
   // Undefined for org-agnostic carve-outs (deployment-secret, webhook-secret)
   // that have no caller identity to project.
   identity?: Identity;
