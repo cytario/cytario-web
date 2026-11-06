@@ -4,7 +4,10 @@ import { applyBucketGrantSet } from "./connectionGrant.server";
 import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
-import { getOrExchangeOrgToken } from "~/.server/auth/orgTokenExchange";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
@@ -36,6 +39,12 @@ export async function deleteConnection(
 export const deleteAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
   const session = context.get(sessionContext);
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = requestOrganization
+    ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken
+    : "";
   const formData = await request.formData();
   const connectionId = String(formData.get("connectionId") ?? "");
 
@@ -83,7 +92,7 @@ export const deleteAction = async ({ request, context }: ActionFunctionArgs) => 
         idToken: (
           await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken)
         ).accessToken,
-        accessToken: session.get("authTokens")?.accessToken ?? "",
+        accessToken: portalAccessToken,
       },
     );
     if (outcome.status !== "applied") {

@@ -5,7 +5,10 @@ import { createConnection } from "./createConnection.action";
 import { shareFolderSchema } from "./shareFolder.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
@@ -83,8 +86,12 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
 
     const outcome = await applyGrantsAndRecordStatus(share, {
       user,
-      idToken: session.get("authTokens")?.idToken ?? "",
-      accessToken: session.get("authTokens")?.accessToken ?? "",
+      // The STS mint needs the narrow per-org ID token; the portal lookups the
+      // apply path performs need the narrow access token — the raw session
+      // tokens carry no single org for a multi-org user.
+      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
+        .accessToken,
+      accessToken: portalAccessToken,
     });
 
     session.set("notification", {

@@ -73,7 +73,7 @@ describe("reapplyAction", () => {
     expect(applyGrantsAndRecordStatus).toHaveBeenCalledWith(config, {
       user,
       idToken: "narrow-id:org1",
-      accessToken: "",
+      accessToken: "narrow-access:org1",
     });
   });
 

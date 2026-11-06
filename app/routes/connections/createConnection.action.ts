@@ -228,7 +228,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
 
   const validated = await validateConnectionAgainstCatalogs(
     requestOrganization,
-    authTokens.accessToken,
+    portalAccessToken,
     data,
   );
   if (!validated.ok) {

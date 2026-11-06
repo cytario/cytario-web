@@ -2,7 +2,10 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { applyGrantsAndRecordStatus } from "./connectionGrant.server";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getOrExchangeOrgToken } from "~/.server/auth/orgTokenExchange";
+import {
+  getOrExchangeOrgAccessToken,
+  getOrExchangeOrgToken,
+} from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
@@ -20,6 +23,11 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
   if (!requestOrganization) {
     throw new Error("Active organization missing from session");
   }
+  // Portal lookups present a narrow per-org access token: the portal rejects
+  // the multi-membership session token a multi-org user carries.
+  const portalAccessToken = (
+    await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken)
+  ).accessToken;
 
   const formData = await request.formData();
   const connectionId = String(formData.get("connectionId") ?? "");
@@ -46,7 +54,7 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
     user,
     idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
       .accessToken,
-    accessToken: session.get("authTokens")?.accessToken ?? "",
+    accessToken: portalAccessToken,
   });
 
   session.set("notification", {

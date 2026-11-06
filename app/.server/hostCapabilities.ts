@@ -179,10 +179,15 @@ class HostCapabilitiesImpl implements HostCapabilities {
 // pre-filter on read.
 class JobLedgerImpl implements JobLedger {
   async record(job: JobRecord): Promise<{ id: string }> {
-    const { user, authTokens, organization } = requireRequestData();
+    const { user, authTokens, sessionId, organization } = requireRequestData();
     if (!organization) {
       throw new Error("Active organization missing from session");
     }
+    // Portal lookups present a narrow per-org access token: the portal rejects
+    // the multi-membership session token a multi-org user carries.
+    const portalToken = (
+      await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
+    ).accessToken;
 
     // The storage role is resolved host-side here so the broker reads
     // roleArn/region/s3Endpoint from the ledger row at mint time without
@@ -195,7 +200,7 @@ class JobLedgerImpl implements JobLedger {
     if (!connection) {
       throw new Error(`Connection ${job.connectionId} not found in organization ${organization}`);
     }
-    const catalog = await getProviderCatalog(organization, authTokens.accessToken);
+    const catalog = await getProviderCatalog(organization, portalToken);
     const provider = resolveConnectionProviderWithGrants(catalog, connection);
     if (!provider) {
       throw new Error(
@@ -218,7 +223,7 @@ class JobLedgerImpl implements JobLedger {
     // The named compute provider must be one of the active organization's
     // connected providers (tenant boundary — a provider id from another org
     // never resolves).
-    const providerCatalog = await getProviderCatalog(organization, authTokens.accessToken);
+    const providerCatalog = await getProviderCatalog(organization, portalToken);
     const computeProvider = job.providerId
       ? providerCatalog.computeProviders.find(
           (p) => p.id === job.providerId && p.status === "connected",
