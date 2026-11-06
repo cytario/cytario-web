@@ -8,10 +8,12 @@ import {
 /**
  * The connection root row in the sidebar tree. Present on every protected
  * route (the sidebar selects the route's connection, or the first one), so it
- * is the reliable "step into a connection" target. The `*=` match keeps it
- * prefix-agnostic: connection links live under the URL's organization.
+ * is the reliable "step into a connection" target. Scoping to the tree keeps
+ * it org-prefix-agnostic without also matching the sidebar's section chrome
+ * links (`/{org}` alone — e.g. "View all connections"), which would otherwise
+ * win the document-order match and navigate nowhere.
  */
-const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar a[href^="/"][href*="/"]';
+const SIDEBAR_CONNECTION_LINK = '#navigation-sidebar [role="tree"] a[href^="/"]';
 
 /**
  * A folder or file inside the browsed connection. Scoped to the content

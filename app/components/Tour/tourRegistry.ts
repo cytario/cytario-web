@@ -73,7 +73,7 @@ export function isResourcePath(pathname: string): boolean {
   // /connections/... shape predates the org prefix and only survives in
   // pre-rework bookmarks.
   const legacy = /^(?:\/o\/[^/]+)?\/connections\/[^/]+\/.+/;
-  const orgFirst = /^[^/]+\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/.+/i;
+  const orgFirst = /^\/[^/]+\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/.+/i;
   return legacy.test(pathname) || orgFirst.test(pathname);
 }
 

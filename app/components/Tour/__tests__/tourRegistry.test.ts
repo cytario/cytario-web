@@ -199,7 +199,11 @@ describe("tourRegistry", () => {
           String(step.data?.enterConnectionVia ?? ""),
         ]),
       );
-      const sidebar = selectors.filter((selector) => selector.startsWith("#navigation-sidebar a["));
+      // The sidebar selector is tree-scoped so section chrome links
+      // ("View all connections" → `/{org}`) can't win the first match.
+      const sidebar = selectors.filter((selector) =>
+        selector.startsWith('#navigation-sidebar [role="tree"] a['),
+      );
       const content = selectors.filter((selector) => selector.startsWith("main section a["));
       expect(sidebar.length).toBeGreaterThan(0);
       expect(content.length).toBeGreaterThan(0);
@@ -215,6 +219,10 @@ describe("tourRegistry", () => {
       expect(isResourcePath("/connections/abc")).toBe(false);
       expect(isResourcePath("/connections")).toBe(false);
       expect(isResourcePath("/o/acme/connections")).toBe(false);
+      // Org-first viewer routes: /{org}/{connectionId}/…{resource}.
+      expect(isResourcePath("/acme/123e4567-e89b-42d3-a456-426614174000/slide.svs")).toBe(true);
+      expect(isResourcePath("/acme/123e4567-e89b-42d3-a456-426614174000")).toBe(false);
+      expect(isResourcePath("/acme/not-a-connection-id/folder/img.tiff")).toBe(false);
     });
 
     test("leafNameOf returns the decoded last segment", () => {
