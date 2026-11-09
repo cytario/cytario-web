@@ -21,10 +21,8 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   const { user } = await getSessionData(session);
   if (!user) return redirect("/login");
 
-  const preferred = user.organizations ? await getPreferredOrg(user.sub).catch(() => null) : null;
-  const organization = user.organizations
-    ? resolveActiveOrganization(user.organizations, preferred ?? undefined)
-    : undefined;
+  const preferred = await getPreferredOrg(user.sub).catch(() => null);
+  const organization = resolveActiveOrganization(user.organizations, preferred ?? undefined);
 
   if (!organization) return redirect("/onboarding");
   return redirect(orgPath(organization, "/"), {

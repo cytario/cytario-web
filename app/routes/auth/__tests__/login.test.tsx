@@ -83,30 +83,6 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     expect(redirect).toHaveBeenCalledWith("/org1");
   });
 
-  test("funnels a pre-rework session (no membership map) to onboarding, not a 500", async () => {
-    const mockSession = {
-      get: vi.fn((key) =>
-        key === "user"
-          ? {
-              sub: "123",
-              email: "test@example.com",
-              // A session written before the org rework carries no
-              // `organizations` — resolveActiveOrganization would throw on
-              // Object.keys(undefined).
-              organizations: undefined,
-            }
-          : null,
-      ),
-    };
-
-    (getSession as Mock).mockResolvedValue(mockSession);
-
-    const request = new Request("http://localhost/login");
-    await loader({ request } as LoaderFunctionArgs);
-
-    expect(redirect).toHaveBeenCalledWith("/onboarding");
-  });
-
   test("redirects to Keycloak with PKCE and nonce params", async () => {
     const mockSession = {
       get: vi.fn(() => null),

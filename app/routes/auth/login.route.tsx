@@ -32,14 +32,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.info(`${label} User already authenticated, redirecting`);
     // The org they were in last: the persisted preference, validated against
     // the token's memberships, else the first alias — the un-prefixed root
-    // would only redirect once more. A session from before the org rework
-    // carries no membership map: the zero-org funnel handles it.
-    const preferredOrg = user.organizations
-      ? await getPreferredOrg(user.sub).catch(() => null)
-      : null;
-    const organization = user.organizations
-      ? resolveActiveOrganization(user.organizations, preferredOrg ?? undefined)
-      : undefined;
+    // would only redirect once more. (A session predating this build is
+    // invalid at the storage layer — it never reaches here.)
+    const preferredOrg = await getPreferredOrg(user.sub).catch(() => null);
+    const organization = resolveActiveOrganization(user.organizations, preferredOrg ?? undefined);
     if (!organization) return redirect("/onboarding");
     return redirect(orgPath(organization, "/"));
   }

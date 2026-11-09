@@ -184,15 +184,18 @@ describe("sessionStorage", () => {
       expect(session.data).toEqual({});
     });
 
-    test("treats a session written before the epoch field existed as epoch 0", async () => {
+    test("a session without an epoch field is invalid — a pre-build session reads as absent", async () => {
       const { cookie } = await createSessionAndGetCookie();
-      // epoch absent (a session created by an older build); data still there
+      // The hash exists with data, but no epoch field: a session written by
+      // a pre-epoch build. Its payload carries the old session shape, so the
+      // storage layer reports no session (the user takes a clean login)
+      // instead of serving shape-mismatched data.
       vi.mocked(redis.hmget).mockResolvedValue([null]);
       vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
 
       const session = await sessionStorage.getSession(cookie);
 
-      expect(session.get("user")).toEqual(mockSessionData.user);
+      expect(session.get("user")).toBeUndefined();
     });
   });
 

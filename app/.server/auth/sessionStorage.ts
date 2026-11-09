@@ -101,9 +101,15 @@ export const sessionStorage = createSessionStorage<SessionData, SessionFlashData
   },
   async readData(id) {
     // Epoch first (one tiny field read): a replica that has cached this
-    // session at a different epoch must not serve that copy.
+    // session at a different epoch must not serve that copy. A hash without
+    // the field predates this build — its payload carries the old session
+    // shape, so the session is invalid (the caller sees no session and the
+    // user takes a clean login) rather than run through on shape-mismatched
+    // data. createData always writes the field; every epoch value therefore
+    // means exactly one thing.
     const [epochField] = await redis.hmget(id, EPOCH_FIELD);
-    const epoch = epochField ?? "0";
+    if (epochField === null) return null;
+    const epoch = epochField;
 
     const cached = sessionCache.get(cacheKey(id, epoch));
     if (cached) {
