@@ -66,8 +66,6 @@ class HostCapabilitiesImpl implements HostCapabilities {
   async connections(): Promise<readonly ConnectionProjection[]> {
     const { user, authTokens, sessionId, organization } = requireRequestData();
     const configs = await listConnections(user, organization);
-    // Portal lookups present a narrow per-org access token: the portal rejects
-    // the multi-membership session token a multi-org user carries.
     const portalToken = organization
       ? (await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken))
           .accessToken
@@ -78,8 +76,6 @@ class HostCapabilitiesImpl implements HostCapabilities {
   async computeConnections(): Promise<readonly ComputeConnectionProjection[]> {
     const { authTokens, sessionId, organization } = requireRequestData();
     if (!organization) return [];
-    // Portal lookups present a narrow per-org access token: the portal rejects
-    // the multi-membership session token a multi-org user carries.
     const portalToken = (
       await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
     ).accessToken;
@@ -97,8 +93,6 @@ class HostCapabilitiesImpl implements HostCapabilities {
   async catalogConnections(): Promise<readonly CatalogConnectionProjection[]> {
     const { authTokens, sessionId, organization } = requireRequestData();
     if (!organization) return [];
-    // Portal lookups present a narrow per-org access token: the portal rejects
-    // the multi-membership session token a multi-org user carries.
     const portalToken = (
       await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
     ).accessToken;
@@ -183,8 +177,6 @@ class JobLedgerImpl implements JobLedger {
     if (!organization) {
       throw new Error("Active organization missing from session");
     }
-    // Portal lookups present a narrow per-org access token: the portal rejects
-    // the multi-membership session token a multi-org user carries.
     const portalToken = (
       await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
     ).accessToken;

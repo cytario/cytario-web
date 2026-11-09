@@ -25,8 +25,6 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user, authTokens, sessionId, requestOrganization, entitlements } =
     context.get(authContext);
   const session = context.get(sessionContext);
-  // Portal lookups present a narrow per-org access token: the portal rejects
-  // the multi-membership session token a multi-org user carries.
   const portalAccessToken = requestOrganization
     ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
         .accessToken
@@ -87,9 +85,6 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
 
     const outcome = await applyGrantsAndRecordStatus(share, {
       user,
-      // The STS mint needs the narrow per-org ID token; the portal lookups the
-      // apply path performs need the narrow access token — the raw session
-      // tokens carry no single org for a multi-org user.
       idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
         .accessToken,
       accessToken: portalAccessToken,

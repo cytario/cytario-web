@@ -33,8 +33,8 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   }
 
   try {
-    // A narrow per-org token: the portal rejects the multi-membership session
-    // token a multi-org user carries.
+    // A narrow per-org token — the portal rejects the multi-membership
+    // session token.
     const portalToken = (
       await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
     ).accessToken;

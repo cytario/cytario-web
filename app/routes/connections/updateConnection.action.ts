@@ -121,8 +121,6 @@ export async function updateConnection(
 export const updateAction = async ({ request, context }: ActionFunctionArgs) => {
   const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
   const session = context.get(sessionContext);
-  // Portal lookups present a narrow per-org access token: the portal rejects
-  // the multi-membership session token a multi-org user carries.
   const portalAccessToken = requestOrganization
     ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
         .accessToken
@@ -211,9 +209,6 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
     delete credentials[updatedConfig.id];
     session.set("credentials", credentials);
 
-    // The bucket-policy write session is an STS mint: it needs the narrow
-    // per-org ID token (the raw session token carries no ORG tag for a
-    // multi-org user, and the write role's trust policy rejects it).
     const acting = {
       user,
       idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))

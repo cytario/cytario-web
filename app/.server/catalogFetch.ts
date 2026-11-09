@@ -51,8 +51,6 @@ export async function catalogFetch(
   if (!organization) {
     throw new Error("Active organization missing from request context");
   }
-  // The portal rejects the multi-membership session token a multi-org user
-  // carries; its lookups go out with a narrow per-org access token instead.
   const portalToken = (
     await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
   ).accessToken;

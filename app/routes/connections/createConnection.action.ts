@@ -188,8 +188,6 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   if (!requestOrganization) {
     throw new Error("Active organization missing from session");
   }
-  // Portal lookups present a narrow per-org access token: the portal rejects
-  // the multi-membership session token a multi-org user carries.
   const portalAccessToken = (
     await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken)
   ).accessToken;
@@ -295,9 +293,6 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
       },
       data.grants,
     );
-    // The bucket-policy write session is an STS mint: it needs the narrow
-    // per-org ID token (the raw session token carries no ORG tag for a
-    // multi-org user, and the write role's trust policy rejects it).
     const outcome = await applyGrantsAndRecordStatus(created, {
       user,
       idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))

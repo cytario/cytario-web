@@ -41,10 +41,8 @@ export async function resolveConnectSrcHosts(request: Request): Promise<string[]
   if (!user || !organization || !subjectToken) return [];
 
   try {
-    // Portal lookups present a narrow per-org access token: the portal rejects
-    // the multi-membership session token a multi-org user carries. The CSP
-    // derivation is best-effort — an exchange failure degrades to a closed
-    // host set rather than failing the response.
+    // The CSP derivation is best-effort — an exchange failure degrades to a
+    // closed host set rather than failing the response.
     const accessToken = await getOrExchangeOrgAccessToken(sessionId!, organization, subjectToken)
       .then((exchanged) => exchanged.accessToken)
       .catch(() => undefined);

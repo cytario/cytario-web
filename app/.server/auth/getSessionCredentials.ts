@@ -204,9 +204,7 @@ export const getAllSessionCredentials = async (
   // The request org's slice — reads and writes stay inside it.
   const storedCredentials = orgCredentials(sessionData.credentials, organization);
 
-  // Portal lookups present a narrow per-org access token: the portal's own
-  // exchange rejects the multi-membership session token a multi-org user
-  // carries.
+  // The portal's exchange rejects the multi-membership session token.
   const portalAccessToken = await (async () => {
     if (!organization || cytarioConfig.providers.source !== "portal") return undefined;
     try {

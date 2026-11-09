@@ -191,7 +191,9 @@ export async function exchangeOrgToken({
 /**
  * The narrow ID token for `(sessionId, alias)` — the mint shape. Throws
  * rather than returning the subject token: a credential mint must never fall
- * back to a token carrying other orgs.
+ * back to a token carrying other orgs. The storage STS mints need it because
+ * the raw session token carries no ORG principal tag for a multi-org user,
+ * and the storage roles' trust policies reject it.
  */
 export async function getOrExchangeOrgToken(
   sessionId: string,
@@ -203,11 +205,12 @@ export async function getOrExchangeOrgToken(
 
 /**
  * The narrow access token for `(sessionId, alias)` — the shape the admin
- * portal consumes. Its /org endpoints present the bearer token as an
- * RFC 8693 `subject_token` of type access-token and re-exchange it
- * server-side; a multi-membership session token is ambiguous there (the
- * portal rejects >1 organization entry), so catalog lookups send this
- * narrow token and resolve exactly the active org like a single-org user.
+ * portal consumes. Every portal lookup goes out with this token: the
+ * multi-membership session token a multi-org user carries is ambiguous
+ * there (the portal rejects >1 organization entry), so the lookup resolves
+ * exactly the active org like a single-org user. The portal's /org
+ * endpoints in turn present the bearer token as an RFC 8693
+ * `subject_token` of type access-token and re-exchange it server-side.
  */
 export async function getOrExchangeOrgAccessToken(
   sessionId: string,

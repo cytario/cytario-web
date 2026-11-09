@@ -64,8 +64,6 @@ async function resolveWritableConnection(
     throw new Error(`Connection "${connectionId}" not found or not visible to the user`);
   }
 
-  // Portal lookups present a narrow per-org access token (the portal rejects
-  // the multi-membership session token a multi-org user carries).
   const portalToken = (
     await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
   ).accessToken;
