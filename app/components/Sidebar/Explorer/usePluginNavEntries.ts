@@ -13,7 +13,7 @@ import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected
 
 /**
  * Resolves plugin-contributed sidebar-navigation entries, applying each
- * entry's `isHidden` gate (fail-hidden, SDS-CY-010915).
+ * entry's `isHidden` gate (fail-hidden).
  *
  * Returns the entries the host should render, in registration order, with
  * the activation context the host will hand to `onActivate`. Re-runs
@@ -59,7 +59,7 @@ export function usePluginNavEntries(): VisiblePluginNavEntry[] {
             ? { entry, activationContext }
             : null;
         } catch (err) {
-          // Fail-hidden (SDS-CY-010915): a rejected or throwing isHidden hides
+          // Fail-hidden: a rejected or throwing isHidden hides
           // the entry rather than surfacing a broken nav item that could lock
           // the user out of the sidebar.
           console.error(

@@ -4,9 +4,8 @@ import { z } from "zod";
 import type { Identity } from "@cytario/plugin-api";
 import { type OrgEntitlements, normalizeGroup, orgEntitlements } from "~/utils/authorization";
 
-// The entitlements derivation is pure domain logic over the membership map
-// and lives in client-shared code (app/utils/authorization.ts); re-exported
-// here so the auth pipeline's existing importers keep their import site.
+// The entitlements derivation lives in client-shared code
+// (app/utils/authorization.ts); re-exported for the server pipeline.
 export type { OrgEntitlements };
 export { orgEntitlements };
 
@@ -141,8 +140,6 @@ function enrichUserProfile(raw: UserProfileRaw): UserProfile {
     );
   }
 
-  // Memberships only: the org-scoped entitlements are derived at use via
-  // `orgEntitlements` — nothing org-flavored lives on the profile.
   return {
     sub: raw.sub,
     email: raw.email,

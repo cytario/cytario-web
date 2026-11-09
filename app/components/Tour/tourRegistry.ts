@@ -69,9 +69,8 @@ export function leafNameOf(pathname: string): string {
  *  The organization prefix is optional so the helper keeps working for callers
  *  that hold an already-stripped path. */
 export function isResourcePath(pathname: string): boolean {
-  // Org-first scheme: /{org}/{connectionId}/...{resource}. The legacy
-  // /connections/... shape predates the org prefix and only survives in
-  // pre-rework bookmarks.
+  // Org-first scheme: /{org}/{connectionId}/...{resource}. Legacy
+  // /connections/... URLs from old bookmarks still match.
   const legacy = /^(?:\/o\/[^/]+)?\/connections\/[^/]+\/.+/;
   const orgFirst = /^\/[^/]+\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/.+/i;
   return legacy.test(pathname) || orgFirst.test(pathname);

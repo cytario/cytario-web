@@ -115,7 +115,7 @@ const apiRoutes = [
   },
   // One file, two mounts: org-scoped session endpoints under /api/v1/:org,
   // org-agnostic carve-outs under /api/plugin. Distinct ids or RR rejects the
-  // duplicate — same pattern the old legacy-redirect layer used.
+  // duplicate.
   route("/api/v1/:org/plugin/*", "routes/api/plugin.$.ts", {
     id: "routes/api/plugin-org.$",
   }),

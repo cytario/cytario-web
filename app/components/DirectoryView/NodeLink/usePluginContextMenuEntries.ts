@@ -15,7 +15,7 @@ import type { loader as protectedLayoutLoader } from "~/routes/layouts/protected
 
 /**
  * Resolves plugin-contributed context-menu entries for an S3 node, applying
- * each entry's `isHidden` gate (fail-hidden, SDS-CY-010908).
+ * each entry's `isHidden` gate (fail-hidden).
  *
  * Returns the entries the host should render for the given node, in
  * registration order, with the activation context the host will hand to
@@ -72,7 +72,7 @@ export function usePluginContextMenuEntries(node: TreeNode): VisiblePluginEntry[
             ? { entry, activationContext }
             : null;
         } catch (err) {
-          // Fail-hidden (SDS-CY-010908): a rejected or throwing isHidden hides
+          // Fail-hidden: a rejected or throwing isHidden hides
           // the entry rather than surfacing a broken "Analyze" item that
           // could lock the user out of the S3 Browser.
           console.error(

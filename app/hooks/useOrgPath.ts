@@ -25,10 +25,9 @@ function firstOrgAlias(organizations: UserOrganizations | undefined): string | u
 }
 
 /**
- * Every in-app link needs the organization prefix now that the tenant is part
- * of the URL. The org resolves from
- * the URL (see useActiveOrg), so hrefs always point at the tenant the page is
- * rendered for, without threading a prop through every component.
+ * Prefixes a tenant-relative app path with the active org. The org resolves
+ * from the URL (see useActiveOrg), so hrefs point at the tenant the page is
+ * rendered for without threading a prop through every component.
  */
 export function useOrgPath(): (path: string) => string {
   const organization = useActiveOrg();

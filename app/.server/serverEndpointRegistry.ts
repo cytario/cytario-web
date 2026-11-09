@@ -20,7 +20,7 @@ const ORG_AGNOSTIC_AUTH_MODES = new Set<ServerEndpointAuth>([
   "deployment-secret",
 ]);
 
-// Paths are plugin-relative since the org-aware surface (v9): the host
+// Paths are plugin-relative: the host
 // composes the served URL from the declared scope. This allowlist keeps a
 // plugin from capturing host namespaces inside its relative remainder —
 // a path that would collide with a core API subtree is rejected.

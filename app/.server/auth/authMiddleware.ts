@@ -91,7 +91,7 @@ const isTokenFresherThan = (token: string | undefined, bufferSeconds: number): b
 
 /**
  * Whether a zero-org request is a data/API call: an explicit JSON Accept or a
- * path under the un-prefixed API carve-outs (SRS-CY-31404).
+ * path under the un-prefixed API carve-outs.
  */
 const wantsJsonResponse = (request: Request, pathname: string): boolean => {
   if (pathname.startsWith("/api/")) return true;
@@ -108,7 +108,7 @@ const label = createLabel("authorize", "green");
 /**
  * The default org for a request that names none: the persisted preference,
  * validated against the token's memberships, else the first alias. Derived at
- * use — nothing org-flavored is cached on the session anymore.
+ * use — the session carries no org-flavored state.
  */
 const defaultOrganization = async (user: UserProfile): Promise<string | undefined> => {
   if (!user.organizations) return undefined;
@@ -221,7 +221,7 @@ const applyGates = async (
 
 const noOrganizationResponse = (request: Request, pathname: string): Response => {
   console.info(`${label} No active organization on session`);
-  // SRS-CY-31404: document requests funnel to the onboarding screen;
+  // Document requests funnel to the onboarding screen;
   // data and API requests get a machine-readable 401 instead of a 302
   // to an HTML page they cannot render.
   if (wantsJsonResponse(request, pathname)) {
@@ -319,7 +319,6 @@ const proceedAuthenticated = async (
   return withHostRequestContext(
     {
       user: sessionData.user,
-      // The request org for plugin host capabilities (connections, catalogs).
       organization: requestOrganization,
       identity: toIdentity(sessionData.user, requestOrganization),
       authTokens: sessionData.authTokens,

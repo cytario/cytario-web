@@ -137,7 +137,7 @@ class HostCapabilitiesImpl implements HostCapabilities {
     const data = hostRequestStorage.getStore();
     if (!data?.jobGrant) {
       throw new Error(
-        "exchangeToken() called outside the job-grant callback phase — the offline grant is only available during the Authorization Code callback (SRS-CY-41901)",
+        "exchangeToken() called outside the job-grant callback phase — the offline grant is only available during the Authorization Code callback",
       );
     }
     return Promise.resolve(data.jobGrant);
@@ -149,7 +149,7 @@ class HostCapabilitiesImpl implements HostCapabilities {
     const data = hostRequestStorage.getStore();
     if (!data?.jobGrant) {
       throw new Error(
-        "mintJobBrokerToken() called outside the job-grant callback phase — the batch grant is only available during the Authorization Code callback (SRS-CY-41901)",
+        "mintJobBrokerToken() called outside the job-grant callback phase — the batch grant is only available during the Authorization Code callback",
       );
     }
     return Promise.resolve(generateJobSessionToken());

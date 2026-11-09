@@ -24,7 +24,7 @@ const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 // A Keycloak access token carries no `aud` by default (the job-broker client
 // needed a dedicated audience mapper for the same reason), while an ID token
 // natively carries `aud` = the requesting client — so the exchange requests an
-// ID token, matching the shape the mint presented before the multi-org change.
+// ID token.
 const ID_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:id_token";
 
 /** Which narrow token an exchange mints, per consumer's requirements. */
@@ -245,7 +245,7 @@ async function getOrExchangeOrgScopedToken(
   return exchange;
 }
 
-/** Test-only: drop cached tokens so a case starts from a cold cache. */
+/** Test-only: drop cached tokens. */
 export function __resetOrgTokenCache(): void {
   tokenCache.clear();
 }

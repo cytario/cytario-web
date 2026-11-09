@@ -7,18 +7,18 @@ import { SectionHeaderRow } from "~/components/Section/SectionHeaderRow";
 import { useOrgPath } from "~/hooks/useOrgPath";
 
 /**
- * Renders the plugin-contributed navigation section (§3.2.4 element 11,
- * §3.2.1.10) inside the Navigation/Explorer sidebar, after the connection
+ * Renders the plugin-contributed navigation section inside the
+ * Navigation/Explorer sidebar, after the connection
  * tree. Each entry renders as a `SectionHeaderRow` link — the same header
  * chrome, height, and icon/title alignment as the accordion sections, with
  * an empty disclosure slot (entries navigate, they don't expand) — so a
- * plugin cannot inject markup (SDS-CY-010916) and active/inactive styling
+ * plugin cannot inject markup and active/inactive styling
  * stays single-source. An `onActivate` that throws or rejects is caught and
  * surfaced as a contained toast — the error shall not crash the sidebar.
  *
  * Renders nothing (no reserved space, no placeholder) when the registry
- * is empty — precedent SRS-CY-37101 for slots. Rendered only after
- * client-side hydration via `<ClientOnly>` (SDS-CY-010916) so plugin nav
+ * is empty. Rendered only after
+ * client-side hydration via `<ClientOnly>` so plugin nav
  * entries do not enter the SSR HTML and do not regress the host's CSP.
  */
 export function PluginNavSection() {

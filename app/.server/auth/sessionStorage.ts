@@ -57,7 +57,6 @@ const label = createLabel("session", "yellow");
  */
 const EPOCH_FIELD = "epoch";
 
-/** The local cache key for a session id at an epoch. */
 const cacheKey = (id: string, epoch: string) => `${id}:${epoch}`;
 
 // Short-lived in-memory cache to absorb the session-payload reads during
@@ -67,7 +66,6 @@ const sessionCache = new LRUCache<string, SessionData>({
   ttl: 5000,
 });
 
-/** Caches a complete session under its current epoch. */
 const cacheSession = (id: string, epoch: string, data: unknown) => {
   if (
     data &&
