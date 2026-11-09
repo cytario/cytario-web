@@ -89,6 +89,7 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(getProviderCatalog).toHaveBeenCalledWith("org1", "the-access-token");
     const body = (await response.json()) as {
       connections: Array<{
+        organization: string;
         id: string;
         roleArn: string | null;
         accessLevel: string | null;
@@ -97,6 +98,7 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
 
     expect(response.status).toBe(200);
     expect(body.connections).toHaveLength(1);
+    expect(body.connections[0]?.organization).toBe("org1");
     expect(body.connections[0]?.id).toBe("conn-uuid-1");
     expect(body.connections[0]?.roleArn).toBe(ADMIN_ARN);
     expect(body.connections[0]?.accessLevel).toBe("admin");
@@ -121,18 +123,57 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(listConnections).not.toHaveBeenCalled();
   });
 
-  test("acts in the token's first alias when it carries several organizations", async () => {
+  test("lists each org's connections, tagged with their organization", async () => {
     vi.mocked(verifyCliToken).mockResolvedValue(
-      cliToken({ organization: { zulu: { groups: [] }, alpha: { groups: [] } } }) as never,
+      cliToken({
+        organization: { zulu: { groups: [] }, alpha: { groups: ["alpha/lab"] } },
+      }) as never,
     );
-    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
-    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(listConnections).mockImplementation(async (_user, organization) =>
+      organization === "alpha"
+        ? [
+            mock.connectionConfig({
+              name: "Alpha Conn",
+              organization: "alpha",
+              grants: [mock.connectionGrant({ scope: "alpha/lab", accessLevel: "admin" })],
+            }),
+          ]
+        : [
+            mock.connectionConfig({
+              name: "Zulu Conn",
+              organization: "zulu",
+              grants: [mock.connectionGrant({ scope: "zulu/lab", accessLevel: "admin" })],
+            }),
+          ],
+    );
+    vi.mocked(getProviderCatalog).mockImplementation(async (organization) =>
+      organization === "alpha" ? sharedCatalog() : mock.providerCatalog({ providerRoles: [] }),
+    );
     vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
 
-    const response = (await loader(buildArgs("token"))) as Response;
+    const response = await loader(buildArgs("token"));
+    const body = (await response.json()) as {
+      connections: Array<{ organization: string; name: string; roleArn: string | null }>;
+    };
 
     expect(response.status).toBe(200);
-    expect(getProviderCatalog).toHaveBeenCalledWith("alpha", "token");
+    // Grants resolve per org: the alpha row's org grants apply, the zulu
+    // row's do not. Only a subset is pinned — the row shape is covered by
+    // the full-row test above.
+    expect(body.connections).toMatchObject([
+      {
+        organization: "alpha",
+        name: "Alpha Conn",
+        roleArn: ADMIN_ARN,
+        accessLevel: "admin",
+      },
+      {
+        organization: "zulu",
+        name: "Zulu Conn",
+        roleArn: null,
+        accessLevel: null,
+      },
+    ]);
   });
 
   test("connection with no applicable grant is listed without a role", async () => {
