@@ -67,11 +67,11 @@ describe("recent.server", () => {
       ];
       mockPrisma.recentlyViewed.findMany.mockResolvedValue(mockItems);
 
-      const result = await getRecentlyViewed("user-1", 10);
+      const result = await getRecentlyViewed("user-1", "org1", 10);
 
       expect(result).toEqual(mockItems);
       expect(mockPrisma.recentlyViewed.findMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
+        where: { userId: "user-1", connection: { organization: "org1" } },
         orderBy: { viewedAt: "desc" },
         take: 10,
       });
@@ -80,10 +80,10 @@ describe("recent.server", () => {
     test("uses default limit of 20", async () => {
       mockPrisma.recentlyViewed.findMany.mockResolvedValue([]);
 
-      await getRecentlyViewed("user-1");
+      await getRecentlyViewed("user-1", "org1");
 
       expect(mockPrisma.recentlyViewed.findMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
+        where: { userId: "user-1", connection: { organization: "org1" } },
         orderBy: { viewedAt: "desc" },
         take: 20,
       });
@@ -94,10 +94,10 @@ describe("recent.server", () => {
     test("deletes all items for the given user", async () => {
       mockPrisma.recentlyViewed.deleteMany.mockResolvedValue({ count: 5 });
 
-      await clearAllRecentlyViewed("user-1");
+      await clearAllRecentlyViewed("user-1", "org1");
 
       expect(mockPrisma.recentlyViewed.deleteMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
+        where: { userId: "user-1", connection: { organization: "org1" } },
       });
     });
   });

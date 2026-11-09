@@ -5,12 +5,17 @@ import {
   isValidCredentials,
   sanitizeRoleSessionName,
 } from "../getSessionCredentials";
+import { exchangeOrgIdToken } from "../orgTokenExchange";
 import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import mock from "~/utils/__tests__/__mocks__";
 import type { AccessLevel, ProviderConnection } from "~/utils/providerCatalog.schema";
+
+vi.mock("../orgTokenExchange", () => ({
+  exchangeOrgIdToken: vi.fn(),
+}));
 
 vi.mock("@aws-sdk/client-sts", () => ({
   STSClient: vi.fn(),
@@ -124,11 +129,13 @@ describe("sanitizeRoleSessionName", () => {
 });
 
 describe("getAllSessionCredentials", () => {
+  const SESSION_ID = "session-123";
+  const NARROW_TOKEN = "narrow-org-token";
   const mockSend = vi.fn();
   const mockCredentials = mock.credentials();
 
   const mockSessionData: SessionData = {
-    user: mock.user({ sub: "user-123", name: "Test User", organization: "org1" }),
+    user: mock.user({ sub: "user-123", name: "Test User" }),
     authTokens: {
       accessToken: "access-token",
       idToken: "id-token-for-sts",
@@ -180,6 +187,8 @@ describe("getAllSessionCredentials", () => {
       Credentials: mockCredentials,
     });
 
+    vi.mocked(exchangeOrgIdToken).mockResolvedValue(NARROW_TOKEN);
+
     vi.mocked(getProviderCatalog).mockResolvedValue(catalogFor());
   });
 
@@ -189,12 +198,15 @@ describe("getAllSessionCredentials", () => {
     };
     const sessionData = {
       ...mockSessionData,
-      credentials: validCredentials,
+      credentials: { org1: validCredentials },
     };
 
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      sessionData,
+      [mock.connectionConfig({ id: "conn-a", name: "conn-a" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials).toBe(validCredentials);
     expect(result.errors).toEqual({});
@@ -202,9 +214,12 @@ describe("getAllSessionCredentials", () => {
   });
 
   test("fetches credentials for connections with missing credentials", async () => {
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ id: "new-conn", name: "new-conn" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "new-conn", name: "new-conn" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials).toEqual({ "new-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
@@ -225,26 +240,33 @@ describe("getAllSessionCredentials", () => {
     const sessionData = {
       ...mockSessionData,
       credentials: {
-        "public-conn": mock.credentials(),
-        // A sibling private connection with an expired credential re-mints.
-        "private-conn": mock.credentials({
-          Expiration: new Date(Date.now() - 60 * 1000),
-        }),
+        org1: {
+          "public-conn": mock.credentials(),
+          // A sibling private connection with an expired credential re-mints.
+          "private-conn": mock.credentials({
+            Expiration: new Date(Date.now() - 60 * 1000),
+          }),
+        },
       },
     };
 
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({
-        id: "public-conn",
-        name: "public-conn",
-        grants: [mock.connectionGrant({ accessLevel: "read-only" })],
-      }),
-      mock.connectionConfig({
-        id: "private-conn",
-        name: "private-conn",
-        providerConnectionId: "pc-private",
-      }),
-    ]);
+    const result = await getAllSessionCredentials(
+      sessionData,
+      [
+        mock.connectionConfig({
+          id: "public-conn",
+          name: "public-conn",
+          grants: [mock.connectionGrant({ accessLevel: "read-only" })],
+        }),
+        mock.connectionConfig({
+          id: "private-conn",
+          name: "private-conn",
+          providerConnectionId: "pc-private",
+        }),
+      ],
+      SESSION_ID,
+      "org1",
+    );
 
     // The private sibling re-minted once; the public connection did not.
     expect(Object.keys(result.errors)).toEqual([]);
@@ -268,15 +290,20 @@ describe("getAllSessionCredentials", () => {
       }),
     );
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({
-        id: "public-conn",
-        name: "public-conn",
-        providerConnectionId: "pc-mock",
-        publicRegion: "us-west-2",
-        grants: [mock.connectionGrant({ accessLevel: "read-only" })],
-      }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [
+        mock.connectionConfig({
+          id: "public-conn",
+          name: "public-conn",
+          providerConnectionId: "pc-mock",
+          publicRegion: "us-west-2",
+          grants: [mock.connectionGrant({ accessLevel: "read-only" })],
+        }),
+      ],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.providers["public-conn"]).toMatchObject({
       isPublic: true,
@@ -288,15 +315,20 @@ describe("getAllSessionCredentials", () => {
     const sessionData = {
       ...mockSessionData,
       credentials: {
-        "expired-conn": mock.credentials({
-          Expiration: new Date(Date.now() - 60 * 1000),
-        }),
+        org1: {
+          "expired-conn": mock.credentials({
+            Expiration: new Date(Date.now() - 60 * 1000),
+          }),
+        },
       },
     };
 
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ id: "expired-conn", name: "expired-conn" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      sessionData,
+      [mock.connectionConfig({ id: "expired-conn", name: "expired-conn" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials).toEqual({ "expired-conn": mockCredentials });
     expect(mockSend).toHaveBeenCalledTimes(1);
@@ -315,9 +347,12 @@ describe("getAllSessionCredentials", () => {
       }),
     );
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ id: "region-conn", name: "region-conn" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "region-conn", name: "region-conn" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials["region-conn"]).toEqual(mockCredentials);
     // The session policy (inline in the STS command) and the client both
@@ -332,9 +367,12 @@ describe("getAllSessionCredentials", () => {
   test("falls back to the connection region when the bucket catalog is unavailable", async () => {
     vi.mocked(getBucketCatalog).mockRejectedValue(new Error("lookup unavailable"));
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ id: "fallback-conn", name: "fallback-conn" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "fallback-conn", name: "fallback-conn" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials["fallback-conn"]).toEqual(mockCredentials);
     expect(result.providers["fallback-conn"]?.region).toBe("us-east-1");
@@ -372,7 +410,7 @@ describe("getAllSessionCredentials", () => {
       }),
     ];
 
-    const result = await getAllSessionCredentials(mockSessionData, configs);
+    const result = await getAllSessionCredentials(mockSessionData, configs, SESSION_ID, "org1");
 
     // No bucket dedup — each connection gets its own STS mint.
     expect(mockSend).toHaveBeenCalledTimes(2);
@@ -386,7 +424,7 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
     ];
 
-    const result = await getAllSessionCredentials(mockSessionData, configs);
+    const result = await getAllSessionCredentials(mockSessionData, configs, SESSION_ID, "org1");
 
     expect(mockSend).toHaveBeenCalledTimes(2);
     expect(result.credentials).toEqual({
@@ -400,13 +438,18 @@ describe("getAllSessionCredentials", () => {
     const existingCredentials = mock.credentials();
     const sessionData = {
       ...mockSessionData,
-      credentials: { "existing-conn": existingCredentials },
+      credentials: { org1: { "existing-conn": existingCredentials } },
     };
 
-    const result = await getAllSessionCredentials(sessionData, [
-      mock.connectionConfig({ id: "existing-conn", name: "existing-conn" }),
-      mock.connectionConfig({ id: "new-conn", name: "new-conn" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      sessionData,
+      [
+        mock.connectionConfig({ id: "existing-conn", name: "existing-conn" }),
+        mock.connectionConfig({ id: "new-conn", name: "new-conn" }),
+      ],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials["existing-conn"]).toBe(existingCredentials);
     expect(result.credentials["new-conn"]).toEqual(mockCredentials);
@@ -424,7 +467,7 @@ describe("getAllSessionCredentials", () => {
       mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
     ];
 
-    const result = await getAllSessionCredentials(mockSessionData, configs);
+    const result = await getAllSessionCredentials(mockSessionData, configs, SESSION_ID, "org1");
 
     // conn-a succeeds, conn-b fails — reason recorded in errors map
     expect(result.credentials["conn-a"]).toEqual(mockCredentials);
@@ -441,9 +484,12 @@ describe("getAllSessionCredentials", () => {
     );
     mockSend.mockRejectedValueOnce(denied);
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ id: "blocked", name: "blocked" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "blocked", name: "blocked" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials["blocked"]).toBeUndefined();
     expect(result.errors["blocked"]).toMatch(/AWS STS denied AssumeRoleWithWebIdentity/);
@@ -455,9 +501,12 @@ describe("getAllSessionCredentials", () => {
       mock.providerCatalog({ providerConnections: [], providerRoles: [] }),
     );
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ id: "orphaned", name: "orphaned" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "orphaned", name: "orphaned" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.credentials["orphaned"]).toBeUndefined();
     expect(result.errors["orphaned"]).toMatch(/no longer available/i);
@@ -467,14 +516,69 @@ describe("getAllSessionCredentials", () => {
   test("degrades to per-connection errors when the catalog lookup fails (advisory)", async () => {
     vi.mocked(getProviderCatalog).mockRejectedValue(new Error("Provider lookup is unavailable."));
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
-      mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [
+        mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
+        mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
+      ],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(result.errors["conn-a"]).toMatch(/unavailable/i);
     expect(result.errors["conn-b"]).toMatch(/unavailable/i);
     expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  test("a failed catalog lookup must not crash the process when the exchange also rejects", async () => {
+    // The crash sequence: every consumer bails at the !catalog check before
+    // awaiting the token, so an eagerly-started exchange rejects with no
+    // handler attached. The exchange is only started by a mint now — a
+    // request where nothing mints never touches it.
+    const onUnhandled = vi.fn();
+    process.on("unhandledRejection", onUnhandled);
+    vi.mocked(getProviderCatalog).mockRejectedValue(
+      new Error("The connection to the admin portal is unavailable right now."),
+    );
+    vi.mocked(exchangeOrgIdToken).mockRejectedValue(
+      new Error("Organization token exchange rejected: 400 Bad Request"),
+    );
+
+    try {
+      const result = await getAllSessionCredentials(
+        mockSessionData,
+        [mock.connectionConfig({ id: "conn-a", name: "conn-a" })],
+        SESSION_ID,
+        "org1",
+      );
+
+      expect(result.errors["conn-a"]).toMatch(/unavailable/i);
+      expect(mockSend).not.toHaveBeenCalled();
+      // No mint ever started the exchange.
+      expect(exchangeOrgIdToken).not.toHaveBeenCalled();
+      // Give the microtask queue a turn to surface any stray rejection.
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(onUnhandled).not.toHaveBeenCalled();
+    } finally {
+      process.removeListener("unhandledRejection", onUnhandled);
+    }
+  });
+
+  test("a rejected exchange consumed by its mint surfaces a per-connection error, not a crash", async () => {
+    vi.mocked(exchangeOrgIdToken).mockRejectedValue(
+      new Error("Organization token exchange rejected: 400 Bad Request"),
+    );
+
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "conn-a", name: "conn-a" })],
+      SESSION_ID,
+      "org1",
+    );
+
+    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
+    expect(result.errors["conn-a"]).toMatch(/exchange rejected/);
   });
 
   test("resolves region/roleArn from the catalog and calls STS accordingly", async () => {
@@ -485,9 +589,12 @@ describe("getAllSessionCredentials", () => {
       }),
     );
 
-    await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "test-bucket" }),
-    ]);
+    await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ bucketName: "test-bucket" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(STSClient).toHaveBeenCalledWith({
       endpoint: "https://sts.us-east-1.amazonaws.com",
@@ -497,7 +604,7 @@ describe("getAllSessionCredentials", () => {
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith({
       RoleArn: "arn:aws:iam::123456789012:role/test-role",
       RoleSessionName: "Test-User",
-      WebIdentityToken: "id-token-for-sts",
+      WebIdentityToken: NARROW_TOKEN,
       DurationSeconds: 3600,
       Policy: buildSessionPolicy({
         bucketName: "test-bucket",
@@ -509,9 +616,12 @@ describe("getAllSessionCredentials", () => {
   });
 
   test("AWS connection: AssumeRoleWithWebIdentityCommand receives inline session Policy", async () => {
-    await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "scoped-bucket", prefix: "tenant-a" }),
-    ]);
+    await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ bucketName: "scoped-bucket", prefix: "tenant-a" })],
+      SESSION_ID,
+      "org1",
+    );
 
     const expectedPolicy = buildSessionPolicy({
       bucketName: "scoped-bucket",
@@ -526,9 +636,12 @@ describe("getAllSessionCredentials", () => {
   });
 
   test("AWS connection with empty prefix: Policy permits whole-bucket scope", async () => {
-    await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "whole-bucket", prefix: "" }),
-    ]);
+    await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ bucketName: "whole-bucket", prefix: "" })],
+      SESSION_ID,
+      "org1",
+    );
 
     const expectedPolicy = buildSessionPolicy({
       bucketName: "whole-bucket",
@@ -580,7 +693,7 @@ describe("getAllSessionCredentials", () => {
       ],
     });
 
-    await getAllSessionCredentials(mockSessionData, [config]);
+    await getAllSessionCredentials(mockSessionData, [config], SESSION_ID, "org1");
 
     const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
     expect(call).toBeDefined();
@@ -603,9 +716,12 @@ describe("getAllSessionCredentials", () => {
       }),
     );
 
-    await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "tenants", prefix: "acme" }),
-    ]);
+    await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ bucketName: "tenants", prefix: "acme" })],
+      SESSION_ID,
+      "org1",
+    );
 
     const call = vi.mocked(AssumeRoleWithWebIdentityCommand).mock.calls[0]?.[0];
     expect(call).toBeDefined();
@@ -655,18 +771,21 @@ describe("getAllSessionCredentials", () => {
       }),
     );
 
-    const result = await getAllSessionCredentials(mockSessionData, [
-      mock.connectionConfig({ bucketName: "tenants", prefix: "acme" }),
-    ]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ bucketName: "tenants", prefix: "acme" })],
+      SESSION_ID,
+      "org1",
+    );
 
     expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalled();
     expect(Object.values(result.errors)[0]).toMatch(/role ARN/i);
   });
 
   test("returns empty credentials when no bucket configs provided", async () => {
-    const result = await getAllSessionCredentials(mockSessionData, []);
+    const result = await getAllSessionCredentials(mockSessionData, [], SESSION_ID, "org1");
 
-    expect(result.credentials).toBe(mockSessionData.credentials);
+    expect(result.credentials).toEqual({});
     expect(result.errors).toEqual({});
     expect(mockSend).not.toHaveBeenCalled();
     // no catalog lookup when nothing is stale
@@ -683,7 +802,12 @@ describe("getAllSessionCredentials", () => {
       prefix: "p".repeat(800),
     });
 
-    const result = await getAllSessionCredentials(mockSessionData, [oversizedConfig]);
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [oversizedConfig],
+      SESSION_ID,
+      "org1",
+    );
 
     // InlinePolicySizeError is thrown before any STS call.
     expect(mockSend).not.toHaveBeenCalled();
@@ -691,5 +815,59 @@ describe("getAllSessionCredentials", () => {
     expect(result.credentials["oversized"]).toBeUndefined();
     // The connection is named in the errors map with the cause.
     expect(result.errors["oversized"]).toMatch(/inline session policy size ceiling exceeded/i);
+  });
+
+  test("mints with the per-org exchanged token, never the multi-org session token", async () => {
+    await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "org-conn", name: "org-conn" })],
+      SESSION_ID,
+      "org1",
+    );
+
+    expect(exchangeOrgIdToken).toHaveBeenCalledWith(SESSION_ID, "org1", "access-token");
+    expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ WebIdentityToken: NARROW_TOKEN }),
+    );
+    expect(AssumeRoleWithWebIdentityCommand).not.toHaveBeenCalledWith(
+      expect.objectContaining({ WebIdentityToken: "id-token-for-sts" }),
+    );
+  });
+
+  test("the mint org is the passed organization argument", async () => {
+    await getAllSessionCredentials(
+      {
+        ...mockSessionData,
+        user: mock.user({
+          organizations: {
+            vericura: { groups: ["vericura/lab", "vericura/lab/admins"], attributes: {} },
+          },
+        }),
+      },
+      [
+        mock.connectionConfig({
+          id: "switched",
+          name: "switched",
+          organization: "vericura",
+          grants: [mock.connectionGrant({ scope: "vericura/lab" })],
+        }),
+      ],
+      SESSION_ID,
+      "vericura",
+    );
+
+    expect(exchangeOrgIdToken).toHaveBeenCalledWith(SESSION_ID, "vericura", "access-token");
+  });
+
+  test("does not exchange when every credential is still valid", async () => {
+    const result = await getAllSessionCredentials(
+      { ...mockSessionData, credentials: { org1: { cached: mock.credentials() } } },
+      [mock.connectionConfig({ id: "cached", name: "cached" })],
+      SESSION_ID,
+      "org1",
+    );
+
+    expect(result.credentials["cached"]).toBeDefined();
+    expect(exchangeOrgIdToken).not.toHaveBeenCalled();
   });
 });

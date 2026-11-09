@@ -31,27 +31,25 @@ describe("connectionConfig.server", () => {
   });
 
   describe("listConnections", () => {
-    test("returns only visible configs", async () => {
+    test("returns only visible configs in the request org", async () => {
       const configs = [config, mock.connectionConfig({ name: "other" })];
       vi.mocked(prisma.connectionConfig.findMany).mockResolvedValue(configs);
       vi.mocked(filterVisible).mockReturnValue([config]);
 
-      const result = await listConnections(user);
+      const result = await listConnections(user, "org1");
 
       expect(prisma.connectionConfig.findMany).toHaveBeenCalledWith({
         where: { organization: "org1" },
         orderBy: { name: "asc" },
         include: { grants: true },
       });
-      expect(filterVisible).toHaveBeenCalledWith(user, configs);
+      expect(filterVisible).toHaveBeenCalledWith(user, configs, "org1");
       expect(result).toEqual([config]);
     });
 
-    test("throws when the session has no active organization", async () => {
-      const zeroOrgUser = mock.user({ organization: undefined });
-
-      await expect(listConnections(zeroOrgUser)).rejects.toThrow(
-        "Active organization missing from session",
+    test("throws when the request carries no organization", async () => {
+      await expect(listConnections(user, undefined)).rejects.toThrow(
+        "Request organization missing",
       );
       expect(prisma.connectionConfig.findMany).not.toHaveBeenCalled();
     });
@@ -62,20 +60,20 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(true);
 
-      const result = await getConnection(user, "conn-uuid-1");
+      const result = await getConnection(user, "org1", "conn-uuid-1");
 
       expect(prisma.connectionConfig.findFirst).toHaveBeenCalledWith({
         where: { id: "conn-uuid-1", organization: "org1" },
         include: { grants: true },
       });
-      expect(canSee).toHaveBeenCalledWith(user, config);
+      expect(canSee).toHaveBeenCalledWith(user, config, "org1");
       expect(result).toEqual(config);
     });
 
     test("returns null when config does not exist", async () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
-      const result = await getConnection(user, "nonexistent");
+      const result = await getConnection(user, "org1", "nonexistent");
 
       expect(result).toBeNull();
     });
@@ -84,7 +82,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      const result = await getConnection(user, "conn-uuid-1");
+      const result = await getConnection(user, "org1", "conn-uuid-1");
 
       expect(result).toBeNull();
     });
@@ -129,7 +127,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(true);
 
-      await deleteConnection(user, "conn-uuid-1");
+      await deleteConnection(user, "org1", "conn-uuid-1");
 
       expect(prisma.connectionConfig.delete).toHaveBeenCalledWith({
         where: { id: config.id },
@@ -139,7 +137,7 @@ describe("connectionConfig.server", () => {
     test("throws when config not found", async () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(null);
 
-      await expect(deleteConnection(user, "conn-uuid-999")).rejects.toThrow(
+      await expect(deleteConnection(user, "org1", "conn-uuid-999")).rejects.toThrow(
         "Connection config not found",
       );
     });
@@ -148,7 +146,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(prisma.connectionConfig.findFirst).mockResolvedValue(config);
       vi.mocked(canSee).mockReturnValue(false);
 
-      await expect(deleteConnection(user, "conn-uuid-1")).rejects.toThrow(
+      await expect(deleteConnection(user, "org1", "conn-uuid-1")).rejects.toThrow(
         "Connection config not found",
       );
     });
@@ -158,7 +156,7 @@ describe("connectionConfig.server", () => {
       vi.mocked(canSee).mockReturnValue(true);
       vi.mocked(canModify).mockReturnValue(false);
 
-      await expect(deleteConnection(user, "conn-uuid-1")).rejects.toThrow(
+      await expect(deleteConnection(user, "org1", "conn-uuid-1")).rejects.toThrow(
         "Not authorized to delete this connection config",
       );
     });

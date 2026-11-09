@@ -1,22 +1,11 @@
 import { useRouteLoaderData } from "react-router";
 
-import { type UserProfile } from "~/.server/auth/getUserInfo";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { HelpMenu } from "~/components/HelpMenu";
 import { ExplorerSidebarToggle } from "~/components/Sidebar/Explorer/ExplorerSidebarToggle";
 import { UserMenu } from "~/components/UserMenu";
-import { type NotificationInput } from "~/utils/notifications";
-
-interface RootLoaderResponse {
-  user?: UserProfile;
-  notification?: NotificationInput;
-  accountSettingsUrl?: string;
-  portalUrl?: string;
-  docsUrl?: string;
-  supportEmail?: string;
-  version?: string;
-}
+import { type RootLoaderResponse } from "~/root";
 
 export function AppHeader() {
   const headerSlot = useLayoutStore((s) => s.headerSlot);

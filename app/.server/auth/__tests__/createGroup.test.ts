@@ -96,11 +96,11 @@ describe("createGroup", () => {
       },
     ]);
 
-    const result = await createGroup("lab", "Ultivue", "cytario");
+    const result = await createGroup("lab", "Vericura", "cytario");
 
     expect(result).toEqual({
       id: "new-id",
-      path: "lab/Ultivue",
+      path: "lab/Vericura",
       adminsGroupId: "admins-id",
       orgId: "org-uuid",
     });
@@ -113,7 +113,7 @@ describe("createGroup", () => {
       `${BASE}/organizations/org-uuid/groups/parent-id/children`,
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ name: "Ultivue" }),
+        body: JSON.stringify({ name: "Vericura" }),
       }),
     );
   });

@@ -4,6 +4,7 @@ import {
   hashJobToken,
 } from "./auth/jobCredentialStore";
 import { keepAliveGrant as keepAliveGrantImpl } from "./auth/keepAliveGrant";
+import { exchangePortalAccessToken } from "./auth/orgTokenExchange";
 import { revokeGrant as revokeGrantImpl } from "./auth/revokeGrant";
 import { catalogFetch as connectionFetchImpl } from "./catalogFetch";
 import { assumeComputeRole as assumeComputeRoleImpl } from "./computeRole";
@@ -63,15 +64,23 @@ async function toConnectionProjection(
 
 class HostCapabilitiesImpl implements HostCapabilities {
   async connections(): Promise<readonly ConnectionProjection[]> {
-    const { user, authTokens } = requireRequestData();
-    const configs = await listConnections(user);
-    return Promise.all(configs.map((c) => toConnectionProjection(c, authTokens.accessToken)));
+    const { user, authTokens, sessionId, organization } = requireRequestData();
+    const configs = await listConnections(user, organization);
+    const portalToken = organization
+      ? await exchangePortalAccessToken(sessionId, organization, authTokens.accessToken)
+      : "";
+    return Promise.all(configs.map((c) => toConnectionProjection(c, portalToken)));
   }
 
   async computeConnections(): Promise<readonly ComputeConnectionProjection[]> {
-    const { user, authTokens } = requireRequestData();
-    if (!user.organization) return [];
-    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const { authTokens, sessionId, organization } = requireRequestData();
+    if (!organization) return [];
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
+    const catalog = await getProviderCatalog(organization, portalToken);
     return catalog.computeProviders
       .filter((p) => p.status === "connected")
       .map((p) => ({
@@ -83,9 +92,14 @@ class HostCapabilitiesImpl implements HostCapabilities {
   }
 
   async catalogConnections(): Promise<readonly CatalogConnectionProjection[]> {
-    const { user, authTokens } = requireRequestData();
-    if (!user.organization) return [];
-    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const { authTokens, sessionId, organization } = requireRequestData();
+    if (!organization) return [];
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
+    const catalog = await getProviderCatalog(organization, portalToken);
     return catalog.appCatalogs
       .filter((c) => c.enabled && c.status === "connected")
       .map((c) => ({
@@ -120,7 +134,7 @@ class HostCapabilitiesImpl implements HostCapabilities {
     const data = hostRequestStorage.getStore();
     if (!data?.jobGrant) {
       throw new Error(
-        "exchangeToken() called outside the job-grant callback phase — the offline grant is only available during the Authorization Code callback (SRS-CY-41901)",
+        "exchangeToken() called outside the job-grant callback phase — the offline grant is only available during the Authorization Code callback",
       );
     }
     return Promise.resolve(data.jobGrant);
@@ -132,7 +146,7 @@ class HostCapabilitiesImpl implements HostCapabilities {
     const data = hostRequestStorage.getStore();
     if (!data?.jobGrant) {
       throw new Error(
-        "mintJobBrokerToken() called outside the job-grant callback phase — the batch grant is only available during the Authorization Code callback (SRS-CY-41901)",
+        "mintJobBrokerToken() called outside the job-grant callback phase — the batch grant is only available during the Authorization Code callback",
       );
     }
     return Promise.resolve(generateJobSessionToken());
@@ -162,32 +176,35 @@ class HostCapabilitiesImpl implements HostCapabilities {
 // pre-filter on read.
 class JobLedgerImpl implements JobLedger {
   async record(job: JobRecord): Promise<{ id: string }> {
-    const { user, authTokens } = requireRequestData();
-    if (!user.organization) {
+    const { user, authTokens, sessionId, organization } = requireRequestData();
+    if (!organization) {
       throw new Error("Active organization missing from session");
     }
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
 
     // The storage role is resolved host-side here so the broker reads
     // roleArn/region/s3Endpoint from the ledger row at mint time without
     // re-resolving the catalog. Pinning the most permissive grant the user
     // can see keeps the job's credentials within the user's entitlement.
     const connection = await prisma.connectionConfig.findFirst({
-      where: { id: job.connectionId, organization: user.organization },
+      where: { id: job.connectionId, organization },
       include: { grants: true },
     });
     if (!connection) {
-      throw new Error(
-        `Connection ${job.connectionId} not found in organization ${user.organization}`,
-      );
+      throw new Error(`Connection ${job.connectionId} not found in organization ${organization}`);
     }
-    const catalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const catalog = await getProviderCatalog(organization, portalToken);
     const provider = resolveConnectionProviderWithGrants(catalog, connection);
     if (!provider) {
       throw new Error(
         `Provider connection could not be resolved for connection ${job.connectionId}`,
       );
     }
-    const grant = pickGrantForUser(provider, user, user.organization);
+    const grant = pickGrantForUser(provider, user, organization);
     if (!grant) {
       throw new Error(`No grant the submitting user can see for connection ${job.connectionId}`);
     }
@@ -203,7 +220,7 @@ class JobLedgerImpl implements JobLedger {
     // The named compute provider must be one of the active organization's
     // connected providers (tenant boundary — a provider id from another org
     // never resolves).
-    const providerCatalog = await getProviderCatalog(user.organization, authTokens.accessToken);
+    const providerCatalog = await getProviderCatalog(organization, portalToken);
     const computeProvider = job.providerId
       ? providerCatalog.computeProviders.find(
           (p) => p.id === job.providerId && p.status === "connected",
@@ -211,7 +228,7 @@ class JobLedgerImpl implements JobLedger {
       : undefined;
     if (job.providerId && !computeProvider) {
       throw new Error(
-        `Compute provider ${job.providerId} is not a connected provider of organization ${user.organization}`,
+        `Compute provider ${job.providerId} is not a connected provider of organization ${organization}`,
       );
     }
 
@@ -230,7 +247,7 @@ class JobLedgerImpl implements JobLedger {
       create: {
         id: job.batchId,
         ...(job.batchName ? { name: job.batchName } : {}),
-        organization: user.organization,
+        organization: organization,
       },
     });
 
@@ -241,7 +258,7 @@ class JobLedgerImpl implements JobLedger {
         status: "Pending",
         offlineSessionId: job.offlineSessionId,
         jobTokenHash: hashJobToken(job.jobToken),
-        organization: user.organization,
+        organization: organization,
         owner: job.owner,
         inputS3Uris: job.inputS3Uris,
         outputS3Uri: job.outputS3Uri,
@@ -257,48 +274,48 @@ class JobLedgerImpl implements JobLedger {
   }
 
   async lookup(providerJobId: string): Promise<JobRecord | null> {
-    const { user } = requireRequestData();
-    if (!user.organization) {
+    const { organization } = requireRequestData();
+    if (!organization) {
       throw new Error("Active organization missing from session");
     }
     const entry = await prisma.jobLedgerEntry.findFirst({
-      where: { organization: user.organization, jobId: providerJobId },
+      where: { organization: organization, jobId: providerJobId },
       include: { batch: { select: { name: true } } },
     });
     return entry ? toJobRecord(entry) : null;
   }
 
   async update(id: string, patch: JobRuntimeUpdate): Promise<void> {
-    const { user } = requireRequestData();
-    if (!user.organization) {
+    const { organization } = requireRequestData();
+    if (!organization) {
       throw new Error("Active organization missing from session");
     }
     // updateMany, not update: the org pre-filter is the tenant boundary, and a
     // row the filter matches zero times must fail loud — a lost runtime update
     // cannot go unnoticed.
     const result = await prisma.jobLedgerEntry.updateMany({
-      where: { id, organization: user.organization },
+      where: { id, organization: organization },
       data: {
         ...(patch.providerJobId !== undefined ? { jobId: patch.providerJobId } : {}),
         ...(patch.status !== undefined ? { status: patch.status } : {}),
       },
     });
     if (result.count === 0) {
-      throw new Error(`Job ledger row ${id} not found in organization ${user.organization}`);
+      throw new Error(`Job ledger row ${id} not found in organization ${organization}`);
     }
   }
 
   async remove(id: string): Promise<void> {
-    const { user } = requireRequestData();
+    const { organization } = requireRequestData();
     // The deployment-secret carve-out dispatches org-agnostic (no session
     // organization) — the same trust boundary as listAll — so the reconciler
     // removes terminal rows by id alone; session callers keep the org filter.
     const rows = await prisma.jobLedgerEntry.findMany({
-      where: user.organization ? { organization: user.organization, id } : { id },
+      where: organization ? { organization: organization, id } : { id },
       select: { batchId: true },
     });
     await prisma.jobLedgerEntry.deleteMany({
-      where: user.organization ? { organization: user.organization, id } : { id },
+      where: organization ? { organization: organization, id } : { id },
     });
     // Removing a job's row is the cancel path (immediate) and the reconciler's
     // terminal sweep alike; the batch's encrypted credentials go with the last
@@ -309,11 +326,11 @@ class JobLedgerImpl implements JobLedger {
   }
 
   async list(): Promise<readonly JobRecord[]> {
-    const { user } = requireRequestData();
-    if (!user.organization) {
+    const { organization } = requireRequestData();
+    if (!organization) {
       throw new Error("Active organization missing from session");
     }
-    return listLedgerEntries(user.organization);
+    return listLedgerEntries(organization);
   }
 
   // Cross-organization scan for the scheduled reconciler — must only be

@@ -133,6 +133,7 @@ describe("refreshAccessToken", () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 401,
+        text: () => Promise.resolve('{"error":"invalid_grant"}'),
       });
 
       await expect(refreshAccessToken("expired-token")).rejects.toThrow("Failed to refresh token");
@@ -266,7 +267,11 @@ describe("refreshAccessTokenWithLock", () => {
   test("releases lock even when refresh fails", async () => {
     vi.mocked(redis.set).mockResolvedValue("OK");
     vi.mocked(redis.eval).mockResolvedValue(1);
-    mockFetch.mockResolvedValue({ ok: false, status: 401 });
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('{"error":"invalid_grant"}'),
+    });
 
     await expect(refreshAccessTokenWithLock("session-123", "refresh-token")).rejects.toThrow(
       "Failed to refresh token",

@@ -76,7 +76,7 @@ describe("AdminUsersRoute", () => {
   ) {
     const RemixStub = createRoutesStub([
       {
-        path: "/admin/users",
+        path: "/:org/admin/users",
         Component: AdminUsersRoute,
         loader: () => ({
           scope: "cytario/lab",
@@ -88,7 +88,7 @@ describe("AdminUsersRoute", () => {
       },
     ]);
 
-    return render(<RemixStub initialEntries={["/admin/users?scope=cytario/lab"]} />);
+    return render(<RemixStub initialEntries={["/cytario/admin/users?scope=cytario/lab"]} />);
   }
 
   test("renders table with visible column headers", async () => {

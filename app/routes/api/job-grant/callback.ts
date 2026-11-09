@@ -3,7 +3,7 @@ import { redirect } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { exchangeAuthCodeForJobGrant } from "~/.server/auth/exchangeAuthCodeForJobGrant";
-import { getUserInfo, toIdentity } from "~/.server/auth/getUserInfo";
+import { decodeJwtClaims, profileFromTokenClaims, toIdentity } from "~/.server/auth/getUserInfo";
 import {
   collectCredentialsIfBatchEmpty,
   putBatchCredentials,
@@ -14,8 +14,11 @@ import { withHostRequestContext } from "~/.server/hostRequestContext";
 import { createLabel } from "~/.server/logging";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { serverEndpointRegistry } from "~/.server/serverEndpointRegistry";
+import { orgPath } from "~/utils/orgPath";
 
 const label = createLabel("job-grant", "magenta");
+
+const JOBS_PATH = "/plugin/jobs";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
@@ -50,7 +53,16 @@ export const loader = async (args: LoaderFunctionArgs) => {
     return redirect("/plugin/jobs?error=grant_expired");
   }
 
-  const redirectUri = `${new URL(request.url).origin}/api/job-grant/callback`;
+  // The acting org is the org the user submitted from, recorded at initiation —
+  // not this request's URL. The callback is un-prefixed (the Keycloak job-broker
+  // client registers exactly one redirect URI, the un-prefixed one), so the
+  // middleware resolved the session's default org here, which for a
+  // multi-membership session can be another org's alias.
+  const organization = pending.organization;
+  // The jobs view lives under the organization prefix.
+  const jobsPath = (search = "") => `${orgPath(organization, JOBS_PATH)}${search}`;
+
+  const redirectUri = `${url.origin}/api/job-grant/callback`;
 
   let grant;
   try {
@@ -58,26 +70,32 @@ export const loader = async (args: LoaderFunctionArgs) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "exchange failed";
     console.error(`${label} Auth code exchange failed:`, message);
-    return redirect("/plugin/jobs?error=grant_failed");
+    return redirect(jobsPath("?error=grant_failed"));
   }
 
   // authMiddleware (in the middleware array) has already refreshed the
   // session tokens and populated authContext — read from there instead of
   // calling getSession again.
-  const { authTokens } = context.get(authContext);
+  const { authTokens, user: sessionUser } = context.get(authContext);
   if (!authTokens) {
     console.error(`${label} No auth tokens in session`);
-    return redirect("/plugin/jobs?error=no_session");
+    return redirect(jobsPath("?error=no_session"));
   }
-  const userProfile = await getUserInfo(authTokens.accessToken);
-  const identity = toIdentity(userProfile);
+  // Re-read the claims so a group change made since login is visible.
+  // toIdentity derives the ACTING org's entitlements from the membership map
+  // (submit-phase grant resolution is group-scoped and must see this org's
+  // groups, not the session default's). Token-derived — the same claim set
+  // the refresh path re-derives from.
+  const userProfile =
+    profileFromTokenClaims(decodeJwtClaims(authTokens.accessToken)) ?? sessionUser;
+  const identity = toIdentity(userProfile, organization);
 
   // The batch's OAuth material is written here — the one point where the
   // refresh token exists — and never reaches the plugin or a container.
   const { refreshToken, accessToken, accessTokenExpiresAt } = grant;
   if (!refreshToken || !accessToken || !accessTokenExpiresAt) {
     console.error(`${label} Auth code exchange returned no credential material`);
-    return redirect("/plugin/jobs?error=grant_failed");
+    return redirect(jobsPath("?error=grant_failed"));
   }
 
   try {
@@ -92,11 +110,12 @@ export const loader = async (args: LoaderFunctionArgs) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "credential record failed";
     console.error(`${label} Failed to store batch credentials:`, message);
-    return redirect("/plugin/jobs?error=submit_failed");
+    return redirect(jobsPath("?error=submit_failed"));
   }
 
   const requestData = {
     user: userProfile,
+    organization,
     identity,
     authTokens,
     sessionId: context.get(sessionContext)?.id ?? "",
@@ -105,9 +124,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
 
   return withHostRequestContext(requestData, async () => {
     try {
-      const endpoint = serverEndpointRegistry
-        .list()
-        .find((e) => e.contribution.path === pending.pluginPath);
+      const endpoint = serverEndpointRegistry.findOrgScoped(pending.pluginPath);
 
       if (!endpoint || !endpoint.contribution.action) {
         throw new Error(`Plugin endpoint ${pending.pluginPath} not found or has no action`);
@@ -130,7 +147,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
       });
 
       console.info(`${label} Job submission completed for batch ${pending.batchId}`);
-      return redirect(pending.returnPath);
+      return redirect(orgPath(organization, pending.returnPath));
     } catch (err) {
       const message = err instanceof Error ? err.message : "submission failed";
       console.error(`${label} Job submission failed:`, message);
@@ -147,7 +164,7 @@ export const loader = async (args: LoaderFunctionArgs) => {
       });
       const params = new URLSearchParams({ error: "submit_failed" });
       if (err instanceof Error && err.message) params.set("message", err.message);
-      return redirect(`/plugin/jobs?${params.toString()}`);
+      return redirect(jobsPath(`?${params.toString()}`));
     }
   });
 };

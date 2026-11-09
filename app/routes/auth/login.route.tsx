@@ -2,10 +2,13 @@ import { Description } from "@cytario/design";
 import { LoaderFunctionArgs, redirect, MetaFunction } from "react-router";
 
 import { getSession } from "~/.server/auth/getSession";
+import { resolveActiveOrganization } from "~/.server/auth/getUserInfo";
 import { generateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
+import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
 import { createLabel } from "~/.server/logging";
 import { cytarioConfig } from "~/config";
+import { orgPath } from "~/utils/orgPath";
 
 export const meta: MetaFunction = () => {
   return [
@@ -27,7 +30,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (user) {
     console.info(`${label} User already authenticated, redirecting`);
-    return redirect("/");
+    // The org they were in last: the persisted preference, validated against
+    // the token's memberships, else the first alias — the un-prefixed root
+    // would only redirect once more.
+    const preferredOrg = await getPreferredOrg(user.sub).catch(() => null);
+    const organization = resolveActiveOrganization(user.organizations, preferredOrg ?? undefined);
+    if (!organization) return redirect("/onboarding");
+    return redirect(orgPath(organization, "/"));
   }
 
   try {

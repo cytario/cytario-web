@@ -8,39 +8,43 @@ export type ConnectionConfigWithGrants = ConnectionConfig & { grants: Connection
 
 /**
  * Server-side tenant boundary: every ConnectionConfig query is pre-filtered by
- * the active Keycloak organization. The auth middleware guarantees the claim
- * is present before any query runs; throwing here is defence-in-depth.
+ * the org the request acts in (the URL's `/:org`, resolved by the auth
+ * middleware). Throwing here is defence-in-depth.
  */
-function requireOrganization(user: UserProfile): string {
-  if (!user.organization) {
-    throw new Error("Active organization missing from session");
+function requireOrganization(organization: string | undefined): string {
+  if (!organization) {
+    throw new Error("Request organization missing");
   }
-  return user.organization;
+  return organization;
 }
 
-/** List all connection configs visible to the user within the active org. */
-export async function listConnections(user: UserProfile): Promise<ConnectionConfigWithGrants[]> {
-  const organization = requireOrganization(user);
+/** List all connection configs visible to the user within the request org. */
+export async function listConnections(
+  user: UserProfile,
+  organization: string | undefined,
+): Promise<ConnectionConfigWithGrants[]> {
+  const org = requireOrganization(organization);
   const allConfigs = await prisma.connectionConfig.findMany({
-    where: { organization },
+    where: { organization: org },
     // Deterministic order — Postgres returns unordered rows without this, and
     // the sidebar's default-selected connection follows the first entry.
     orderBy: { name: "asc" },
     include: { grants: true },
   });
-  return filterVisible(user, allConfigs);
+  return filterVisible(user, allConfigs, org);
 }
 
-/** Get a connection config by its id, scoped to the active org. */
+/** Get a connection config by its id, scoped to the request org. */
 export async function getConnection(
   user: UserProfile,
+  organization: string | undefined,
   id: string,
 ): Promise<ConnectionConfigWithGrants | null> {
-  const organization = requireOrganization(user);
+  const org = requireOrganization(organization);
   const config = await prisma.connectionConfig.findFirst({
-    where: { id, organization },
+    where: { id, organization: org },
     include: { grants: true },
   });
-  if (!config || !canSee(user, config)) return null;
+  if (!config || !canSee(user, config, org)) return null;
   return config;
 }

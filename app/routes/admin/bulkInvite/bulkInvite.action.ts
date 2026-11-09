@@ -11,7 +11,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
 export const bulkInviteAction: ActionFunction = async ({ request, context }) => {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization } = context.get(authContext);
   const { org, adminUrl } = context.get(adminContext);
 
   const json = await request.json();
@@ -23,7 +23,7 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
 
   const { rows } = result.data;
 
-  await consultUserMgmtGate(toIdentity(user), {
+  await consultUserMgmtGate(toIdentity(user, requestOrganization), {
     kind: "invite",
     inviteCount: rows.length,
   });

@@ -4,9 +4,9 @@ import { createGroupSchema } from "../createGroup.schema";
 
 describe("createGroupSchema", () => {
   test("parses valid name", () => {
-    const result = createGroupSchema.safeParse({ name: "Ultivue" });
+    const result = createGroupSchema.safeParse({ name: "Vericura" });
     expect(result.success).toBe(true);
-    expect(result.data!.name).toBe("Ultivue");
+    expect(result.data!.name).toBe("Vericura");
   });
 
   test("parses name with spaces", () => {
@@ -22,9 +22,9 @@ describe("createGroupSchema", () => {
   });
 
   test("trims whitespace", () => {
-    const result = createGroupSchema.safeParse({ name: "  Ultivue  " });
+    const result = createGroupSchema.safeParse({ name: "  Vericura  " });
     expect(result.success).toBe(true);
-    expect(result.data!.name).toBe("Ultivue");
+    expect(result.data!.name).toBe("Vericura");
   });
 
   test("parses unicode names", () => {

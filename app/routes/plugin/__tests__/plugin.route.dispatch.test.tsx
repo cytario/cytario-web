@@ -12,8 +12,8 @@ const authContext = vi
   .then((m) => m.authContext);
 
 vi.mock("~/.server/auth/getUserInfo", () => ({
-  toIdentity: vi.fn((user: { organization?: string }) => ({
-    organization: user.organization,
+  toIdentity: vi.fn((_user: unknown, organization?: string) => ({
+    organization,
     organizationAttributes: {},
     groups: [],
     adminScopes: [],
@@ -56,6 +56,7 @@ async function seedAuthUser(args: Parameters<typeof loader>[0]) {
   const token = await authContext;
   (args.context as unknown as { set: (k: unknown, v: unknown) => void }).set(token, {
     user: mock.user(),
+    requestOrganization: "org1",
   });
 }
 

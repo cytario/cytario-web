@@ -11,7 +11,7 @@ import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
 
 export const inviteUserAction: ActionFunction = async ({ request, context }) => {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization } = context.get(authContext);
   const { org, adminUrl } = context.get(adminContext);
 
   const formData = await request.formData();
@@ -26,7 +26,10 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
   const session = await getSession(request);
 
   try {
-    await consultUserMgmtGate(toIdentity(user), { kind: "invite", inviteCount: 1 });
+    await consultUserMgmtGate(toIdentity(user, requestOrganization), {
+      kind: "invite",
+      inviteCount: 1,
+    });
 
     await inviteOrganizationUser(
       org.id,
@@ -35,7 +38,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
       result.data.lastName || undefined,
     );
 
-    const message = `Invited ${result.data.email} to ${user.organization}.`;
+    const message = `Invited ${result.data.email} to ${requestOrganization}.`;
     if (inviteAnother) {
       return { success: true, message };
     }

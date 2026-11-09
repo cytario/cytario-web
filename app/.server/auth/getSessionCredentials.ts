@@ -1,5 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "./orgTokenExchange";
 import { buildRustfsSessionPolicy } from "./rustfsSessionPolicy";
 import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
@@ -42,8 +43,10 @@ interface SessionCredentialRequest {
   // The bucket catalog is the per-bucket source — a bucket may live in a
   // different region than its provider connection's default.
   bucketRegion?: string;
-  sessionData: SessionData;
   roleSessionName: string;
+  // Per-org token exchange, resolved on first mint and shared by every
+  // connection of the request; a request where nothing mints never starts it.
+  webIdentityToken: () => Promise<string>;
 }
 
 /** The AWS mint requires a concrete role ARN — null (a RustFS role) fails closed. */
@@ -61,14 +64,13 @@ const fetchTemporaryCredentials = async ({
   grant,
   connectionProvider,
   bucketRegion,
-  sessionData,
   roleSessionName,
+  webIdentityToken,
 }: SessionCredentialRequest): Promise<Credentials> => {
   const { bucketName, prefix } = connectionConfig;
   const { roleArn, accessLevel } = grant;
   const region = bucketRegion ?? connectionProvider.region;
   const { endpoint, providerType } = connectionProvider;
-  const { idToken } = sessionData.authTokens;
 
   const providerConfig = getS3ProviderConfig(endpoint, region, providerType);
 
@@ -101,7 +103,7 @@ const fetchTemporaryCredentials = async ({
   const command = new AssumeRoleWithWebIdentityCommand({
     RoleArn: providerConfig.sendsRoleArn ? requireAwsRoleArn(roleArn, grant.scope) : undefined,
     RoleSessionName: roleSessionName,
-    WebIdentityToken: idToken,
+    WebIdentityToken: await webIdentityToken(),
     DurationSeconds: 60 * 60 * 1, // 1 hour
     ...(Policy ? { Policy } : {}),
   });
@@ -122,7 +124,7 @@ export const pickGrantForUser = (
   organization: string,
 ): ResolvedConnectionGrant | undefined => {
   const applicable = connectionProvider.grants.filter((grant) =>
-    canSee(user, { organization, ownerScope: grant.scope }),
+    canSee(user, { organization, ownerScope: grant.scope }, organization),
   );
   if (applicable.length === 0) return undefined;
   applicable.sort(
@@ -161,12 +163,23 @@ export interface ClientConnectionProvider {
 }
 
 export interface SessionCredentialsResult {
+  /** The request org's slice, refreshed by this call; the caller persists it
+   * back into that org's bucket. */
   credentials: ConnectionsCredentials;
   errors: Record<string, string>;
   // Never a role ARN or credential; absent for a connection whose catalog
   // reference is stale/unavailable.
   providers: Record<string, ClientConnectionProvider>;
 }
+
+// The session's credential store is per-org; this module works one org's
+// slice at a time. The caller hands in the full map; reads and writes stay
+// inside the request org's bucket, the other orgs' slices pass through
+// untouched.
+const orgCredentials = (
+  credentials: SessionData["credentials"],
+  organization: string,
+): ConnectionsCredentials => credentials[organization] ?? {};
 
 // The catalog lookup is advisory: when unavailable or a reference is stale,
 // the affected connection surfaces a per-connection error rather than
@@ -175,18 +188,44 @@ export interface SessionCredentialsResult {
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
   connectionConfigs: ConnectionConfigWithGrants[],
+  sessionId: string,
+  organization: string,
 ): Promise<SessionCredentialsResult> => {
   if (connectionConfigs.length === 0) {
-    return { credentials: sessionData.credentials, errors: {}, providers: {} };
+    // Nothing to mint; the request org's (empty) slice is the answer.
+    return {
+      credentials: orgCredentials(sessionData.credentials, organization),
+      errors: {},
+      providers: {},
+    };
   }
 
   const roleSessionName = sanitizeRoleSessionName(sessionData.user.name);
-  const organization = sessionData.user.organization ?? "";
+  // The request org's slice — reads and writes stay inside it.
+  const storedCredentials = orgCredentials(sessionData.credentials, organization);
+
+  // The portal's exchange rejects the multi-membership session token.
+  const portalAccessToken = await (async () => {
+    if (!organization || cytarioConfig.providers.source !== "portal") return undefined;
+    try {
+      return await exchangePortalAccessToken(
+        sessionId,
+        organization,
+        sessionData.authTokens.accessToken,
+      );
+    } catch (error) {
+      console.warn(
+        `${label} Portal token exchange failed, catalog lookups will fail closed:`,
+        error,
+      );
+      return undefined;
+    }
+  })();
 
   let catalog: ProviderCatalog | undefined;
   let catalogError: string | undefined;
   try {
-    catalog = await getProviderCatalog(organization, sessionData.authTokens.accessToken);
+    catalog = await getProviderCatalog(organization, portalAccessToken);
   } catch (error) {
     catalogError =
       error instanceof Error
@@ -202,7 +241,7 @@ export const getAllSessionCredentials = async (
   let bucketCatalog: Awaited<ReturnType<typeof getBucketCatalog>> | undefined;
   if (cytarioConfig.providers.source === "portal") {
     try {
-      bucketCatalog = await getBucketCatalog(organization, sessionData.authTokens.accessToken);
+      bucketCatalog = await getBucketCatalog(organization, portalAccessToken);
     } catch {
       bucketCatalog = undefined;
     }
@@ -252,10 +291,10 @@ export const getAllSessionCredentials = async (
   );
 
   const stalePublicCredentialIds = publicConnectionIds.size
-    ? [...publicConnectionIds].filter((id) => id in sessionData.credentials)
+    ? [...publicConnectionIds].filter((id) => id in storedCredentials)
     : [];
   const credentialsWithoutPublic =
-    stalePublicCredentialIds.length > 0 ? { ...sessionData.credentials } : sessionData.credentials;
+    stalePublicCredentialIds.length > 0 ? { ...storedCredentials } : storedCredentials;
   for (const connectionId of stalePublicCredentialIds) {
     delete credentialsWithoutPublic[connectionId];
   }
@@ -273,6 +312,26 @@ export const getAllSessionCredentials = async (
   console.info(
     `${label} Fetching credentials for ${connectionsNeedingRefresh.length} connection(s)`,
   );
+
+  // One narrow token for every connection of this request, shared across
+  // mints. Created only when a connection actually reaches its mint: a
+  // request whose credentials are all still valid — or one where every
+  // connection bails on the catalog check — never pays the exchange, and a
+  // rejected exchange is always consumed by the mint that requested it
+  // (an eagerly-started promise whose consumers all bail would reject with
+  // no handler attached and kill the process).
+  let webIdentityTokenPromise: Promise<string> | undefined;
+  const webIdentityToken = (): Promise<string> => {
+    webIdentityTokenPromise ??= (async (): Promise<string> => {
+      if (!organization) {
+        throw new Error(
+          "No active organization on the session — refusing to mint credentials (fail closed).",
+        );
+      }
+      return exchangeOrgIdToken(sessionId, organization, sessionData.authTokens.accessToken);
+    })();
+    return webIdentityTokenPromise;
+  };
 
   const credentialResults = await Promise.allSettled(
     connectionsNeedingRefresh.map(async (connectionConfig) => {
@@ -303,8 +362,8 @@ export const getAllSessionCredentials = async (
           grant,
           connectionProvider,
           bucketRegion: bucketRegionOf(connectionConfig),
-          sessionData,
           roleSessionName,
+          webIdentityToken,
         }),
       };
     }),

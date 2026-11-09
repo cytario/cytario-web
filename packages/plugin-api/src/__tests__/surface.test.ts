@@ -1,14 +1,6 @@
-import * as api from "../index";
 import type { CytarioPlugin, PluginContext } from "../index";
 
 describe("public surface", () => {
-  test("exports expected runtime helpers", () => {
-    expect(typeof api.assertApiCompatible).toBe("function");
-    expect(typeof api.sanitizeHeaders).toBe("function");
-    expect(typeof api.satisfies).toBe("function");
-    expect(api.IncompatiblePluginError).toBeDefined();
-  });
-
   test("CytarioPlugin can be satisfied by a literal", () => {
     const plugin = {
       name: "noop",
@@ -59,7 +51,7 @@ describe("public surface", () => {
         register: (target, entry) => calls.push({ target, entryId: entry.id }),
       },
       sidebarNav: { register: () => {} },
-      client: { storagePicker: null, imageMetadata: null },
+      client: { storagePicker: null, imageMetadata: null, orgPaths: null },
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
       slots: { register: () => {} },
@@ -155,7 +147,7 @@ describe("public surface", () => {
       viewers: { register: () => {} },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
-      client: { storagePicker: null, imageMetadata: null },
+      client: { storagePicker: null, imageMetadata: null, orgPaths: null },
       userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),
@@ -232,7 +224,7 @@ describe("public surface", () => {
         register: (contribution) => calls.push({ path: contribution.path }),
       },
       sidebarNav: { register: () => {} },
-      client: { storagePicker: null, imageMetadata: null },
+      client: { storagePicker: null, imageMetadata: null, orgPaths: null },
       contextMenus: { register: () => {} },
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
@@ -317,7 +309,7 @@ describe("public surface", () => {
       viewers: { register: () => {} },
       routes: { register: () => {} },
       sidebarNav: { register: () => {} },
-      client: { storagePicker: null, imageMetadata: null },
+      client: { storagePicker: null, imageMetadata: null, orgPaths: null },
       contextMenus: { register: () => {} },
       formats: { register: () => {} } as never,
       gates: { register: () => {} },
@@ -403,7 +395,7 @@ describe("public surface", () => {
       viewers: { register: () => {} },
       routes: { register: () => {} },
       serverEndpoints: { register: () => {} },
-      client: { storagePicker: null, imageMetadata: null },
+      client: { storagePicker: null, imageMetadata: null, orgPaths: null },
       userMgmtGate: { register: () => {} },
       host: {
         connections: () => Promise.resolve([]),

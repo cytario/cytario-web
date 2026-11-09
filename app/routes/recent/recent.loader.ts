@@ -12,9 +12,10 @@ export type SerializedRecentlyViewed = {
 
 export async function loadRecentlyViewed(
   userId: string,
+  organization: string,
   limit = 20,
 ): Promise<SerializedRecentlyViewed[]> {
-  const raw = await getRecentlyViewed(userId, limit);
+  const raw = await getRecentlyViewed(userId, organization, limit);
   return raw.map((item) => ({
     id: item.id,
     connectionId: item.connectionId,

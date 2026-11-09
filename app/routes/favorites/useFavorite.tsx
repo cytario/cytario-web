@@ -7,6 +7,7 @@ import {
   computeDirectoryLastModified,
   computeDirectorySize,
 } from "~/components/DirectoryView/buildDirectoryTree";
+import { useOrgPath } from "~/hooks/useOrgPath";
 
 const FAVORITES_ACTION = "/favorites";
 
@@ -35,6 +36,7 @@ export function FavoritesProvider({
 }) {
   const fetcher = useFetcher();
   const { submit } = fetcher;
+  const favoritesAction = useOrgPath()(FAVORITES_ACTION);
 
   const favSet = useMemo(
     () => new Set(favorites.map((f) => nodeKey(f.connectionId, f.pathName))),
@@ -64,7 +66,7 @@ export function FavoritesProvider({
       if (isFavorite(node)) {
         submit(
           { connectionId: node.connectionId, pathName: key },
-          { method: "delete", action: FAVORITES_ACTION },
+          { method: "delete", action: favoritesAction },
         );
         return;
       }
@@ -89,11 +91,11 @@ export function FavoritesProvider({
       if (totalSize) payload.totalSize = String(totalSize);
       if (lastModified) payload.lastModified = String(lastModified);
 
-      submit(payload, { method: "put", action: FAVORITES_ACTION });
+      submit(payload, { method: "put", action: favoritesAction });
     };
 
     return { isFavorite, isPending, toggle };
-  }, [favSet, pendingKey, pendingAdding, submit]);
+  }, [favSet, pendingKey, pendingAdding, submit, favoritesAction]);
 
   return <FavoritesContext.Provider value={controller}>{children}</FavoritesContext.Provider>;
 }

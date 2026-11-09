@@ -31,8 +31,8 @@ export const action = async (args: ActionFunctionArgs): Promise<Response> => {
     return Response.json({ error: "Job broker client not configured" }, { status: 500 });
   }
 
-  const { user } = args.context.get(authContext);
-  if (!user?.organization) {
+  const { requestOrganization } = args.context.get(authContext);
+  if (!requestOrganization) {
     return Response.json({ error: "Active organization required" }, { status: 403 });
   }
 
@@ -40,10 +40,13 @@ export const action = async (args: ActionFunctionArgs): Promise<Response> => {
   const codeChallenge = generateCodeChallenge(codeVerifier);
 
   const { state, batchId } = await storePendingSubmission({
-    pluginPath: "/api/plugin/run",
+    // Plugin-relative: the callback resolves the contribution through the
+    // org-scoped registry, which keys on the plugin's declared path (`/run`),
+    // not the host-composed URL.
+    pluginPath: "/run",
     requestBody: body,
-    userId: user.sub,
-    organization: user.organization,
+    userId: args.context.get(authContext).user.sub,
+    organization: requestOrganization,
     returnPath: "/plugin/jobs",
     codeVerifier,
   });

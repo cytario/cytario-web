@@ -13,12 +13,12 @@ import { compareGroupPaths } from "~/utils/groupPath";
 import { resolveScopeLabel } from "~/utils/scopeLabel";
 
 export const usersLoader: LoaderFunction = async ({ context }) => {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization } = context.get(authContext);
   const { org, scope } = context.get(adminContext);
 
   const [group, allConnections] = await Promise.all([
     getGroupWithMembers(org.id, scope),
-    listConnections(user),
+    listConnections(user, requestOrganization),
   ]);
 
   // Connections owned at this scope are not inherited from parents.

@@ -60,6 +60,7 @@ export type {
   ServerEndpointAuth,
   ServerEndpointContribution,
   ServerEndpointRegistry,
+  ServerEndpointScope,
 } from "./serverEndpoints";
 export type {
   ConnectionProjection,
@@ -87,6 +88,7 @@ export type {
 } from "./storagePicker";
 export type { ImageMetadata } from "./imageMetadata";
 export type { ClientCapabilities } from "./clientCapabilities";
+export type { OrgPathHelpers } from "./orgPaths";
 export type { ViewerProps, ViewerContribution, ViewerRegistry } from "./viewer";
 
 export { assertApiCompatible, IncompatiblePluginError } from "./apiVersion";

@@ -36,10 +36,10 @@ export const action = async (args: ActionFunctionArgs) => {
 };
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const { user, connectionConfigs } = context.get(authContext);
+  const { user, connectionConfigs, requestOrganization } = context.get(authContext);
   return {
     connectionConfigs,
-    recentlyViewed: await loadRecentlyViewed(user.sub, 50),
+    recentlyViewed: await loadRecentlyViewed(user.sub, requestOrganization, 50),
   };
 };
 

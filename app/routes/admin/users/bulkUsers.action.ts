@@ -25,7 +25,7 @@ const actionLabels = {
 } as const;
 
 export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization } = context.get(authContext);
   const { org, adminUrl, scope } = context.get(adminContext);
 
   const formData = await request.formData();
@@ -37,16 +37,16 @@ export const bulkUsersAction: ActionFunction = async ({ request, context }) => {
   }
 
   const { intent, userIds, groupId } = result.data;
-  await assertUsersInScope(userIds, scope, user.organization);
+  await assertUsersInScope(userIds, scope, requestOrganization);
   let groupTree: readonly KeycloakGroup[] = [];
   if (groupId) {
-    groupTree = await assertGroupsInScope([groupId], scope, user.organization);
+    groupTree = await assertGroupsInScope([groupId], scope, requestOrganization);
   }
 
   if (intent === "addToGroup" && groupId) {
     const groupPath = findGroupPathInTree(groupTree, groupId);
     if (groupPath) {
-      await consultUserMgmtGate(toIdentity(user), {
+      await consultUserMgmtGate(toIdentity(user, requestOrganization), {
         kind: "addToGroup",
         groupPath,
         addCount: userIds.length,

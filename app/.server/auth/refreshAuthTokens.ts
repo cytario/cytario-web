@@ -30,7 +30,23 @@ export async function refreshAccessToken(refreshToken: string): Promise<AuthToke
       refresh_token: refreshToken,
     }),
   });
-  if (!response.ok) throw new Error("Failed to refresh token");
+  if (!response.ok) {
+    // Keycloak's own error document — safe to log for diagnosis; distinguishes
+    // a rotated/revoked refresh token (invalid_grant) from a misconfigured
+    // client secret (invalid_client) at a glance.
+    const body = await response.text().catch(() => "");
+    let keycloakError = "";
+    try {
+      const parsed = JSON.parse(body) as { error?: string; error_description?: string };
+      keycloakError = [parsed.error, parsed.error_description].filter(Boolean).join(": ");
+    } catch {
+      keycloakError = "";
+    }
+    console.error(
+      `[refresh] Token refresh failed: ${response.status} ${response.statusText}${keycloakError ? ` — ${keycloakError}` : ""}`,
+    );
+    throw new Error("Failed to refresh token");
+  }
   const { access_token, id_token, refresh_token } = (await response.json()) as AuthTokensResponse;
 
   const authTokens: AuthTokens = {

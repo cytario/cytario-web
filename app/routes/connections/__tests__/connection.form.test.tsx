@@ -64,17 +64,19 @@ afterEach(() => {
 function renderForm(adminScopes: string[] = []) {
   const Stub = createRoutesStub([
     {
-      path: "/",
+      path: "/:org",
       Component: () => <ConnectionForm adminScopes={adminScopes} userId="test-user-id" />,
     },
   ]);
-  return render(<Stub initialEntries={["/"]} />);
+  // The form renders under /:org in production; the catalog hooks read the
+  // org segment for their fetch URLs.
+  return render(<Stub initialEntries={["/org1"]} />);
 }
 
 function renderFormAt(path: string, adminScopes: string[] = [], defaultScope?: string) {
   const Stub = createRoutesStub([
     {
-      path: "/connections",
+      path: "/:org",
       Component: () => (
         <ConnectionForm
           adminScopes={adminScopes}
@@ -220,7 +222,7 @@ describe("ConnectionForm — submit target", () => {
     // An explicit action path resolves without the current search params, so a
     // submit from inside a modal must carry them explicitly — otherwise the
     // modal unmounts on submit and a server error banner never renders.
-    renderFormAt("/connections?modal=add-connection", ["lab"], "lab");
+    renderFormAt("/org1?modal=add-connection", ["lab"], "lab");
     const user = await openProviderSelect();
     await user.click(screen.getByRole("option", { name: /Prod/ }));
 
@@ -247,7 +249,7 @@ describe("ConnectionForm — submit target", () => {
     });
     expect(mockSubmit.mock.calls[0][1]).toMatchObject({
       method: "post",
-      action: "/connections?modal=add-connection",
+      action: "/org1?modal=add-connection",
     });
   });
 });

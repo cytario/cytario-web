@@ -7,6 +7,8 @@ vi.mock("../../db/redis", () => ({
   redis: {
     hset: vi.fn(),
     hget: vi.fn(),
+    hmget: vi.fn(),
+    hincrby: vi.fn(),
     hdel: vi.fn(),
     expireat: vi.fn(),
   },
@@ -18,6 +20,9 @@ vi.mock("~/config", () => ({
       httpOnly: true,
       secure: true,
       sameSite: "lax",
+      // The real cookie is signed; without a secret the cookie parse fails
+      // and getSession can never resolve an existing session id.
+      secrets: ["test-secret"],
     },
   },
 }));
@@ -41,14 +46,14 @@ describe("sessionStorage", () => {
     vi.mocked(redis.hset).mockResolvedValue(1);
     vi.mocked(redis.expireat).mockResolvedValue(1);
     vi.mocked(redis.hget).mockResolvedValue(null);
+    // A pre-existing session reads back at epoch "1" with its data.
+    vi.mocked(redis.hmget).mockResolvedValue(["1"]);
+    vi.mocked(redis.hincrby).mockResolvedValue(1);
     vi.mocked(redis.hdel).mockResolvedValue(1);
   });
 
   describe("getSession / commitSession integration", () => {
     test("creates and reads session via cookie", async () => {
-      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
-
-      // Get empty session from request without cookie
       const request = new Request("http://localhost/");
       const session = await sessionStorage.getSession(request.headers.get("Cookie"));
 
@@ -128,25 +133,122 @@ describe("sessionStorage", () => {
     });
   });
 
+  /**
+   * Creates a session via the storage itself and returns its id plus a
+   * signed cookie header that resolves back to it — the only reliable way
+   * to exercise read paths, since the storage signs its cookies.
+   */
+  const createSessionAndGetCookie = async (): Promise<{
+    id: string;
+    cookie: string;
+  }> => {
+    const fresh = await sessionStorage.getSession();
+    fresh.set("user", mockUser);
+    fresh.set("authTokens", mockSessionData.authTokens);
+    fresh.set("credentials", {});
+    const setCookie = await sessionStorage.commitSession(fresh, {
+      expires: mockExpires,
+    });
+    const id = (vi.mocked(redis.hset).mock.calls[0][0] as string) ?? "";
+    const cookie = setCookie.split(";")[0];
+    return { id, cookie };
+  };
+
   describe("readData", () => {
     test("reads session data from Redis when session exists", async () => {
+      const { cookie } = await createSessionAndGetCookie();
+      vi.mocked(redis.hset).mockClear();
+      vi.mocked(redis.hmget).mockResolvedValue(["1"]);
       vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
 
-      // Simulate reading a session with a known ID
-      const session = await sessionStorage.getSession("__session=user-123");
+      const session = await sessionStorage.getSession(cookie);
 
-      // The session storage should have attempted to read from Redis
-      expect(redis.hget).toHaveBeenCalled();
-      expect(session).toBeDefined();
+      expect(redis.hmget).toHaveBeenCalled();
+      expect(session.get("user")).toEqual(mockSessionData.user);
     });
 
     test("returns empty data for missing session", async () => {
+      // A cookie for a session this process never saw (and Redis has lost).
+      // Hand-signed with the mock secret so the parse resolves the id.
+      const value = Buffer.from(JSON.stringify("ghost-session-id")).toString("base64");
+      const { createHmac } = await import("node:crypto");
+      const hash = createHmac("sha256", "test-secret")
+        .update(value)
+        .digest("base64")
+        .replace(/=+$/, "");
+      vi.mocked(redis.hmget).mockResolvedValue([null]);
       vi.mocked(redis.hget).mockResolvedValue(null);
 
-      const session = await sessionStorage.getSession("__session=nonexistent");
+      const session = await sessionStorage.getSession(`__session=${value}.${hash}`);
 
-      // Session exists but has no data
       expect(session.data).toEqual({});
+    });
+
+    test("a session without an epoch field is invalid — a pre-build session reads as absent", async () => {
+      const { cookie } = await createSessionAndGetCookie();
+      // The hash exists with data, but no epoch field: a session written by
+      // a pre-epoch build. Its payload carries the old session shape, so the
+      // storage layer reports no session (the user takes a clean login)
+      // instead of serving shape-mismatched data.
+      vi.mocked(redis.hmget).mockResolvedValue([null]);
+      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
+
+      const session = await sessionStorage.getSession(cookie);
+
+      expect(session.get("user")).toBeUndefined();
+    });
+  });
+
+  describe("epoch invalidation", () => {
+    test("a write bumps the epoch so another replica's cached copy misses", async () => {
+      const { cookie } = await createSessionAndGetCookie();
+      vi.mocked(redis.hset).mockClear();
+
+      // Replica A reads the session at epoch 1 (populating its local cache)…
+      vi.mocked(redis.hmget).mockResolvedValue(["1"]);
+      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
+      await sessionStorage.getSession(cookie);
+
+      // …a write (anywhere) bumps the epoch to 2 and changes the payload…
+      vi.mocked(redis.hmget).mockResolvedValue(["2"]);
+      const rewrittenSessionData: SessionData = {
+        ...mockSessionData,
+        user: { ...mockSessionData.user, sub: "beta-sub" },
+      };
+      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(rewrittenSessionData));
+
+      // …replica A (the same process here) reads again: the epoch differs
+      // from what it cached, so the payload comes from Redis and reflects
+      // the write — a stale cached copy was never served.
+      const session = await sessionStorage.getSession(cookie);
+      expect(session.get("user")).toEqual(rewrittenSessionData.user);
+      expect(redis.hget).toHaveBeenCalledTimes(2);
+    });
+
+    test("a read at the same epoch is served from the local cache", async () => {
+      const { cookie } = await createSessionAndGetCookie();
+      vi.mocked(redis.hset).mockClear();
+
+      vi.mocked(redis.hmget).mockResolvedValue(["3"]);
+      vi.mocked(redis.hget).mockResolvedValue(JSON.stringify(mockSessionData));
+      await sessionStorage.getSession(cookie);
+      await sessionStorage.getSession(cookie);
+
+      // Burst reads at an unchanged epoch transfer the payload once.
+      expect(redis.hget).toHaveBeenCalledTimes(1);
+      expect(redis.hmget).toHaveBeenCalledTimes(2);
+    });
+
+    test("updateData increments the epoch field", async () => {
+      const { cookie } = await createSessionAndGetCookie();
+      vi.mocked(redis.hset).mockClear();
+
+      const session = await sessionStorage.getSession(cookie);
+      session.set("user", { ...mockSessionData.user, sub: "beta-sub" });
+
+      await sessionStorage.commitSession(session, { expires: mockExpires });
+
+      expect(redis.hincrby).toHaveBeenCalledWith(expect.any(String), "epoch", 1);
     });
   });
 

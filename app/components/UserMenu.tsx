@@ -7,17 +7,23 @@ import {
   MenuSeparator,
 } from "@cytario/design";
 
-import { UserProfile } from "~/.server/auth/getUserInfo";
 import { ScopePill } from "~/components/Pills/ScopePill";
+import { useActiveOrg } from "~/hooks/useOrgPath";
+import type { ClientUser } from "~/root";
+import { adminUsersPath } from "~/routes/admin/assertAdminScope";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
 
 interface UserMenuProps {
-  user: UserProfile;
+  /** The root loader's client payload — request-org entitlements derived at load. */
+  user: ClientUser;
   accountSettingsUrl: string;
   portalUrl?: string;
 }
 
 export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps) {
+  // The URL's org (useActiveOrg reads the /:org segment first) — the org this
+  // page acts in, so the admin links follow the tenant the user is viewing.
+  const organization = useActiveOrg();
   return (
     <Menu
       content={
@@ -40,7 +46,7 @@ export function UserMenu({ user, accountSettingsUrl, portalUrl }: UserMenuProps)
                   <MenuItem
                     key={scope}
                     id={`admin-${scope}`}
-                    href={`/admin/users?scope=${encodeURIComponent(scope)}`}
+                    href={adminUsersPath(organization, scope)}
                   >
                     <ScopePill scope={scope} />
                   </MenuItem>

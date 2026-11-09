@@ -18,6 +18,10 @@ vi.mock("~/.server/auth/getSession", () => ({
   getSession: vi.fn(),
 }));
 
+vi.mock("~/.server/auth/orgPreference.server", () => ({
+  getPreferredOrg: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("~/.server/auth/sessionStorage", () => ({
   sessionStorage: {
     commitSession: vi.fn().mockResolvedValue("session-cookie"),
@@ -58,9 +62,17 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     vi.clearAllMocks();
   });
 
-  test("redirects authenticated users to home", async () => {
+  test("redirects authenticated users to their last org", async () => {
     const mockSession = {
-      get: vi.fn((key) => (key === "user" ? { sub: "123", email: "test@example.com" } : null)),
+      get: vi.fn((key) =>
+        key === "user"
+          ? {
+              sub: "123",
+              email: "test@example.com",
+              organizations: { org1: { groups: [], attributes: {} } },
+            }
+          : null,
+      ),
     };
 
     (getSession as Mock).mockResolvedValue(mockSession);
@@ -68,7 +80,7 @@ describe("login loader (OAuth Authorization Code Flow with PKCE)", () => {
     const request = new Request("http://localhost/login");
     await loader({ request } as LoaderFunctionArgs);
 
-    expect(redirect).toHaveBeenCalledWith("/");
+    expect(redirect).toHaveBeenCalledWith("/org1");
   });
 
   test("redirects to Keycloak with PKCE and nonce params", async () => {

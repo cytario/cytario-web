@@ -27,22 +27,32 @@ const label = createLabel("dashboard", "cyan");
 export const headers = () => ({ "Cache-Control": "no-store, private" });
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
-  const { connectionConfigs, credentials, credentialErrors, connectionProviders, user } =
-    context.get(authContext);
+  const {
+    connectionConfigs,
+    credentials,
+    credentialErrors,
+    connectionProviders,
+    user,
+    requestOrganization: org,
+  } = context.get(authContext);
   // No shouldRevalidate gate: the credential keep-alive drives an explicit
   // revalidation to re-mint STS credentials, and RR runs this loader on every
   // navigation — recents/favorites riding along is cheaper than a gate that
   // might starve credential refresh. They are decorative, so a failure degrades
   // to empty rather than 500 the layout (which has no ErrorBoundary).
   const [recentlyViewed, favorites] = await Promise.all([
-    loadRecentlyViewed(user.sub, 20).catch((error) => {
-      console.error(`${label} Failed to load recently viewed:`, error);
-      return [];
-    }),
-    loadFavorites(user.sub).catch((error) => {
-      console.error(`${label} Failed to load favorites:`, error);
-      return [];
-    }),
+    org
+      ? loadRecentlyViewed(user.sub, org, 20).catch((error) => {
+          console.error(`${label} Failed to load recently viewed:`, error);
+          return [];
+        })
+      : Promise.resolve([]),
+    org
+      ? loadFavorites(user.sub, org).catch((error) => {
+          console.error(`${label} Failed to load favorites:`, error);
+          return [];
+        })
+      : Promise.resolve([]),
   ]);
   // Projection only — never the raw UserProfile, tokens, or credentials cross
   // to the client slot props.
@@ -51,7 +61,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     credentials,
     credentialErrors,
     connectionProviders,
-    identity: toIdentity(user),
+    identity: toIdentity(user, org),
     hostConfig: {
       portalUrl: cytarioConfig.endpoints.portal,
       webappUrl: cytarioConfig.endpoints.webapp,

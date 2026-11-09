@@ -1,1 +1,1 @@
-export const HOST_API_VERSION = "8.0.0";
+export const HOST_API_VERSION = "9.0.0";
