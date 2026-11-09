@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { authContext } from "~/.server/auth/authMiddleware";
-import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
+import { exchangePortalAccessToken } from "~/.server/auth/orgTokenExchange";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
 import { loader } from "~/routes/api/provider-catalog";
 import mock from "~/utils/__tests__/__mocks__";
@@ -50,7 +50,7 @@ function multiOrgUser() {
 }
 
 beforeEach(() => {
-  vi.mocked(getOrExchangeOrgAccessToken).mockClear();
+  vi.mocked(exchangePortalAccessToken).mockClear();
   vi.mocked(getProviderCatalog).mockReset();
 });
 
@@ -113,7 +113,7 @@ describe("provider-catalog loader", () => {
     const response = (await loader(buildArgs(multiOrgUser(), "zeta"))) as Response;
     const body = await response.json();
 
-    expect(getOrExchangeOrgAccessToken).toHaveBeenCalledWith("session-1", "zeta", "test-token");
+    expect(exchangePortalAccessToken).toHaveBeenCalledWith("session-1", "zeta", "test-token");
     expect(getProviderCatalog).toHaveBeenCalledWith("zeta", "narrow-access:zeta");
     expect(body).toHaveProperty("catalog");
   });
@@ -124,7 +124,7 @@ describe("provider-catalog loader", () => {
     const response = (await loader(buildArgs(multiOrgUser(), "org1"))) as Response;
 
     expect(response.status).toBe(200);
-    expect(getOrExchangeOrgAccessToken).toHaveBeenCalledWith("session-1", "org1", "test-token");
+    expect(exchangePortalAccessToken).toHaveBeenCalledWith("session-1", "org1", "test-token");
     expect(getProviderCatalog).toHaveBeenCalledWith("org1", "narrow-access:org1");
     expect(await response.json()).toHaveProperty("catalog");
   });

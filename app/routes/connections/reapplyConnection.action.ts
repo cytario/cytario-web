@@ -2,10 +2,7 @@ import { type ActionFunctionArgs, redirect } from "react-router";
 
 import { applyGrantsAndRecordStatus } from "./connectionGrant.server";
 import { authContext } from "~/.server/auth/authMiddleware";
-import {
-  getOrExchangeOrgAccessToken,
-  getOrExchangeOrgToken,
-} from "~/.server/auth/orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
@@ -24,9 +21,11 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
   if (!requestOrganization) {
     throw new Error("Active organization missing from session");
   }
-  const portalAccessToken = (
-    await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken)
-  ).accessToken;
+  const portalAccessToken = await exchangePortalAccessToken(
+    sessionId,
+    requestOrganization,
+    authTokens.accessToken,
+  );
 
   const formData = await request.formData();
   const connectionId = String(formData.get("connectionId") ?? "");
@@ -48,8 +47,7 @@ export const reapplyAction = async ({ request, context }: ActionFunctionArgs) =>
 
   const outcome = await applyGrantsAndRecordStatus(config, {
     user,
-    idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
-      .accessToken,
+    idToken: await exchangeOrgIdToken(sessionId, requestOrganization, authTokens.accessToken),
     accessToken: portalAccessToken,
   });
 

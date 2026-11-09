@@ -5,10 +5,7 @@ import { createConnection } from "./createConnection.action";
 import { shareFolderSchema } from "./shareFolder.schema";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import {
-  getOrExchangeOrgAccessToken,
-  getOrExchangeOrgToken,
-} from "~/.server/auth/orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { getProviderCatalog } from "~/.server/providers/providerCatalog.server";
@@ -26,8 +23,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
     context.get(authContext);
   const session = context.get(sessionContext);
   const portalAccessToken = requestOrganization
-    ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
-        .accessToken
+    ? await exchangePortalAccessToken(sessionId, requestOrganization, authTokens.accessToken)
     : "";
   if (!requestOrganization) {
     throw new Error("Active organization missing from session");
@@ -85,8 +81,7 @@ export const shareAction = async ({ request, context }: ActionFunctionArgs) => {
 
     const outcome = await applyGrantsAndRecordStatus(share, {
       user,
-      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
-        .accessToken,
+      idToken: await exchangeOrgIdToken(sessionId, requestOrganization, authTokens.accessToken),
       accessToken: portalAccessToken,
     });
 

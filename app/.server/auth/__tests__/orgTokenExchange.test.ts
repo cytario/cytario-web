@@ -2,8 +2,8 @@ import {
   OrgTokenExchangeError,
   __resetOrgTokenCache,
   exchangeOrgToken,
-  getOrExchangeOrgAccessToken,
-  getOrExchangeOrgToken,
+  exchangePortalAccessToken,
+  exchangeOrgIdToken,
 } from "../orgTokenExchange";
 import { getWellKnownEndpoints } from "../wellKnownEndpoints";
 import { cytarioConfig } from "~/config";
@@ -156,7 +156,7 @@ describe("exchangeOrgToken", () => {
   });
 });
 
-describe("getOrExchangeOrgToken", () => {
+describe("exchangeOrgIdToken", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     __resetOrgTokenCache();
@@ -174,8 +174,8 @@ describe("getOrExchangeOrgToken", () => {
   test("reuses the minted token within its lifetime", async () => {
     mockFetch.mockReturnValue(tokenResponse(mintedToken(3600)));
 
-    const first = await getOrExchangeOrgToken("session-1", "vericura", "session-token");
-    const second = await getOrExchangeOrgToken("session-1", "vericura", "session-token");
+    const first = await exchangeOrgIdToken("session-1", "vericura", "session-token");
+    const second = await exchangeOrgIdToken("session-1", "vericura", "session-token");
 
     expect(second).toBe(first);
     expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -186,8 +186,8 @@ describe("getOrExchangeOrgToken", () => {
       .mockReturnValueOnce(tokenResponse(mintedToken(3600)))
       .mockReturnValueOnce(tokenResponse(mintedToken(3600)));
 
-    await getOrExchangeOrgToken("session-1", "vericura", "session-token");
-    await getOrExchangeOrgToken("session-1", "cytar", "session-token");
+    await exchangeOrgIdToken("session-1", "vericura", "session-token");
+    await exchangeOrgIdToken("session-1", "cytar", "session-token");
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect((mockFetch.mock.calls[1][1].body as URLSearchParams).get("scope")).toBe(
@@ -198,8 +198,8 @@ describe("getOrExchangeOrgToken", () => {
   test("does not cache a token already inside the expiry buffer", async () => {
     mockFetch.mockReturnValue(tokenResponse(mintedToken(30)));
 
-    await getOrExchangeOrgToken("session-1", "vericura", "session-token");
-    await getOrExchangeOrgToken("session-1", "vericura", "session-token");
+    await exchangeOrgIdToken("session-1", "vericura", "session-token");
+    await exchangeOrgIdToken("session-1", "vericura", "session-token");
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
@@ -212,13 +212,13 @@ describe("getOrExchangeOrgToken", () => {
       text: () => Promise.resolve(""),
     });
 
-    await expect(getOrExchangeOrgToken("session-1", "vericura", "session-token")).rejects.toThrow(
+    await expect(exchangeOrgIdToken("session-1", "vericura", "session-token")).rejects.toThrow(
       OrgTokenExchangeError,
     );
   });
 });
 
-describe("getOrExchangeOrgAccessToken", () => {
+describe("exchangePortalAccessToken", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     __resetOrgTokenCache();
@@ -240,11 +240,11 @@ describe("getOrExchangeOrgAccessToken", () => {
       .mockResolvedValueOnce(tokenResponse(idToken))
       .mockResolvedValueOnce(accessTokenResponse(accessToken));
 
-    const idExchanged = await getOrExchangeOrgToken("s1", "vericura", "session-token");
-    const accessExchanged = await getOrExchangeOrgAccessToken("s1", "vericura", "session-token");
+    const idExchanged = await exchangeOrgIdToken("s1", "vericura", "session-token");
+    const accessExchanged = await exchangePortalAccessToken("s1", "vericura", "session-token");
 
-    expect(accessExchanged.accessToken).toBe(accessToken);
-    expect(idExchanged.accessToken).toBe(accessToken);
+    expect(accessExchanged).toBe(accessToken);
+    expect(idExchanged).toBe(idToken);
 
     // Two distinct exchanges: one per requested type.
     expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -258,8 +258,8 @@ describe("getOrExchangeOrgAccessToken", () => {
     const accessToken = mintedToken(3600);
     mockFetch.mockResolvedValue(accessTokenResponse(accessToken));
 
-    await getOrExchangeOrgAccessToken("s1", "vericura", "session-token");
-    await getOrExchangeOrgAccessToken("s1", "vericura", "session-token");
+    await exchangePortalAccessToken("s1", "vericura", "session-token");
+    await exchangePortalAccessToken("s1", "vericura", "session-token");
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });

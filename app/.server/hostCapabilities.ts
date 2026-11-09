@@ -4,7 +4,7 @@ import {
   hashJobToken,
 } from "./auth/jobCredentialStore";
 import { keepAliveGrant as keepAliveGrantImpl } from "./auth/keepAliveGrant";
-import { getOrExchangeOrgAccessToken } from "./auth/orgTokenExchange";
+import { exchangePortalAccessToken } from "./auth/orgTokenExchange";
 import { revokeGrant as revokeGrantImpl } from "./auth/revokeGrant";
 import { catalogFetch as connectionFetchImpl } from "./catalogFetch";
 import { assumeComputeRole as assumeComputeRoleImpl } from "./computeRole";
@@ -67,8 +67,7 @@ class HostCapabilitiesImpl implements HostCapabilities {
     const { user, authTokens, sessionId, organization } = requireRequestData();
     const configs = await listConnections(user, organization);
     const portalToken = organization
-      ? (await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken))
-          .accessToken
+      ? await exchangePortalAccessToken(sessionId, organization, authTokens.accessToken)
       : "";
     return Promise.all(configs.map((c) => toConnectionProjection(c, portalToken)));
   }
@@ -76,9 +75,11 @@ class HostCapabilitiesImpl implements HostCapabilities {
   async computeConnections(): Promise<readonly ComputeConnectionProjection[]> {
     const { authTokens, sessionId, organization } = requireRequestData();
     if (!organization) return [];
-    const portalToken = (
-      await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
-    ).accessToken;
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
     const catalog = await getProviderCatalog(organization, portalToken);
     return catalog.computeProviders
       .filter((p) => p.status === "connected")
@@ -93,9 +94,11 @@ class HostCapabilitiesImpl implements HostCapabilities {
   async catalogConnections(): Promise<readonly CatalogConnectionProjection[]> {
     const { authTokens, sessionId, organization } = requireRequestData();
     if (!organization) return [];
-    const portalToken = (
-      await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
-    ).accessToken;
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
     const catalog = await getProviderCatalog(organization, portalToken);
     return catalog.appCatalogs
       .filter((c) => c.enabled && c.status === "connected")
@@ -177,9 +180,11 @@ class JobLedgerImpl implements JobLedger {
     if (!organization) {
       throw new Error("Active organization missing from session");
     }
-    const portalToken = (
-      await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
-    ).accessToken;
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
 
     // The storage role is resolved host-side here so the broker reads
     // roleArn/region/s3Endpoint from the ledger row at mint time without

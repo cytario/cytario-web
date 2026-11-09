@@ -5,7 +5,7 @@ import {
   isValidCredentials,
   sanitizeRoleSessionName,
 } from "../getSessionCredentials";
-import { getOrExchangeOrgToken } from "../orgTokenExchange";
+import { exchangeOrgIdToken } from "../orgTokenExchange";
 import { buildSessionPolicy } from "../sessionPolicy";
 import type { SessionData } from "../sessionStorage";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
@@ -14,7 +14,7 @@ import mock from "~/utils/__tests__/__mocks__";
 import type { AccessLevel, ProviderConnection } from "~/utils/providerCatalog.schema";
 
 vi.mock("../orgTokenExchange", () => ({
-  getOrExchangeOrgToken: vi.fn(),
+  exchangeOrgIdToken: vi.fn(),
 }));
 
 vi.mock("@aws-sdk/client-sts", () => ({
@@ -187,11 +187,7 @@ describe("getAllSessionCredentials", () => {
       Credentials: mockCredentials,
     });
 
-    vi.mocked(getOrExchangeOrgToken).mockResolvedValue({
-      accessToken: NARROW_TOKEN,
-      expiresAt: Date.now() + 300_000,
-      organization: "org1",
-    });
+    vi.mocked(exchangeOrgIdToken).mockResolvedValue(NARROW_TOKEN);
 
     vi.mocked(getProviderCatalog).mockResolvedValue(catalogFor());
   });
@@ -545,7 +541,7 @@ describe("getAllSessionCredentials", () => {
     vi.mocked(getProviderCatalog).mockRejectedValue(
       new Error("The connection to the admin portal is unavailable right now."),
     );
-    vi.mocked(getOrExchangeOrgToken).mockRejectedValue(
+    vi.mocked(exchangeOrgIdToken).mockRejectedValue(
       new Error("Organization token exchange rejected: 400 Bad Request"),
     );
 
@@ -560,7 +556,7 @@ describe("getAllSessionCredentials", () => {
       expect(result.errors["conn-a"]).toMatch(/unavailable/i);
       expect(mockSend).not.toHaveBeenCalled();
       // No mint ever started the exchange.
-      expect(getOrExchangeOrgToken).not.toHaveBeenCalled();
+      expect(exchangeOrgIdToken).not.toHaveBeenCalled();
       // Give the microtask queue a turn to surface any stray rejection.
       await new Promise((resolve) => setImmediate(resolve));
       expect(onUnhandled).not.toHaveBeenCalled();
@@ -570,7 +566,7 @@ describe("getAllSessionCredentials", () => {
   });
 
   test("a rejected exchange consumed by its mint surfaces a per-connection error, not a crash", async () => {
-    vi.mocked(getOrExchangeOrgToken).mockRejectedValue(
+    vi.mocked(exchangeOrgIdToken).mockRejectedValue(
       new Error("Organization token exchange rejected: 400 Bad Request"),
     );
 
@@ -829,7 +825,7 @@ describe("getAllSessionCredentials", () => {
       "org1",
     );
 
-    expect(getOrExchangeOrgToken).toHaveBeenCalledWith(SESSION_ID, "org1", "access-token");
+    expect(exchangeOrgIdToken).toHaveBeenCalledWith(SESSION_ID, "org1", "access-token");
     expect(AssumeRoleWithWebIdentityCommand).toHaveBeenCalledWith(
       expect.objectContaining({ WebIdentityToken: NARROW_TOKEN }),
     );
@@ -860,7 +856,7 @@ describe("getAllSessionCredentials", () => {
       "vericura",
     );
 
-    expect(getOrExchangeOrgToken).toHaveBeenCalledWith(SESSION_ID, "vericura", "access-token");
+    expect(exchangeOrgIdToken).toHaveBeenCalledWith(SESSION_ID, "vericura", "access-token");
   });
 
   test("does not exchange when every credential is still valid", async () => {
@@ -872,6 +868,6 @@ describe("getAllSessionCredentials", () => {
     );
 
     expect(result.credentials["cached"]).toBeDefined();
-    expect(getOrExchangeOrgToken).not.toHaveBeenCalled();
+    expect(exchangeOrgIdToken).not.toHaveBeenCalled();
   });
 });

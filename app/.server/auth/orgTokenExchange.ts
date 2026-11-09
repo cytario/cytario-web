@@ -189,35 +189,36 @@ export async function exchangeOrgToken({
 }
 
 /**
- * The narrow ID token for `(sessionId, alias)` — the mint shape. Throws
- * rather than returning the subject token: a credential mint must never fall
- * back to a token carrying other orgs. The storage STS mints need it because
- * the raw session token carries no ORG principal tag for a multi-org user,
- * and the storage roles' trust policies reject it.
+ * The narrow per-org ID token for `(sessionId, alias)`, for AWS STS
+ * web-identity mints: the session token carries no ORG principal tag for a
+ * multi-org user, and the storage roles' trust policies reject it. Throws
+ * rather than falling back to the subject token — a mint must never present
+ * a token carrying other orgs.
  */
-export async function getOrExchangeOrgToken(
+export async function exchangeOrgIdToken(
   sessionId: string,
   alias: string,
   subjectToken: string,
-): Promise<ExchangedOrgToken> {
-  return getOrExchangeOrgScopedToken(sessionId, alias, subjectToken, "id-token");
+): Promise<string> {
+  return (await getOrExchangeOrgScopedToken(sessionId, alias, subjectToken, "id-token"))
+    .accessToken;
 }
 
 /**
- * The narrow access token for `(sessionId, alias)` — the shape the admin
- * portal consumes. Every portal lookup goes out with this token: the
- * multi-membership session token a multi-org user carries is ambiguous
- * there (the portal rejects >1 organization entry), so the lookup resolves
- * exactly the active org like a single-org user. The portal's /org
- * endpoints in turn present the bearer token as an RFC 8693
+ * The narrow per-org access token for `(sessionId, alias)`, for admin-portal
+ * lookups: the multi-membership session token a multi-org user carries is
+ * ambiguous there (the portal rejects >1 organization entry), so every
+ * lookup resolves exactly the active org like a single-org user. The
+ * portal's /org endpoints present the bearer token as an RFC 8693
  * `subject_token` of type access-token and re-exchange it server-side.
  */
-export async function getOrExchangeOrgAccessToken(
+export async function exchangePortalAccessToken(
   sessionId: string,
   alias: string,
   subjectToken: string,
-): Promise<ExchangedOrgToken> {
-  return getOrExchangeOrgScopedToken(sessionId, alias, subjectToken, "access-token");
+): Promise<string> {
+  return (await getOrExchangeOrgScopedToken(sessionId, alias, subjectToken, "access-token"))
+    .accessToken;
 }
 
 async function getOrExchangeOrgScopedToken(

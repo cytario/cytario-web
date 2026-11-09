@@ -1,6 +1,6 @@
 import { AssumeRoleWithWebIdentityCommand, Credentials, STSClient } from "@aws-sdk/client-sts";
 
-import { getOrExchangeOrgAccessToken, getOrExchangeOrgToken } from "./orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "./orgTokenExchange";
 import { buildRustfsSessionPolicy } from "./rustfsSessionPolicy";
 import { InlinePolicySizeError, buildSessionPolicy } from "./sessionPolicy";
 import { type ConnectionsCredentials, type SessionData } from "./sessionStorage";
@@ -208,13 +208,11 @@ export const getAllSessionCredentials = async (
   const portalAccessToken = await (async () => {
     if (!organization || cytarioConfig.providers.source !== "portal") return undefined;
     try {
-      return (
-        await getOrExchangeOrgAccessToken(
-          sessionId,
-          organization,
-          sessionData.authTokens.accessToken,
-        )
-      ).accessToken;
+      return await exchangePortalAccessToken(
+        sessionId,
+        organization,
+        sessionData.authTokens.accessToken,
+      );
     } catch (error) {
       console.warn(
         `${label} Portal token exchange failed, catalog lookups will fail closed:`,
@@ -330,12 +328,7 @@ export const getAllSessionCredentials = async (
           "No active organization on the session — refusing to mint credentials (fail closed).",
         );
       }
-      const exchanged = await getOrExchangeOrgToken(
-        sessionId,
-        organization,
-        sessionData.authTokens.accessToken,
-      );
-      return exchanged.accessToken;
+      return exchangeOrgIdToken(sessionId, organization, sessionData.authTokens.accessToken);
     })();
     return webIdentityTokenPromise;
   };

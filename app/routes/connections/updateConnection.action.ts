@@ -12,10 +12,7 @@ import { parseGrants } from "./createConnection.action";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
 import type { UserProfile } from "~/.server/auth/getUserInfo";
-import {
-  getOrExchangeOrgAccessToken,
-  getOrExchangeOrgToken,
-} from "~/.server/auth/orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { prisma } from "~/.server/db/prisma";
@@ -122,8 +119,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
   const { user, authTokens, sessionId, requestOrganization } = context.get(authContext);
   const session = context.get(sessionContext);
   const portalAccessToken = requestOrganization
-    ? (await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken))
-        .accessToken
+    ? await exchangePortalAccessToken(sessionId, requestOrganization, authTokens.accessToken)
     : "";
   const formData = await request.formData();
 
@@ -211,8 +207,7 @@ export const updateAction = async ({ request, context }: ActionFunctionArgs) => 
 
     const acting = {
       user,
-      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
-        .accessToken,
+      idToken: await exchangeOrgIdToken(sessionId, requestOrganization, authTokens.accessToken),
       accessToken: portalAccessToken,
     };
 

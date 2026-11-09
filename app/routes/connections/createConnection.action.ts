@@ -4,10 +4,7 @@ import { connectionSchema } from "./connection.schema";
 import { applyGrantsAndRecordStatus } from "./connectionGrant.server";
 import { Prisma } from "~/.generated/client";
 import { authContext } from "~/.server/auth/authMiddleware";
-import {
-  getOrExchangeOrgAccessToken,
-  getOrExchangeOrgToken,
-} from "~/.server/auth/orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "~/.server/auth/orgTokenExchange";
 import { sessionContext } from "~/.server/auth/sessionMiddleware";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import {
@@ -188,9 +185,11 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
   if (!requestOrganization) {
     throw new Error("Active organization missing from session");
   }
-  const portalAccessToken = (
-    await getOrExchangeOrgAccessToken(sessionId, requestOrganization, authTokens.accessToken)
-  ).accessToken;
+  const portalAccessToken = await exchangePortalAccessToken(
+    sessionId,
+    requestOrganization,
+    authTokens.accessToken,
+  );
 
   const formData = await request.formData();
 
@@ -295,8 +294,7 @@ export const createAction = async ({ request, context }: ActionFunctionArgs) => 
     );
     const outcome = await applyGrantsAndRecordStatus(created, {
       user,
-      idToken: (await getOrExchangeOrgToken(sessionId, requestOrganization, authTokens.accessToken))
-        .accessToken,
+      idToken: await exchangeOrgIdToken(sessionId, requestOrganization, authTokens.accessToken),
       accessToken: portalAccessToken,
     });
     session.set("notification", {

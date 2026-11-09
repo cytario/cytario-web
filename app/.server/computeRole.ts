@@ -1,7 +1,7 @@
 import { Sha256 } from "@aws-crypto/sha256-browser";
 import { SignatureV4 } from "@smithy/signature-v4";
 
-import { getOrExchangeOrgAccessToken, getOrExchangeOrgToken } from "./auth/orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "./auth/orgTokenExchange";
 import { hostRequestStorage } from "./hostRequestContext";
 import { getProviderCatalog } from "./providers/providerCatalog.server";
 import { mapResourceEnvelope } from "./resourceEnvelope";
@@ -117,17 +117,16 @@ export async function assumeComputeRole(
   const [catalog, narrowIdToken] = await Promise.all([
     getProviderCatalog(
       organization,
-      (await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken))
-        .accessToken,
+      await exchangePortalAccessToken(sessionId, organization, authTokens.accessToken),
     ),
-    getOrExchangeOrgToken(sessionId, organization, authTokens.accessToken),
+    exchangeOrgIdToken(sessionId, organization, authTokens.accessToken),
   ]);
   const { computeProvider, computeRole } = resolveComputeRole(catalog, providerId);
 
   const credentials = await assumeRoleWithWebIdentity({
     roleArn: computeRole.roleArn,
     roleSessionName: sanitizeRoleSessionName(`compute-${user.sub}`),
-    webIdentityToken: narrowIdToken.accessToken,
+    webIdentityToken: narrowIdToken,
     region: computeProvider.region,
   });
 

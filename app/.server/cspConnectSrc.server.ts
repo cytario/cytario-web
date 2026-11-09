@@ -1,6 +1,6 @@
 import { getSession, getSessionData } from "./auth/getSession";
 import type { UserProfile } from "./auth/getUserInfo";
-import { getOrExchangeOrgAccessToken } from "./auth/orgTokenExchange";
+import { exchangePortalAccessToken } from "./auth/orgTokenExchange";
 import { createLabel } from "./logging";
 import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
@@ -43,9 +43,11 @@ export async function resolveConnectSrcHosts(request: Request): Promise<string[]
   try {
     // The CSP derivation is best-effort — an exchange failure degrades to a
     // closed host set rather than failing the response.
-    const accessToken = await getOrExchangeOrgAccessToken(sessionId!, organization, subjectToken)
-      .then((exchanged) => exchanged.accessToken)
-      .catch(() => undefined);
+    const accessToken = await exchangePortalAccessToken(
+      sessionId!,
+      organization,
+      subjectToken,
+    ).catch(() => undefined);
     const catalog = await getProviderCatalog(organization, accessToken);
     const hosts = new Set<string>();
 

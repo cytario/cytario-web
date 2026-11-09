@@ -8,7 +8,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import type { ConnectionConfigWithGrants } from "./auth/authMiddleware";
-import { getOrExchangeOrgAccessToken, getOrExchangeOrgToken } from "./auth/orgTokenExchange";
+import { exchangePortalAccessToken, exchangeOrgIdToken } from "./auth/orgTokenExchange";
 import { hostRequestStorage } from "./hostRequestContext";
 import { getBucketCatalog } from "./providers/bucketCatalog.server";
 import {
@@ -64,9 +64,11 @@ async function resolveWritableConnection(
     throw new Error(`Connection "${connectionId}" not found or not visible to the user`);
   }
 
-  const portalToken = (
-    await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
-  ).accessToken;
+  const portalToken = await exchangePortalAccessToken(
+    sessionId,
+    organization,
+    authTokens.accessToken,
+  );
   const catalog = await getProviderCatalog(organization, portalToken);
   const bucketCatalog = await getBucketCatalog(organization, portalToken).catch(() => undefined);
   const connectionProvider = resolveConnectionProviderWithGrants(catalog, config, bucketCatalog);
@@ -121,11 +123,7 @@ async function mintObjectStoreCredentials(args: {
   providerConfig: ReturnType<typeof getS3ProviderConfig>;
 }> {
   const { user, authTokens, sessionId, organization } = args;
-  const narrowIdToken = await getOrExchangeOrgToken(
-    sessionId,
-    organization,
-    authTokens.accessToken,
-  );
+  const narrowIdToken = await exchangeOrgIdToken(sessionId, organization, authTokens.accessToken);
 
   const { buildSessionPolicy } = await import("./auth/sessionPolicy");
   const { AssumeRoleWithWebIdentityCommand, STSClient } = await import("@aws-sdk/client-sts");
@@ -145,7 +143,7 @@ async function mintObjectStoreCredentials(args: {
     new AssumeRoleWithWebIdentityCommand({
       RoleArn: providerConfig.sendsRoleArn ? (args.roleArn ?? undefined) : undefined,
       RoleSessionName: `objectstore-${user.sub}`.replace(/[^\w+=,.@-]/g, "-").slice(0, 64),
-      WebIdentityToken: narrowIdToken.accessToken,
+      WebIdentityToken: narrowIdToken,
       DurationSeconds: 900,
       ...(Policy ? { Policy } : {}),
     }),

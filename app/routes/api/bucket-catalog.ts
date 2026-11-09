@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs } from "react-router";
 
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
-import { getOrExchangeOrgAccessToken } from "~/.server/auth/orgTokenExchange";
+import { exchangePortalAccessToken } from "~/.server/auth/orgTokenExchange";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
@@ -35,9 +35,11 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   try {
     // A narrow per-org token — the portal rejects the multi-membership
     // session token.
-    const portalToken = (
-      await getOrExchangeOrgAccessToken(sessionId, organization, authTokens.accessToken)
-    ).accessToken;
+    const portalToken = await exchangePortalAccessToken(
+      sessionId,
+      organization,
+      authTokens.accessToken,
+    );
     const catalog = await getBucketCatalog(organization, portalToken);
     return Response.json(
       { source: "portal", catalog },
