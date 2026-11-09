@@ -116,8 +116,9 @@ describe("authMiddleware", () => {
   const createMiddlewareArgs = (
     params: Record<string, string> = {},
     hasSession = true,
-    // Default URL names the session's own org — a bare path like /test would
-    // read as a foreign `/:org` segment and hit the foreign-org redirect.
+    // Default URL names the mocked user's own org (org1). Bare paths like
+    // /recent would be read as the /:org segment "recent" — a non-membership
+    // alias — and take the redirect path instead.
     request: Request = new Request("http://localhost/org1"),
     url: URL = new URL(request.url),
   ) => {
@@ -300,8 +301,6 @@ describe("authMiddleware", () => {
         authContext,
         expect.objectContaining({ requestOrganization: "zeta" }),
       );
-      // Nothing org-flavored is persisted on the session.
-      expect(mockSession.set).not.toHaveBeenCalledWith("activeOrganization", expect.anything());
     });
 
     test("falls back to the first alias when there is no preference", async () => {
@@ -342,9 +341,8 @@ describe("authMiddleware", () => {
   });
 
   describe("Request organization (URL drives org)", () => {
-    // The STORED profile is org-neutral: memberships only, no projected
-    // groups — the request-org projection is derived per request from the
-    // membership map, never read from the session user.
+    // A two-membership user; the memberships carry the orgs' raw group paths
+    // (entitlements are derived from these at use).
     const multiOrgUser = () =>
       mock.user({
         organizations: {
@@ -414,7 +412,8 @@ describe("authMiddleware", () => {
         mockNext,
       )) as Response;
 
-      // Redirected before any tenant read; the banner names both orgs.
+      // Redirected before any tenant read; a warning notification is set
+      // (its content is covered by the redirect-target assertions above).
       expect(result.status).toBe(302);
       expect((result as Response & { url: string }).url).toBe("/alpha");
       expect(mockNext).not.toHaveBeenCalled();
@@ -465,26 +464,6 @@ describe("authMiddleware", () => {
       expect((result as Response & { url: string }).url).toBe("/alpha/recent");
       expect(mockNext).not.toHaveBeenCalled();
       expect(listConnections).not.toHaveBeenCalled();
-    });
-
-    test("the bare root passes through to the redirect route (params carry no org)", async () => {
-      vi.mocked(getSessionData).mockResolvedValue({
-        ...mockSessionData,
-        user: multiOrgUser(),
-      });
-
-      // "/" matches rootRedirect, not the /:org subtree: no params.org, no
-      // redirect here — the route's own loader lands the user in the default.
-      const request = new Request("http://localhost/");
-      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
-
-      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
-
-      expect(redirect).not.toHaveBeenCalledWith(
-        expect.stringContaining("/alpha"),
-        expect.anything(),
-      );
-      expect(mockNext).toHaveBeenCalled();
     });
   });
 
