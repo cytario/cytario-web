@@ -83,14 +83,14 @@ describe("createGroupAction", () => {
   test("redirects with success notification on valid input", async () => {
     vi.mocked(createGroup).mockResolvedValue({
       id: "new-id",
-      path: "cytario/lab/Ultivue",
+      path: "cytario/lab/Vericura",
       adminsGroupId: "admins-id",
       orgId: "org-uuid",
     });
 
-    const response = await callAction(makeRequest("Ultivue"), makeContext());
+    const response = await callAction(makeRequest("Vericura"), makeContext());
 
-    expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Ultivue", "cytario");
+    expect(createGroup).toHaveBeenCalledWith("cytario/lab", "Vericura", "cytario");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-uuid", "admins-id", "user-123");
     expect(profileFromTokenClaims).toHaveBeenCalled();
     expect(mockSession.set).toHaveBeenCalledWith(
@@ -100,12 +100,12 @@ describe("createGroupAction", () => {
     expect(response).toBeInstanceOf(Response);
     expect((response as Response).status).toBe(302);
     expect((response as Response).headers.get("location")).toBe(
-      "/cytario/admin/users?scope=cytario%2Flab%2FUltivue",
+      "/cytario/admin/users?scope=cytario%2Flab%2FVericura",
     );
 
     expect(mockSession.set).toHaveBeenCalledWith("notification", {
       status: "success",
-      message: 'Created group "Ultivue".',
+      message: 'Created group "Vericura".',
     });
   });
 
@@ -115,7 +115,7 @@ describe("createGroupAction", () => {
     // pre-fix version of this action persisted the projected profile here.
     vi.mocked(createGroup).mockResolvedValue({
       id: "new-id",
-      path: "cytario/lab/Ultivue",
+      path: "cytario/lab/Vericura",
       adminsGroupId: "admins-id",
       orgId: "org-uuid",
     });
@@ -126,7 +126,7 @@ describe("createGroupAction", () => {
       groups: [],
     } as never);
 
-    await callAction(makeRequest("Ultivue"), makeContext());
+    await callAction(makeRequest("Vericura"), makeContext());
 
     const stored = vi
       .mocked(mockSession.set)
