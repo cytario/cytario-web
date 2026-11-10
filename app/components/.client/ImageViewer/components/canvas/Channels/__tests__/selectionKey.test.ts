@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { selectionKey } from "../useChannelsLayer";
+import { selectionKey } from "../../../../export/buildChannelsLayerConfig";
 
 // `getTile` runs per tile per channel and re-derived the shared-tile-cache key
 // from `params.selection` on every call. The memo must produce a stable key for

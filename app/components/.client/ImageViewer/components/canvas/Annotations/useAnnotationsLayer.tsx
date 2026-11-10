@@ -1,17 +1,9 @@
 import type { PickingInfo } from "@deck.gl/core";
-import { GeoJsonLayer } from "@deck.gl/layers";
-import {
-  DrawPolygonByDraggingMode,
-  DrawPolygonMode,
-  EditableGeoJsonLayer,
-  ViewMode,
-} from "@deck.gl-community/editable-layers";
-import type { Feature, FeatureCollection } from "geojson";
+import { EditableGeoJsonLayer } from "@deck.gl-community/editable-layers";
 import { useMemo } from "react";
 
-import { ClickOrDragPointMode } from "./clickOrDragPointMode";
 import { setIdFromLayerId } from "./pickFeaturesAt";
-import { StampBoxMode } from "./stampBoxMode";
+import { buildAnnotationsLayers, stampEdit } from "../../../export/buildAnnotationsLayers";
 import {
   annotationNameOf,
   classColor as registeredClassColor,
@@ -34,15 +26,6 @@ import {
 } from "~/utils/db/annotationSchema";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
-const MODE_CLASSES = {
-  view: ViewMode,
-  inspect: ViewMode,
-  "draw-polygon": DrawPolygonMode,
-  "draw-freehand": DrawPolygonByDraggingMode,
-  "draw-point": ClickOrDragPointMode,
-  "draw-box": StampBoxMode,
-} as const;
-
 // Allowlist of edit types that change committed geometry — anything else
 // (tentative draws, cancel/invalid) is ignored so the layer is never rebuilt mid-stroke.
 const COMMITTING_EDITS = new Set([
@@ -54,69 +37,16 @@ const COMMITTING_EDITS = new Set([
   "addHole",
 ]);
 
-// Achromatic (not a hue) rings so they never collide with classification colors and
-// stay legible on any background; drawn beneath the feature's own color line.
-// `width` = polygon stroke (px); `radius` = concentric ring radius for points.
-const SELECTION_RINGS: { width: number; radius: number; color: RGBA }[] = [
-  { width: 9, radius: 9, color: [255, 255, 255, 255] },
-  { width: 6, radius: 7.5, color: [0, 0, 0, 255] },
-  { width: 3.5, radius: 6, color: [255, 255, 255, 255] },
-];
-
 const classColor = (feature: AnnotationFeature): RGB =>
   feature.properties?.classification?.color ?? UNCLASSIFIED_COLOR;
 
-const withAlpha = ([r, g, b]: RGB, alpha: number): RGBA => [r, g, b, alpha];
-
-/** Assigns identity to edited features: fresh id/createdAt for new ones, updatedAt
- *  bump for changed ones. Draw modes emit bare geometry, so identity is stamped here. */
-const stampEdit = (
-  features: AnnotationFeature[],
-  changed: number[] | undefined,
-  active: AnnotationClassification | null,
-): AnnotationFeature[] => {
-  const now = new Date().toISOString();
-  const takenNames = new Set<string>();
-  for (const f of features) {
-    const name = f.properties?.name;
-    if (typeof name === "string" && name.length > 0) takenNames.add(name);
-  }
-  let nameCounter = 1;
-  const nextName = (): string => {
-    while (takenNames.has(String(nameCounter).padStart(4, "0"))) nameCounter++;
-    const name = String(nameCounter).padStart(4, "0");
-    takenNames.add(name);
-    return name;
-  };
-  return features.map((feature, i) => {
-    const properties = feature.properties ?? {};
-    if (!feature.id) {
-      return {
-        ...feature,
-        id: crypto.randomUUID(),
-        properties: {
-          ...properties,
-          name: nextName(),
-          ...(active ? { classification: active } : {}),
-          createdAt: now,
-          updatedAt: now,
-        },
-      };
-    }
-    if (changed?.includes(i)) {
-      return { ...feature, properties: { ...properties, updatedAt: now } };
-    }
-    return feature;
-  });
-};
-
 /** Builds the editable annotations layer over the shared working set in the viewer
- *  store. With `interactive: false` (preview/minimap decks) the own set renders
+ *  store. With `interactive: false` (preview/minimap decks/export) the own set renders
  *  read-only and picking is disabled so clicks pan the preview. */
 export const useAnnotationsLayer = (
   imagePanelId: number,
   interactive = true,
-): CytarioLayerResult<GeoJsonLayer | EditableGeoJsonLayer> => {
+): CytarioLayerResult => {
   const ownUserId = useCurrentUser()?.sub;
   const canAnnotate = useCanAnnotate();
   const activeSetId = useViewerStore((s) => s.activeSetId);
@@ -147,156 +77,51 @@ export const useAnnotationsLayer = (
   }, [activeClass, setClasses, features]);
 
   return useMemo(() => {
-    const data: FeatureCollection = { type: "FeatureCollection", features };
     const ownView = activeSetId ? annotationView[activeSetId] : undefined;
-    const ownHidden = new Set(ownView?.hiddenClasses ?? []);
-    const isHidden = (f: AnnotationFeature) => ownHidden.has(classNameOf(f));
+    const onEdit: EditableGeoJsonLayer["props"]["onEdit"] = ({
+      updatedData,
+      editType,
+      editContext,
+    }) => {
+      if (!COMMITTING_EDITS.has(editType)) return;
 
-    // Resolve selected ids → array indexes only here, at the deck boundary.
-    const selected = new Set(selectedIds);
-    const isSelected = (f: AnnotationFeature) => !!f.id && selected.has(f.id);
-    const selectedFeatureIndexes = features.reduce<number[]>((acc, f, i) => {
-      if (isSelected(f)) acc.push(i);
-      return acc;
-    }, []);
-
-    // Click-selection lives at the deck level (useCanvasClickInteraction) so it
-    // can cover every feature at the point and empty-canvas deselects.
-
-    const paint = (hiddenClasses: string[] | undefined, fillAlpha: number, lineAlpha: number) => {
-      const hidden = new Set(hiddenClasses ?? []);
-      const colorAt = (f: Feature, alpha: number): RGBA =>
-        withAlpha(
-          classColor(f as AnnotationFeature),
-          hidden.has(classNameOf(f as AnnotationFeature)) ? 0 : alpha,
-        );
-      return {
-        coordinateSystem: "cartesian" as const,
-        pickable: interactive,
-        getFillColor: (f: Feature) => colorAt(f, fillAlpha),
-        getLineColor: (f: Feature) => colorAt(f, lineAlpha),
-        getLineWidth: 2,
-        lineWidthMinPixels: 1,
-        pointRadiusMinPixels: 4,
-        updateTriggers: { getFillColor: hiddenClasses, getLineColor: hiddenClasses },
-      };
+      if (!ownUserId) return;
+      const changed: number[] | undefined = editContext?.featureIndexes;
+      const stamped = stampEdit(
+        updatedData.features as AnnotationFeature[],
+        changed,
+        activeClassification,
+      );
+      // Degenerate/aborted draws (empty ring, `[[null]]`) are dropped
+      // and never written to S3.
+      const valid = validAnnotationFeatures(stamped);
+      const setId = ensureOwnSet();
+      updateSetFeatures(setId, valid);
+      if (editType === "addFeature") {
+        const newId = stamped[stamped.length - 1]?.id;
+        if (newId && valid.some((f) => f.id === newId)) {
+          setSelectedIds([newId]);
+          // Never draw into a hidden class — reveal the class the region landed in.
+          showAnnotationClass(setId, activeClassification?.name ?? UNCLASSIFIED);
+        }
+      }
     };
 
-    const ownFill = Math.round(annotationsOpacity * 255);
-    const ownLine = showOutline ? 255 : 0;
-    const ownLayer =
-      !interactive || !canAnnotate
-        ? new GeoJsonLayer({
-            id: `annotations-${imagePanelId}`,
-            data,
-            ...paint(ownView?.hiddenClasses, ownFill, ownLine),
-            stroked: true,
-            filled: true,
-            pointType: "circle",
-            getPointRadius: 4,
-            pointRadiusUnits: "pixels",
-          })
-        : new EditableGeoJsonLayer({
-            id: `annotations-${imagePanelId}`,
-            data,
-            mode: MODE_CLASSES[mode],
-            modeConfig:
-              mode === "draw-box"
-                ? {
-                    dragToDraw: true,
-                    stampWidthPx: stampWidthPx,
-                    stampHeightPx: stampHeightPx,
-                  }
-                : undefined,
-            selectedFeatureIndexes,
-            ...paint(ownView?.hiddenClasses, ownFill, ownLine),
-
-            onEdit: ({ updatedData, editType, editContext }) => {
-              if (!COMMITTING_EDITS.has(editType)) return;
-
-              if (!ownUserId) return;
-              const changed: number[] | undefined = editContext?.featureIndexes;
-              const stamped = stampEdit(
-                updatedData.features as AnnotationFeature[],
-                changed,
-                activeClassification,
-              );
-              // Degenerate/aborted draws (empty ring, `[[null]]`) are dropped
-              // and never written to S3.
-              const valid = validAnnotationFeatures(stamped);
-              const setId = ensureOwnSet();
-              updateSetFeatures(setId, valid);
-              if (editType === "addFeature") {
-                const newId = stamped[stamped.length - 1]?.id;
-                if (newId && valid.some((f) => f.id === newId)) {
-                  setSelectedIds([newId]);
-                  // Never draw into a hidden class — reveal the class the region landed in.
-                  showAnnotationClass(setId, activeClassification?.name ?? UNCLASSIFIED);
-                }
-              }
-            },
-          });
-
-    // Peer sets: read-only (selectable + hoverable, not editable), dimmer than own,
-    // drawn beneath the editable layer. Hidden classes fade to alpha 0, mirroring own.
-    const peerLayers = annotationSets
-      .filter((s) => s.id !== activeSetId)
-      .map((set) => {
-        const peerView = annotationView[set.id];
-        return new GeoJsonLayer({
-          id: `annotations-${imagePanelId}-peer-${set.id}`,
-          data: { type: "FeatureCollection", features: set.features },
-          ...paint(
-            peerView?.hiddenClasses,
-            Math.round(annotationsOpacity * 170),
-            showOutline ? 200 : 0,
-          ),
-          stroked: true,
-          filled: true,
-          pointType: "circle",
-          getPointRadius: 4,
-          pointRadiusUnits: "pixels",
-        });
-      });
-
-    // Selection halo (selection isn't visibly rendered in view mode) spans own + peer
-    // sets; hidden features are excluded so a halo never reveals one.
-    const selectedFeatures: AnnotationFeature[] = [
-      ...features.filter((f) => isSelected(f) && !isHidden(f)),
-      ...annotationSets
-        .filter((s) => s.id !== activeSetId)
-        .flatMap((set) => {
-          const peerHidden = new Set(annotationView[set.id]?.hiddenClasses ?? []);
-          return set.features.filter((f) => isSelected(f) && !peerHidden.has(classNameOf(f)));
-        }),
-    ];
-
-    const highlightLayers =
-      selectedFeatures.length === 0
-        ? []
-        : SELECTION_RINGS.map(
-            (ring, r) =>
-              new GeoJsonLayer({
-                id: `annotations-${imagePanelId}-selection-${r}`,
-                data: { type: "FeatureCollection", features: selectedFeatures },
-                coordinateSystem: "cartesian",
-                pickable: false,
-                stroked: true,
-                filled: false,
-                getLineColor: ring.color,
-                getLineWidth: (f) =>
-                  (f as AnnotationFeature).geometry?.type === "Point" ? 1.5 : ring.width,
-                lineWidthUnits: "pixels",
-                lineWidthMinPixels: 1,
-                pointType: "circle",
-                getPointRadius: ring.radius,
-                pointRadiusUnits: "pixels",
-                pointRadiusMinPixels: ring.radius,
-              }),
-          );
-
-    // Selection frame beneath the color layers so the classification color line stays on top.
-    const layers = [...highlightLayers, ...peerLayers, ownLayer];
+    const layers = buildAnnotationsLayers({
+      features,
+      annotationSets,
+      activeSetId,
+      annotationView,
+      annotationMode: mode,
+      annotationStampSize: { widthPx: stampWidthPx, heightPx: stampHeightPx },
+      annotationSelectedIds: selectedIds,
+      annotationsOpacity,
+      showOutline,
+      imagePanelId,
+      interactive: interactive && canAnnotate,
+      activeClassification,
+      onEdit,
+    });
 
     // Per-user hidden-class lookup so `getTooltipItems` can skip features that are
     // visually transparent (hidden class → alpha 0) and not block layers beneath
@@ -356,3 +181,5 @@ export const useAnnotationsLayer = (
     interactive,
   ]);
 };
+
+export type { RGBA };
