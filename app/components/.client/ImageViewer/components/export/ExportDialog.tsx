@@ -12,10 +12,10 @@ import {
 } from "@cytario/design";
 import { useCallback, useMemo, useState } from "react";
 
-import { geometriesBounds } from "../../components/annotations/flyToFeature";
-import { scaleBarLabelForZoom } from "../../export/decorations";
 import { commitExportAnnotation } from "./commitExportAnnotation";
 import { FramedViewPreview } from "./FramedViewPreview";
+import { geometriesBounds } from "../../components/annotations/flyToFeature";
+import { scaleBarLabelForZoom } from "../../export/decorations";
 import {
   copyExportToClipboard,
   downloadExport,

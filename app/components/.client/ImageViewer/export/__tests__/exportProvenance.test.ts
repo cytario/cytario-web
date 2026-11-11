@@ -7,6 +7,7 @@ vi.mock("~/utils/db/getTileDataWasm", () => ({
 const deckInstances: {
   isInitialized: boolean;
   canvas: HTMLCanvasElement;
+  setProps: ReturnType<typeof vi.fn>;
   finalize: ReturnType<typeof vi.fn>;
 }[] = [];
 
@@ -15,6 +16,7 @@ vi.mock("@deck.gl/core", async (importOriginal) => {
   class FakeDeck {
     isInitialized = true;
     canvas: HTMLCanvasElement;
+    setProps = vi.fn();
     finalize = vi.fn();
     constructor() {
       const canvas = document.createElement("canvas");

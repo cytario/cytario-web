@@ -1,8 +1,10 @@
-import { Deck, OrthographicView, type Effect, type FilterContext, type Layer } from "@deck.gl/core";
-
-import { buildAnnotationsLayers } from "./buildAnnotationsLayers";
-import { buildChannelsLayer, columnsForPanelState } from "./buildChannelsLayerConfig";
-import { buildOverlaysLayers, overlayPanelInputs } from "./buildOverlaysLayers";
+import { columnsForPanelState } from "./buildChannelsLayerConfig";
+import {
+  createOffscreenRenderer,
+  frameCurrentView,
+  frameRegion,
+  type FramedExport,
+} from "./offscreenRenderer";
 import {
   capAtNativeResolution,
   clampExportSize,
@@ -21,13 +23,6 @@ import {
   type ChannelLabel,
 } from "./decorations";
 import { geometriesBounds } from "../components/annotations/flyToFeature";
-import {
-  OVERLAY_COMPOSITE_LAYER_ID,
-  OverlayCompositeEffect,
-  OverlayCompositeLayer,
-  type OverlayCompositeResult,
-} from "../components/canvas/Overlays/OverlayComposite";
-import { isOverlayLayerId } from "../components/canvas/Overlays/OverlaysLayer";
 import type { ViewState, ViewerStore } from "../state/store/types";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -203,31 +198,17 @@ export const exportView = async ({
   const imagePanelId = initialState.imagePanelIndex;
 
   // --- Framed view state -------------------------------------------------
-  let zoom = viewStateActive.zoom + Math.log2(options.scale);
-  let target = viewStateActive.target;
-  // The level-0 pixel extent the export covers — the native-resolution budget.
-  let framedLevel0Width = viewStateActive.width * 2 ** -viewStateActive.zoom;
-  let framedLevel0Height = viewStateActive.height * 2 ** -viewStateActive.zoom;
-
+  let framed: FramedExport;
   if (options.source.kind === "annotation-region") {
     const bounds = geometriesBounds([options.source.feature.geometry]);
     if (!bounds) throw new ExportRenderError("The selected annotation region has no geometry.");
-    const [minX, minY, maxX, maxY] = bounds;
-    const margin = 0.02;
-    const extentWidth = (maxX - minX) * (1 + 2 * margin);
-    const extentHeight = (maxY - minY) * (1 + 2 * margin);
-    const viewportAspect = viewStateActive.width / viewStateActive.height;
-    // The framed extent is the region's level-0 extent with a small margin,
-    // expanded to the viewport's aspect so the export covers the region
-    // without cropping it (fill around the region, never into it).
-    framedLevel0Width = Math.max(extentWidth, extentHeight * viewportAspect);
-    framedLevel0Height = framedLevel0Width / viewportAspect;
-    // One drawing-buffer pixel covers framedLevel0Width / bufferWidth level-0
-    // pixels — the zoom that fills the buffer with the framed extent.
-    const bufferWidth = viewStateActive.width * options.scale;
-    zoom = Math.log2(bufferWidth / framedLevel0Width);
-    target = [(minX + maxX) / 2, (minY + maxY) / 2];
+    framed = frameRegion(viewStateActive, bounds, options.scale);
+  } else {
+    framed = frameCurrentView(viewStateActive, options.scale);
   }
+  const { zoom, target } = framed.viewState;
+  const framedLevel0Width = framed.level0Width;
+  const framedLevel0Height = framed.level0Height;
 
   // --- Output size ---------------------------------------------------------
   const limits = options.limits ?? fallbackRenderLimits();
@@ -249,117 +230,31 @@ export const exportView = async ({
   const outputHeight = capped.height;
 
   // --- Off-screen deck -----------------------------------------------------
+  // The renderer mounts a hidden DOM host (luma sizes the drawing buffer from
+  // the DOM — a detached canvas renders nothing) and drives the same shared
+  // layer builders the live panel uses.
   const exportTileCounter = createExportTileCounter();
-  // luma's CanvasContext sizes the drawing buffer from the DOM (clientWidth /
-  // clientHeight), so a detached canvas stays 0x0 and renders nothing. Mount a
-  // hidden fixed-position host for the export's lifetime instead.
-  const hostElement = document.createElement("div");
-  hostElement.style.position = "fixed";
-  hostElement.style.left = "0";
-  hostElement.style.top = "0";
-  hostElement.style.width = `${outputWidth}px`;
-  hostElement.style.height = `${outputHeight}px`;
-  hostElement.style.opacity = "0";
-  hostElement.style.pointerEvents = "none";
-  hostElement.setAttribute("aria-hidden", "true");
-  const deckCanvas = document.createElement("canvas");
-  deckCanvas.style.width = "100%";
-  deckCanvas.style.height = "100%";
-  hostElement.appendChild(deckCanvas);
-  document.body.appendChild(hostElement);
-  const overlayCompositeResult: OverlayCompositeResult = {};
-  const overlayComposite = new OverlayCompositeLayer({
-    id: OVERLAY_COMPOSITE_LAYER_ID,
-    pickable: false,
-    result: overlayCompositeResult,
+  const renderer = createOffscreenRenderer({
+    store,
+    width: clampedSize.width,
+    height: clampedSize.height,
+    devicePixelScale: options.scale,
+    withAnnotations: options.decorations.annotationRegions,
+    onTileLoad: exportTileCounter.loadTile,
+    onTileFinish: exportTileCounter.finishTile,
   });
-
-  const buildLayers = (storeState: ViewerStore): Layer[] => {
-    const layersState = storeState.layersStates[storeState.imagePanels[imagePanelId]];
-    const columns = columnsForPanelState(storeState, imagePanelId);
-    const channelsLayer = buildChannelsLayer({
-      imagePanelId,
-      columns,
-      rawLoader: storeState.loader,
-      dtype: metadata.Pixels.Type ?? "Uint8",
-      channelsOpacity: layersState?.channelsOpacity ?? 1,
-      loadTile: exportTileCounter.loadTile,
-      finishTile: exportTileCounter.finishTile,
-    });
-
-    const overlaysLayers = buildOverlaysLayers(
-      overlayPanelInputs(storeState, imagePanelId),
-      exportTileCounter.loadTile,
-      exportTileCounter.finishTile,
-      showToast,
-    );
-
-    const annotationsLayers = options.decorations.annotationRegions
-      ? buildAnnotationsLayers({
-          features:
-            storeState.annotationSets.find((s) => s.id === storeState.activeSetId)?.features ?? [],
-          annotationSets: storeState.annotationSets,
-          activeSetId: storeState.activeSetId,
-          annotationView: storeState.annotationView,
-          annotationMode: storeState.annotationMode,
-          annotationStampSize: storeState.annotationStampSize,
-          annotationSelectedIds: storeState.annotationSelectedIds,
-          annotationsOpacity: layersState?.annotationsOpacity ?? 1,
-          showOutline: layersState?.showAnnotationOutline ?? true,
-          imagePanelId,
-          interactive: false,
-          activeClassification: null,
-          onEdit: () => {},
-        })
-      : [];
-
-    return [
-      ...(channelsLayer ? [channelsLayer] : []),
-      ...overlaysLayers,
-      overlayComposite,
-      ...annotationsLayers,
-    ];
-  };
-
-  const viewState: ViewState = {
+  const deckCanvas = renderer.canvas;
+  renderer.setViewState({
     ...viewStateActive,
     zoom,
     target,
-    width: viewStateActive.width,
-    height: viewStateActive.height,
-  };
-
-  const layerFilter = ({ layer, isPicking }: FilterContext) =>
-    !isOverlayLayerId(layer.id) || isPicking;
-
-  const effects: Effect[] = [new OverlayCompositeEffect(overlayCompositeResult)];
-
-  const builtLayers = buildLayers(initialState);
-
-  const deck = new Deck({
-    canvas: deckCanvas,
-    width: viewStateActive.width,
-    height: viewStateActive.height,
-    views: [
-      new OrthographicView({
-        id: "detail",
-        width: viewStateActive.width,
-        height: viewStateActive.height,
-        x: 0,
-        y: 0,
-      }),
-    ],
-    layers: builtLayers,
-    effects,
-    layerFilter,
-    viewState: { detail: viewState },
-    controller: false,
-    useDevicePixels: options.scale,
-    getCursor: () => "default",
+    width: clampedSize.width,
+    height: clampedSize.height,
   });
+  renderer.render();
 
   try {
-    await waitFor(() => deck.isInitialized, RENDER_TIMEOUT_MS);
+    await waitFor(() => renderer.isInitialized(), RENDER_TIMEOUT_MS);
 
     // Tiles the on-screen panel already fetched land in the shared cache; the
     // export's own fetches (finer pyramid levels) tick the export counter.
@@ -373,11 +268,6 @@ export const exportView = async ({
         (layersState?.isOverlaysLoading ?? 0) === 0 &&
         exportTileCounter.isIdle()
       );
-    }, RENDER_TIMEOUT_MS);
-
-    await waitFor(() => {
-      const layers = builtLayers;
-      return layers.length > 0 && layers.every((layer) => layer.isLoaded);
     }, RENDER_TIMEOUT_MS);
 
     // deck renders continuously (AnimationLoop); give it frames to draw with
@@ -456,8 +346,7 @@ export const exportView = async ({
       upscaled: capped.upscaled,
     };
   } finally {
-    deck.finalize();
-    hostElement.remove();
+    renderer.destroy();
   }
 };
 

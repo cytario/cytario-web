@@ -1,111 +1,92 @@
 import { useEffect, useRef } from "react";
 
+import {
+  createOffscreenRenderer,
+  frameCurrentView,
+  frameRegion,
+} from "../../export/offscreenRenderer";
+import { useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import type { Bounds } from "../canvas/Measurements/calculateViewStateToFitBounds";
-import type { AspectChoice } from "../../export/decorations";
-import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
-import { select } from "../../state/store/selectors";
 
 interface FramedViewPreviewProps {
-  aspect: AspectChoice;
+  aspect: "as-viewed" | "16:9" | "4:3";
   /** Level-0 bounds of the selected annotation region, or null for the current view. */
   regionBounds?: Bounds | null;
 }
 
+const PREVIEW_ASPECTS = {
+  "as-viewed": 16 / 10,
+  "16:9": 16 / 9,
+  "4:3": 4 / 3,
+} as const;
+
+const PREVIEW_WIDTH = 420;
+
 /**
- * Best-effort preview of the framed view: a static snapshot of the active
- * panel's live deck canvas, drawn into a preview canvas beside the export
- * form, cropped to the current view or to the selected region's extent. It is
- * a preview only — the actual export re-renders fresh at full resolution.
+ * Live preview of the framed view: an off-screen deck rendered through the
+ * same layer builders the export uses, blitted into a visible canvas beside
+ * the export form. Unlike a snapshot of the live canvas, regions outside the
+ * current viewport render real tissue — the preview frames the same extent
+ * the export will render.
  */
 export const FramedViewPreview = ({ aspect, regionBounds }: FramedViewPreviewProps) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const viewStateActive = useViewerStore(select.viewStateActive);
+  const holderRef = useRef<HTMLDivElement | null>(null);
+  const store = useViewerStoreApi();
 
   useEffect(() => {
-    const previewCanvas = canvasRef.current;
-    if (!previewCanvas || !viewStateActive) return;
+    const holder = holderRef.current;
+    if (!holder) return;
 
-    // The active panel's deck canvas is the last canvas deck.gl created
-    // inside the viewer's canvas area (`.client` decks append to containers).
-    const deckCanvas = document.querySelector<HTMLCanvasElement>(
-      "#deckgl-overlay canvas, canvas#deckgl-overlay",
-    );
-    if (!deckCanvas || deckCanvas.width === 0 || deckCanvas.height === 0) return;
+    const state = store.getState();
+    const viewStateActive = state.viewStateActive;
+    if (!viewStateActive) return;
 
-    const context = previewCanvas.getContext("2d");
-    if (!context) return;
+    const previewHeight = Math.round(PREVIEW_WIDTH / PREVIEW_ASPECTS[aspect]);
+    const renderer = createOffscreenRenderer({
+      store,
+      width: PREVIEW_WIDTH,
+      height: previewHeight,
+      devicePixelScale: 1,
+      withAnnotations: false,
+    });
 
-    const previewHeight = 560;
-    const ratio =
-      aspect === "16:9" ? 16 / 9 : aspect === "4:3" ? 4 / 3 : deckCanvas.width / deckCanvas.height;
-    const previewWidth = Math.round(previewHeight * ratio);
-    previewCanvas.width = previewWidth;
-    previewCanvas.height = previewHeight;
+    const visibleCanvas = document.createElement("canvas");
+    visibleCanvas.className = "w-full rounded-md border border-border bg-black object-contain";
+    visibleCanvas.setAttribute("aria-label", "Framed view preview");
+    visibleCanvas.setAttribute("data-testid", "framed-view-preview");
+    holder.appendChild(visibleCanvas);
 
-    context.fillStyle = "rgb(0, 0, 0)";
-    context.fillRect(0, 0, previewWidth, previewHeight);
+    const framed =
+      regionBounds !== null && regionBounds !== undefined
+        ? frameRegion(viewStateActive, regionBounds, 1)
+        : frameCurrentView(viewStateActive, 1);
+    renderer.setViewState({ ...framed.viewState, width: PREVIEW_WIDTH, height: previewHeight });
+    renderer.render();
 
-    // Screen rectangle the export will render: the current viewport, or the
-    // selected region's level-0 bounds projected onto the live canvas. The
-    // region is expanded to the viewport's aspect with the same 2% margin the
-    // engine frames it with, so the preview matches the exported extent.
-    let sourceX = 0;
-    let sourceY = 0;
-    let sourceWidth = deckCanvas.width;
-    let sourceHeight = deckCanvas.height;
-    if (regionBounds) {
-      const [minX, minY, maxX, maxY] = regionBounds;
-      const margin = 0.02;
-      const extentWidth = (maxX - minX) * (1 + 2 * margin);
-      const extentHeight = (maxY - minY) * (1 + 2 * margin);
-      const viewportAspect = deckCanvas.width / deckCanvas.height;
-      const framedWidth = Math.max(extentWidth, extentHeight * viewportAspect);
-      const framedHeight = framedWidth / viewportAspect;
+    let rafHandle = 0;
+    const blit = () => {
+      const sourceCanvas = renderer.canvas;
+      if (sourceCanvas.width > 0 && sourceCanvas.height > 0) {
+        if (
+          visibleCanvas.width !== sourceCanvas.width ||
+          visibleCanvas.height !== sourceCanvas.height
+        ) {
+          visibleCanvas.width = sourceCanvas.width;
+          visibleCanvas.height = sourceCanvas.height;
+        }
+        const context = visibleCanvas.getContext("2d");
+        if (context) context.drawImage(sourceCanvas, 0, 0);
+      }
+      rafHandle = requestAnimationFrame(blit);
+    };
+    rafHandle = requestAnimationFrame(blit);
 
-      // Level-0 → screen px at the live zoom, relative to the viewport's
-      // center (deck's orthographic target).
-      const scale = 2 ** viewStateActive.zoom;
-      const [targetX, targetY] = viewStateActive.target;
-      const centerX = deckCanvas.width / 2;
-      const centerY = deckCanvas.height / 2;
-      const toScreenX = (level0X: number) => centerX + (level0X - targetX) * scale;
-      const toScreenY = (level0Y: number) => centerY + (level0Y - targetY) * scale;
+    return () => {
+      cancelAnimationFrame(rafHandle);
+      renderer.destroy();
+      visibleCanvas.remove();
+    };
+  }, [aspect, regionBounds, store]);
 
-      const frameCenterX = (minX + maxX) / 2;
-      const frameCenterY = (minY + maxY) / 2;
-      sourceX = toScreenX(frameCenterX) - (framedWidth * scale) / 2;
-      sourceY = toScreenY(frameCenterY) - (framedHeight * scale) / 2;
-      sourceWidth = framedWidth * scale;
-      sourceHeight = framedHeight * scale;
-    } else if (deckCanvas.width / deckCanvas.height > ratio) {
-      // Center-crop the source to the chosen aspect so the preview shows the
-      // extent the export will render.
-      sourceWidth = deckCanvas.height * ratio;
-      sourceX = (deckCanvas.width - sourceWidth) / 2;
-    } else {
-      sourceHeight = deckCanvas.width / ratio;
-      sourceY = (deckCanvas.height - sourceHeight) / 2;
-    }
-
-    context.drawImage(
-      deckCanvas,
-      Math.round(sourceX),
-      Math.round(sourceY),
-      Math.max(1, Math.round(sourceWidth)),
-      Math.max(1, Math.round(sourceHeight)),
-      0,
-      0,
-      previewWidth,
-      previewHeight,
-    );
-  }, [aspect, regionBounds, viewStateActive]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      data-testid="framed-view-preview"
-      className="max-h-[420px] w-full rounded-md border border-border bg-black object-contain"
-      aria-label="Framed view preview"
-    />
-  );
+  return <div ref={holderRef} className="w-full" />;
 };
