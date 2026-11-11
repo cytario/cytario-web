@@ -285,74 +285,76 @@ export const ExportDialog = ({ isOpen, onClose }: ExportDialogProps) => {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Select
-            aria-label="Resolution"
-            label="Resolution"
-            items={RESOLUTION_OPTIONS.map((value) => ({ id: String(value), name: `${value}×` }))}
-            selectedKey={String(scale)}
-            onSelectionChange={(key) => {
-              if (typeof key === "string") setScale(Number(key));
-            }}
-          />
-          <Select
-            aria-label="Aspect"
-            label="Aspect"
-            items={ASPECT_OPTIONS}
-            selectedKey={aspect}
-            onSelectionChange={(key) => {
-              const next = ASPECT_OPTIONS.find((option) => option.id === key);
-              if (next) setAspect(next.id);
-            }}
-          />
-        </div>
-
-        <div className="flex justify-center overflow-hidden rounded-md border border-border bg-black">
-          <FramedViewPreview aspect={aspect} />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          {decorationRows.map((row) => (
-            <Checkbox
-              key={row.id}
-              isSelected={decorations[row.id]}
-              onChange={(isSelected) =>
-                setDecorations((current) => ({ ...current, [row.id]: isSelected }))
-              }
-            >
-              {row.label}
-            </Checkbox>
-          ))}
-          {source === "annotation-region" && canAnnotate && (
-            <Checkbox isSelected={createExportAnnotation} onChange={setCreateExportAnnotation}>
-              Create export annotation
-            </Checkbox>
-          )}
-        </div>
-
-        <p className="text-xs text-muted-foreground" data-testid="export-summary-line">
-          {summaryLine}
-        </p>
-
-        {errorMessage && (
-          <div
-            className="flex flex-col gap-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
-            data-testid="export-error"
-          >
-            <span>{errorMessage}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onPress={() => {
-                setRunState({ phase: "idle" });
-                void runExport("download");
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="flex flex-1 flex-col gap-4">
+            <Select
+              aria-label="Resolution"
+              label="Resolution"
+              items={RESOLUTION_OPTIONS.map((value) => ({ id: String(value), name: `${value}×` }))}
+              selectedKey={String(scale)}
+              onSelectionChange={(key) => {
+                if (typeof key === "string") setScale(Number(key));
               }}
-            >
-              Retry
-            </Button>
+            />
+            <Select
+              aria-label="Aspect"
+              label="Aspect"
+              items={ASPECT_OPTIONS}
+              selectedKey={aspect}
+              onSelectionChange={(key) => {
+                const next = ASPECT_OPTIONS.find((option) => option.id === key);
+                if (next) setAspect(next.id);
+              }}
+            />
+
+            <div className="flex flex-col gap-1.5">
+              {decorationRows.map((row) => (
+                <Checkbox
+                  key={row.id}
+                  isSelected={decorations[row.id]}
+                  onChange={(isSelected) =>
+                    setDecorations((current) => ({ ...current, [row.id]: isSelected }))
+                  }
+                >
+                  {row.label}
+                </Checkbox>
+              ))}
+              {source === "annotation-region" && canAnnotate && (
+                <Checkbox isSelected={createExportAnnotation} onChange={setCreateExportAnnotation}>
+                  Create export annotation
+                </Checkbox>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground" data-testid="export-summary-line">
+              {summaryLine}
+            </p>
+
+            {errorMessage && (
+              <div
+                className="flex flex-col gap-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
+                data-testid="export-error"
+              >
+                <span>{errorMessage}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onPress={() => {
+                    setRunState({ phase: "idle" });
+                    void runExport("download");
+                  }}
+                >
+                  Retry
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+
+          <div className="flex min-w-0 flex-1 items-start justify-center">
+            <FramedViewPreview aspect={aspect} />
+          </div>
+        </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
           <Button variant="ghost" onPress={onClose}>

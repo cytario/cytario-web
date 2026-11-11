@@ -6,8 +6,8 @@ import { select } from "../../state/store/selectors";
 
 /**
  * Best-effort preview of the framed view: a static snapshot of the active
- * panel's live deck canvas, drawn scaled into a small preview canvas. It is a
- * preview only — the actual export re-renders fresh at full resolution.
+ * panel's live deck canvas, drawn into a preview canvas beside the export
+ * form. It is a preview only — the actual export re-renders fresh at full resolution.
  */
 export const FramedViewPreview = ({ aspect }: { aspect: AspectChoice }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -27,7 +27,7 @@ export const FramedViewPreview = ({ aspect }: { aspect: AspectChoice }) => {
     const context = previewCanvas.getContext("2d");
     if (!context) return;
 
-    const previewHeight = 96;
+    const previewHeight = 560;
     const ratio =
       aspect === "16:9" ? 16 / 9 : aspect === "4:3" ? 4 / 3 : deckCanvas.width / deckCanvas.height;
     const previewWidth = Math.round(previewHeight * ratio);
@@ -67,7 +67,7 @@ export const FramedViewPreview = ({ aspect }: { aspect: AspectChoice }) => {
     <canvas
       ref={canvasRef}
       data-testid="framed-view-preview"
-      className="h-24 w-full object-contain"
+      className="max-h-[420px] w-full rounded-md border border-border bg-black object-contain"
       aria-label="Framed view preview"
     />
   );
