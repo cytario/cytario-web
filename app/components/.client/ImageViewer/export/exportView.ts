@@ -250,7 +250,23 @@ export const exportView = async ({
 
   // --- Off-screen deck -----------------------------------------------------
   const exportTileCounter = createExportTileCounter();
+  // luma's CanvasContext sizes the drawing buffer from the DOM (clientWidth /
+  // clientHeight), so a detached canvas stays 0x0 and renders nothing. Mount a
+  // hidden fixed-position host for the export's lifetime instead.
+  const hostElement = document.createElement("div");
+  hostElement.style.position = "fixed";
+  hostElement.style.left = "0";
+  hostElement.style.top = "0";
+  hostElement.style.width = `${outputWidth}px`;
+  hostElement.style.height = `${outputHeight}px`;
+  hostElement.style.opacity = "0";
+  hostElement.style.pointerEvents = "none";
+  hostElement.setAttribute("aria-hidden", "true");
   const deckCanvas = document.createElement("canvas");
+  deckCanvas.style.width = "100%";
+  deckCanvas.style.height = "100%";
+  hostElement.appendChild(deckCanvas);
+  document.body.appendChild(hostElement);
   const overlayCompositeResult: OverlayCompositeResult = {};
   const overlayComposite = new OverlayCompositeLayer({
     id: OVERLAY_COMPOSITE_LAYER_ID,
@@ -441,6 +457,7 @@ export const exportView = async ({
     };
   } finally {
     deck.finalize();
+    hostElement.remove();
   }
 };
 
