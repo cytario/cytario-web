@@ -12,9 +12,10 @@ import {
 } from "@cytario/design";
 import { useCallback, useMemo, useState } from "react";
 
+import { geometriesBounds } from "../../components/annotations/flyToFeature";
+import { scaleBarLabelForZoom } from "../../export/decorations";
 import { commitExportAnnotation } from "./commitExportAnnotation";
 import { FramedViewPreview } from "./FramedViewPreview";
-import { scaleBarLabelForZoom } from "../../export/decorations";
 import {
   copyExportToClipboard,
   downloadExport,
@@ -244,6 +245,7 @@ export const ExportDialog = ({ isOpen, onClose }: ExportDialogProps) => {
       }}
       title="Export"
       isDismissable={!isRendering}
+      size="xl"
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -352,7 +354,14 @@ export const ExportDialog = ({ isOpen, onClose }: ExportDialogProps) => {
           </div>
 
           <div className="flex min-w-0 flex-1 items-start justify-center">
-            <FramedViewPreview aspect={aspect} />
+            <FramedViewPreview
+              aspect={aspect}
+              regionBounds={
+                source === "annotation-region" && selectedRegion
+                  ? geometriesBounds([selectedRegion.feature.geometry])
+                  : null
+              }
+            />
           </div>
         </div>
 
