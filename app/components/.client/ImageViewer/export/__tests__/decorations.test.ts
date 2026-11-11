@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 
+import { millimetersPerUnit } from "../../components/canvas/Measurements/utils";
 import {
   computeAspectFraming,
   magnificationText,
-  millimetersPerUnit,
   scaleBarForPixelSize,
   scaleBarLabelForZoom,
 } from "../decorations";
@@ -106,7 +106,6 @@ describe("computeAspectFraming", () => {
     expect(framing.source[0]).toBe(Math.round((1600 - Math.round(800 * (16 / 9))) / 2));
     expect(framing.source[1]).toBe(0);
     expect(framing.source[3]).toBe(800);
-    expect(framing.letterbox).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
   });
 
   test("crops height around the center when the source is taller than 4:3", () => {

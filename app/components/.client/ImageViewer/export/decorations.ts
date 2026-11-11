@@ -1,47 +1,8 @@
+import {
+  SCALE_BAR_METRIC_SIZES as METRIC_SIZES,
+  millimetersPerUnit,
+} from "../components/canvas/Measurements/utils";
 import type { RGB } from "../state/store/types";
-
-/** Millimeters per metadata length unit (NGFF/OME axis units); µm default. */
-const MILLIMETERS_PER_UNIT: Record<string, number> = {
-  nm: 1e-6,
-  µm: 1e-3,
-  um: 1e-3,
-  mm: 1,
-  cm: 10,
-  dm: 100,
-  m: 1000,
-};
-
-export const millimetersPerUnit = (unit: string): number =>
-  MILLIMETERS_PER_UNIT[unit.trim().toLowerCase()] ?? 1e-3;
-
-/** The ladder ScaleBar.tsx picks its bar from — [mm, label] pairs, coarse→fine. */
-export const METRIC_SIZES: [number, string][] = [
-  [100, "10 cm"],
-  [50, "5 cm"],
-  [20, "2 cm"],
-  [10, "1 cm"],
-  [5, "5 mm"],
-  [2, "2 mm"],
-  [1, "1 mm"],
-  [0.5, "500 µm"],
-  [0.2, "200 µm"],
-  [0.1, "100 µm"],
-  [0.05, "50 µm"],
-  [0.02, "20 µm"],
-  [0.01, "10 µm"],
-  [0.005, "5 µm"],
-  [0.002, "2 µm"],
-  [0.001, "1 µm"],
-  [0.0005, "500 nm"],
-  [0.0002, "200 nm"],
-  [0.0001, "100 nm"],
-  [0.00005, "50 nm"],
-  [0.00002, "20 nm"],
-  [0.00001, "10 nm"],
-  [0.000005, "5 nm"],
-  [0.000002, "2 nm"],
-  [0.000001, "1 nm"],
-];
 
 export interface ScaleBarGeometry {
   /** Bar width in export pixels. */
@@ -102,8 +63,6 @@ export interface AspectFraming {
   source: [number, number, number, number];
   /** Region of the output canvas to draw it into: [x, y, w, h]. */
   destination: [number, number, number, number];
-  /** Letterbox bars in output pixels to fill around the framed content. */
-  letterbox: { top: number; bottom: number; left: number; right: number };
 }
 
 export type AspectChoice = "as-viewed" | "16:9" | "4:3";
@@ -128,7 +87,6 @@ export const computeAspectFraming = (
     return {
       source: [0, 0, framedWidth, framedHeight],
       destination: [0, 0, framedWidth, framedHeight],
-      letterbox: { top: 0, bottom: 0, left: 0, right: 0 },
     };
   }
 
@@ -142,7 +100,6 @@ export const computeAspectFraming = (
     return {
       source: [offsetX, 0, cropWidth, framedHeight],
       destination: [0, 0, framedWidth, framedHeight],
-      letterbox: { top: 0, bottom: 0, left: 0, right: 0 },
     };
   }
 
@@ -151,7 +108,6 @@ export const computeAspectFraming = (
   return {
     source: [0, offsetY, framedWidth, cropHeight],
     destination: [0, 0, framedWidth, framedHeight],
-    letterbox: { top: 0, bottom: 0, left: 0, right: 0 },
   };
 };
 
@@ -185,9 +141,8 @@ export const drawScaleBarDecoration = (
 ): void => {
   const { widthPx, label } = scaleBarForPixelSize(millimetersPerPixel);
   const scale = Math.max(1, Math.round(context.canvas.width / 1920));
-  const text = label;
   context.font = `${scale * 12}px Montserrat, system-ui, sans-serif`;
-  const textWidth = context.measureText(text).width;
+  const textWidth = context.measureText(label).width;
   const padding = 6 * scale;
   const backdropWidth = widthPx + textWidth + 3 * padding;
   const backdropHeight = 12 * scale + 2 * padding;
@@ -200,7 +155,7 @@ export const drawScaleBarDecoration = (
   context.fillRect(originX + padding, originY + padding, widthPx, 3 * scale);
   context.fillStyle = TEXT_COLOR;
   context.textBaseline = "middle";
-  context.fillText(text, originX + padding + widthPx + padding, originY + backdropHeight / 2);
+  context.fillText(label, originX + padding + widthPx + padding, originY + backdropHeight / 2);
 };
 
 /** Draws the magnification decoration into the bottom-right corner. */
@@ -274,12 +229,8 @@ export const ensureDocumentFonts = async (): Promise<void> => {
   if (fonts?.ready) await fonts.ready;
 };
 
-const SUMMARY_LADDER: [number, string][] = METRIC_SIZES.slice(0, 16);
-
-const SUMMARY_MAX_WIDTH_PX = 140;
-
-/** The resolved scale-bar label for the dialog's summary line, at a given
- *  on-screen zoom and export scale — the ladder pick the bar itself uses. */
+/** The resolved scale-bar label for the dialog's summary line — the same
+ *  ladder pick the drawn bar uses, at the export's mm-per-pixel. */
 export const scaleBarLabelForZoom = ({
   physicalSizeX,
   unit,
@@ -294,8 +245,5 @@ export const scaleBarLabelForZoom = ({
   if (physicalSizeX === null) return null;
   const mmPerLevel0Px = physicalSizeX * millimetersPerUnit(unit);
   const mmPerExportPx = (mmPerLevel0Px * 2 ** -zoom) / scale;
-  for (const [mm, label] of SUMMARY_LADDER) {
-    if (mm / mmPerExportPx <= SUMMARY_MAX_WIDTH_PX) return label;
-  }
-  return SUMMARY_LADDER[SUMMARY_LADDER.length - 1][1];
+  return scaleBarForPixelSize(mmPerExportPx).label;
 };

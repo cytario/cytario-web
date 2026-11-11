@@ -4,7 +4,6 @@ import { capAtNativeResolution, clampExportSize, type ExportRenderLimits } from 
 
 const limits = (over: Partial<ExportRenderLimits> = {}): ExportRenderLimits => ({
   maxCanvasSide: 16384,
-  maxTextureSize: 16384,
   areaLimit: 16384 * 16384,
   ...over,
 });
@@ -38,7 +37,7 @@ describe("clampExportSize", () => {
     const result = clampExportSize({
       viewport: { width: 9000, height: 6000 },
       scale: 2,
-      limits: limits({ maxCanvasSide: 8192, maxTextureSize: 8192 }),
+      limits: limits({ maxCanvasSide: 8192 }),
     });
 
     expect(result.width).toBeLessThanOrEqual(8192);
@@ -46,18 +45,6 @@ describe("clampExportSize", () => {
     // 9000×6000 scaled 2× is 18000×12000 → factor 8192/18000 ≈ 0.4551.
     expect(result.width).toBe(8192);
     expect(result.height).toBe(Math.floor((12000 * 8192) / 18000 / 2) * 2);
-    expect(result.clamped).toBe(true);
-  });
-
-  test("clamps to the GPU texture cap when it is the tighter bound", () => {
-    const result = clampExportSize({
-      viewport: { width: 4000, height: 4000 },
-      scale: 4,
-      limits: limits({ maxCanvasSide: 16384, maxTextureSize: 4096 }),
-    });
-
-    expect(result.width).toBe(4096);
-    expect(result.height).toBe(4096);
     expect(result.clamped).toBe(true);
   });
 
@@ -92,7 +79,7 @@ describe("clampExportSize", () => {
     const result = clampExportSize({
       viewport: { width: 4096, height: 4096 },
       scale: 1,
-      limits: limits({ maxCanvasSide: 4096, maxTextureSize: 4096 }),
+      limits: limits({ maxCanvasSide: 4096 }),
     });
 
     expect(result.width).toBe(4096);

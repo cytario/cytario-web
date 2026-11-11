@@ -22,6 +22,7 @@ import {
   exportView,
   rectangleRegionsOfOwnSets,
   type ExportDecorations,
+  type ExportDestination,
   type ExportViewOptions,
 } from "../../export/exportView";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
@@ -151,7 +152,7 @@ export const ExportDialog = ({ isOpen, onClose }: ExportDialogProps) => {
   const isRendering = runState.phase === "rendering";
 
   const runExport = useCallback(
-    async (destination: ExportViewOptions["destination"]) => {
+    async (destination: ExportDestination) => {
       const exportSource =
         source === "annotation-region" && selectedRegion
           ? ({ kind: "annotation-region", feature: selectedRegion.feature } as const)
@@ -166,7 +167,6 @@ export const ExportDialog = ({ isOpen, onClose }: ExportDialogProps) => {
             scale,
             aspect,
             decorations,
-            destination,
             imageBasename,
           },
           showToast: toast,
@@ -374,9 +374,7 @@ export const ExportDialog = ({ isOpen, onClose }: ExportDialogProps) => {
             {isRendering && (
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Spinner size="sm" aria-label="Rendering" />
-                {runState.phase === "rendering"
-                  ? `Rendering ${runState.width} × ${runState.height} px…`
-                  : ""}
+                Rendering {runState.width} × {runState.height} px…
               </span>
             )}
             <Button

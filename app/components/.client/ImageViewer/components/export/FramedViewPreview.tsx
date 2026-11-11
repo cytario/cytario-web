@@ -56,10 +56,9 @@ export const FramedViewPreview = ({ aspect, regionBounds }: FramedViewPreviewPro
     visibleCanvas.setAttribute("data-testid", "framed-view-preview");
     holder.appendChild(visibleCanvas);
 
-    const framed =
-      regionBounds !== null && regionBounds !== undefined
-        ? frameRegion(viewStateActive, regionBounds, 1)
-        : frameCurrentView(viewStateActive, 1);
+    const framed = regionBounds
+      ? frameRegion(viewStateActive, regionBounds, 1)
+      : frameCurrentView(viewStateActive, 1);
     renderer.setViewState({ ...framed.viewState, width: PREVIEW_WIDTH, height: previewHeight });
     renderer.render();
 

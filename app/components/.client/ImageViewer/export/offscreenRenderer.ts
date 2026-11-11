@@ -166,7 +166,6 @@ export const createOffscreenRenderer = ({
           showOutline: layersState?.showAnnotationOutline ?? true,
           imagePanelId,
           interactive: false,
-          activeClassification: null,
           onEdit: () => {},
         })
       : [];

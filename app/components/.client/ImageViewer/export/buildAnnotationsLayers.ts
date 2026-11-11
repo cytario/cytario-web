@@ -97,7 +97,6 @@ export interface AnnotationLayerInputs {
   /** Own set is editable (draw modes active); false renders read-only + unpickable. */
   interactive: boolean;
   /** Classification new draws are placed into (own set, interactive only). */
-  activeClassification: AnnotationClassification | null;
   /** The own set's `EditableGeoJsonLayer.onEdit` — committed draws, moves, deletes. */
   onEdit: EditableGeoJsonLayer["props"]["onEdit"];
 }
@@ -120,7 +119,6 @@ export const buildAnnotationsLayers = ({
   showOutline,
   imagePanelId,
   interactive,
-  activeClassification,
   onEdit,
 }: AnnotationLayerInputs): Layer[] => {
   const data: FeatureCollection = { type: "FeatureCollection", features };
@@ -242,7 +240,6 @@ export const buildAnnotationsLayers = ({
             }),
         );
 
-  void activeClassification;
   // Selection frame beneath the color layers so the classification color line stays on top.
   return [...highlightLayers, ...peerLayers, ownLayer];
 };

@@ -4,8 +4,6 @@ import type { ViewPort } from "../state/store/types";
 export interface ExportRenderLimits {
   /** Largest square side a canvas can hold (probed, e.g. 16384 or 8192). */
   maxCanvasSide: number;
-  /** GPU texture-size cap — exports above this cannot be rendered at all. */
-  maxTextureSize: number;
   /** Upper bound on total pixel count (area), derived from the side caps. */
   areaLimit: number;
 }
@@ -28,8 +26,6 @@ export interface ClampExportSizeResult {
   height: number;
   /** The output had to be shrunk below the requested size. */
   clamped: boolean;
-  /** The output exceeds the image's native scan resolution (SRS-CY-33408). */
-  upscaled: boolean;
 }
 
 const floorEven = (value: number): number => {
@@ -52,11 +48,7 @@ export const clampExportSize = ({
   const requestedWidth = viewport.width * scale;
   const requestedHeight = viewport.height * scale;
 
-  const maxSide = Math.min(
-    limits.maxCanvasSide,
-    limits.maxTextureSize,
-    Math.sqrt(limits.areaLimit),
-  );
+  const maxSide = Math.min(limits.maxCanvasSide, Math.sqrt(limits.areaLimit));
 
   let width = requestedWidth;
   let height = requestedHeight;
@@ -71,11 +63,12 @@ export const clampExportSize = ({
     height *= factor;
   }
 
+  const evenWidth = floorEven(width);
+  const evenHeight = floorEven(height);
   return {
-    width: floorEven(width),
-    height: floorEven(height),
-    clamped: floorEven(width) < requestedWidth || floorEven(height) < requestedHeight,
-    upscaled: false,
+    width: evenWidth,
+    height: evenHeight,
+    clamped: evenWidth < requestedWidth || evenHeight < requestedHeight,
   };
 };
 
@@ -130,6 +123,5 @@ export const probeMaxCanvasSide = (): number => {
 /** Builds a best-effort limits object without a live GL context. */
 export const fallbackRenderLimits = (): ExportRenderLimits => ({
   maxCanvasSide: probeMaxCanvasSide(),
-  maxTextureSize: probeMaxCanvasSide(),
   areaLimit: BROWSER_AREA_LIMIT,
 });

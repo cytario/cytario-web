@@ -260,7 +260,6 @@ describe("ExportDialog", () => {
       source: { kind: "current-view" },
       scale: 2,
       aspect: "as-viewed",
-      destination: "download",
       decorations: {
         scaleBar: true,
         magnification: true,
@@ -272,7 +271,7 @@ describe("ExportDialog", () => {
     expect(call.options.imageBasename).toBe("slide");
   });
 
-  test("Copy to clipboard runs the engine with destination clipboard", async () => {
+  test("Copy to clipboard runs the engine once", async () => {
     const user = userEvent.setup();
     renderDialog();
 
@@ -281,7 +280,6 @@ describe("ExportDialog", () => {
     await waitFor(() => {
       expect(exportViewMock).toHaveBeenCalledTimes(1);
     });
-    expect(exportViewMock.mock.calls[0][0].options.destination).toBe("clipboard");
   });
 
   test("shows progress state while the render is pending", async () => {

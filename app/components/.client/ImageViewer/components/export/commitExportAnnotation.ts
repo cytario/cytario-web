@@ -65,8 +65,6 @@ export const commitExportAnnotation = (
 
   store.updateSetFeatures(targetSet.id, [...targetSet.features, ...valid]);
 
-  if (valid.some((feature) => feature.id === stampedId)) {
-    store.setAnnotationSelectedIds([stampedId]);
-    store.showAnnotationClass(targetSet.id, UNCLASSIFIED);
-  }
+  store.setAnnotationSelectedIds([stampedId]);
+  store.showAnnotationClass(targetSet.id, UNCLASSIFIED);
 };

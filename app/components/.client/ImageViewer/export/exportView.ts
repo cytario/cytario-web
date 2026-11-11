@@ -12,7 +12,6 @@ import {
   drawScaleBarDecoration,
   ensureDocumentFonts,
   magnificationText,
-  millimetersPerUnit,
   type AspectChoice,
   type ChannelLabel,
 } from "./decorations";
@@ -23,6 +22,7 @@ import {
   type FramedExport,
 } from "./offscreenRenderer";
 import { geometriesBounds } from "../components/annotations/flyToFeature";
+import { millimetersPerUnit } from "../components/canvas/Measurements/utils";
 import type { ViewerStore } from "../state/store/types";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -48,7 +48,6 @@ export interface ExportViewOptions {
   scale: number;
   aspect: AspectChoice;
   decorations: ExportDecorations;
-  destination: ExportDestination;
   /** Limits measured at export time; probed from the environment when omitted. */
   limits?: ExportRenderLimits;
   /** Name of the image file (without extension) — the export filename base. */

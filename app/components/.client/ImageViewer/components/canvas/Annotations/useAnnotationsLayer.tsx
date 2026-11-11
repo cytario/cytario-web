@@ -119,7 +119,6 @@ export const useAnnotationsLayer = (
       showOutline,
       imagePanelId,
       interactive: interactive && canAnnotate,
-      activeClassification,
       onEdit,
     });
 
