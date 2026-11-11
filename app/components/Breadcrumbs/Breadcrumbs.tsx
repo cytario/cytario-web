@@ -25,24 +25,14 @@ const JOIN_CX = "-ms-px z-10 hover:bg-muted";
 const ARROW_CX = `${JOIN_CX} rounded-s-none -ps-2`;
 
 /**
- * The root crumb: which organization the page belongs to. A split button for
- * a multi-membership session — the label navigates to the active
- * organization's connection list, the arrow opens the membership menu, and
- * picking an org lands on that org's connection list (the same sub-path in
- * another tenant would 404, so it is never carried over). A single-membership
- * session renders the label read-only.
+ * The root crumb: which organization the page belongs to. Always a button
+ * linking to the active organization's connection list with the org icon —
+ * single-membership included. The membership menu arrow is only rendered
+ * for a multi-membership session; nothing to switch for one membership.
  */
 function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
   const user = useCurrentUser();
   const crumbs = buildOrgCrumbs(Object.keys(user?.organizations ?? {}), activeOrganization);
-
-  if (crumbs.length < 2) {
-    return (
-      <span className="flex items-center px-1 text-sm font-medium text-foreground">
-        {activeOrganization}
-      </span>
-    );
-  }
 
   return (
     <div role="group" aria-label="Switch organization" className="flex items-center rounded-full">
@@ -51,45 +41,47 @@ function OrgCrumb({ activeOrganization }: { activeOrganization: string }) {
         variant="ghost"
         size="sm"
         iconLeft="Building2"
-        className="rounded-e-none pe-1 max-w-48"
+        className={crumbs.length > 1 ? "rounded-e-none pe-1 max-w-48" : "max-w-48"}
         aria-label={`${activeOrganization} connections`}
       >
         <TruncatedText>{activeOrganization}</TruncatedText>
       </ButtonLink>
-      <Menu
-        content={
-          <MenuSection header={ORGANIZATIONS_SECTION} aria-label={ORGANIZATIONS_SECTION}>
-            {crumbs.map((crumb) => (
-              <MenuItem
-                key={crumb.alias}
-                id={crumb.alias}
-                // A switch is a full document navigation, not a router one:
-                // the CSP connect-src is derived per HTML response from the
-                // org its URL names, so a client-side switch would leave the
-                // browser holding the previous org's host allowlist and the
-                // new org's bucket fetches would be blocked until a reload.
-                // The menu item acts instead of linking so react-aria's
-                // router binding can't intercept it.
-                onAction={() => {
-                  window.location.assign(switchOrgPath(crumb.alias));
-                }}
-                endContent={crumb.isActive ? <Icon icon="Check" size="sm" /> : undefined}
-                className={crumb.isActive ? "font-semibold text-primary" : undefined}
-              >
-                {crumb.alias}
-              </MenuItem>
-            ))}
-          </MenuSection>
-        }
-      >
-        <IconButton
-          icon="ChevronDown"
-          label="Switch organization"
-          variant="ghost"
-          size="sm"
-          className={ARROW_CX}
-        />
-      </Menu>
+      {crumbs.length > 1 && (
+        <Menu
+          content={
+            <MenuSection header={ORGANIZATIONS_SECTION} aria-label={ORGANIZATIONS_SECTION}>
+              {crumbs.map((crumb) => (
+                <MenuItem
+                  key={crumb.alias}
+                  id={crumb.alias}
+                  // A switch is a full document navigation, not a router one:
+                  // the CSP connect-src is derived per HTML response from the
+                  // org its URL names, so a client-side switch would leave the
+                  // browser holding the previous org's host allowlist and the
+                  // new org's bucket fetches would be blocked until a reload.
+                  // The menu item acts instead of linking so react-aria's
+                  // router binding can't intercept it.
+                  onAction={() => {
+                    window.location.assign(switchOrgPath(crumb.alias));
+                  }}
+                  endContent={crumb.isActive ? <Icon icon="Check" size="sm" /> : undefined}
+                  className={crumb.isActive ? "font-semibold text-primary" : undefined}
+                >
+                  {crumb.alias}
+                </MenuItem>
+              ))}
+            </MenuSection>
+          }
+        >
+          <IconButton
+            icon="ChevronDown"
+            label="Switch organization"
+            variant="ghost"
+            size="sm"
+            className={ARROW_CX}
+          />
+        </Menu>
+      )}
     </div>
   );
 }

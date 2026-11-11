@@ -113,12 +113,13 @@ describe("Breadcrumbs", () => {
     expect(screen.getByRole("link", { name: "Go to home" })).toHaveAttribute("href", "/acme");
   });
 
-  test("names a single organization as the root crumb without a switcher", () => {
+  test("names a single organization as a clickable root crumb with the org icon, without a switcher menu", () => {
     (useMatches as Mock).mockReturnValue([]);
 
     renderBreadcrumbs();
 
     expect(screen.getByText("acme")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "acme connections" })).toHaveAttribute("href", "/acme");
     expect(screen.queryByRole("button", { name: "Switch organization" })).not.toBeInTheDocument();
   });
 
