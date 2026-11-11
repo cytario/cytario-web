@@ -1,11 +1,5 @@
 import { columnsForPanelState } from "./buildChannelsLayerConfig";
 import {
-  createOffscreenRenderer,
-  frameCurrentView,
-  frameRegion,
-  type FramedExport,
-} from "./offscreenRenderer";
-import {
   capAtNativeResolution,
   clampExportSize,
   type ExportRenderLimits,
@@ -22,8 +16,14 @@ import {
   type AspectChoice,
   type ChannelLabel,
 } from "./decorations";
+import {
+  createOffscreenRenderer,
+  frameCurrentView,
+  frameRegion,
+  type FramedExport,
+} from "./offscreenRenderer";
 import { geometriesBounds } from "../components/annotations/flyToFeature";
-import type { ViewState, ViewerStore } from "../state/store/types";
+import type { ViewerStore } from "../state/store/types";
 import { type AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 /** How long to wait for tiles/deck-idle before failing the export. */
@@ -242,6 +242,7 @@ export const exportView = async ({
     withAnnotations: options.decorations.annotationRegions,
     onTileLoad: exportTileCounter.loadTile,
     onTileFinish: exportTileCounter.finishTile,
+    onTileError: showToast,
   });
   const deckCanvas = renderer.canvas;
   renderer.setViewState({

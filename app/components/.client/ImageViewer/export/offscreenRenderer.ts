@@ -73,6 +73,8 @@ export interface OffscreenRendererInput {
   /** Called per tile load/finish so the caller can gate on tile idleness. */
   onTileLoad?: (id: string) => void;
   onTileFinish?: (id: string) => void;
+  /** Surfaces overlay tile errors like the live panel does. */
+  onTileError?: (toast: { variant: "error" | "success" | "info"; message: string }) => void;
 }
 
 export interface OffscreenRenderer {
@@ -99,6 +101,7 @@ export const createOffscreenRenderer = ({
   withAnnotations,
   onTileLoad,
   onTileFinish,
+  onTileError,
 }: OffscreenRendererInput): OffscreenRenderer => {
   const storeState = store.getState();
   const imagePanelId = storeState.imagePanelIndex;
@@ -147,6 +150,7 @@ export const createOffscreenRenderer = ({
       overlayPanelInputs(state, imagePanelId),
       tileLoad,
       tileFinish,
+      onTileError,
     );
 
     const annotationsLayers = withAnnotations
