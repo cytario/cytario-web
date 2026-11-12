@@ -1,11 +1,7 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 
-vi.mock("~/utils/db/getTileDataWasm", () => ({
-  readAllAnnotations: vi.fn().mockResolvedValue([]),
-}));
-
-import { createViewerStore } from "../../state/store/createViewerStore";
-import { captureFilename, ExportRenderError, rectangleRegionsOfOwnSets } from "../exportView";
+import { createViewerStore } from "../../../state/store/createViewerStore";
+import { rectangleRegionsOfOwnSets } from "../regionSelection";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 const rectangleFeature = (
@@ -103,23 +99,9 @@ describe("rectangleRegionsOfOwnSets", () => {
     expect(regions.some((region) => region.setId === "peer-set")).toBe(false);
     expect(regions.some((region) => region.id === "own-poly")).toBe(false);
   });
-});
 
-describe("captureFilename", () => {
-  test("formats <image-basename>_YYYY-MM-DD-HHmmss", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2025, 0, 7, 13, 5, 9));
-
-    expect(captureFilename("slide")).toBe("slide_2025-01-07-130509");
-
-    vi.useRealTimers();
-  });
-});
-
-describe("rectangle-region framing inputs", () => {
   test("non-rectangle features are rejected by the region filter", () => {
-    // The filter is the guard the export's annotation-region path relies on;
-    // a non-closed or skewed 5-ring must not be offered as a region.
+    // A non-closed or skewed 5-ring must not be offered as a region.
     const skewed: AnnotationFeature = {
       type: "Feature",
       id: "skewed",
@@ -137,21 +119,13 @@ describe("rectangle-region framing inputs", () => {
       },
       properties: {},
     };
-    store = createViewerStore("conn-1/images/slide.ome.tif", "user-a");
-    store.setState({
+    const skewedStore = createViewerStore("conn-1/images/slide.ome.tif", "user-a");
+    skewedStore.setState({
       currentUserId: "user-a",
       annotationSets: [{ id: "own", createdBy: "user-a", name: undefined, features: [skewed] }],
       activeSetId: "own",
     });
 
-    expect(rectangleRegionsOfOwnSets(store.getState())).toEqual([]);
-  });
-});
-
-describe("ExportRenderError", () => {
-  test("carries an actionable message", () => {
-    const error = new ExportRenderError("boom");
-    expect(error.name).toBe("ExportRenderError");
-    expect(error.message).toBe("boom");
+    expect(rectangleRegionsOfOwnSets(skewedStore.getState())).toEqual([]);
   });
 });

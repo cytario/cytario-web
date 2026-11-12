@@ -6,8 +6,8 @@ import { type Table } from "apache-arrow";
 import type { Geometry } from "geojson";
 import { useCallback, useMemo } from "react";
 
-import { OVERLAYS_ID_PREFIX } from "./OverlaysLayer";
-import { buildOverlaysLayers } from "../../../export/buildOverlaysLayers";
+import { createMarkerProps } from "./markerUniforms";
+import { OVERLAYS_ID_PREFIX, OverlaysLayer } from "./OverlaysLayer";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import {
@@ -16,48 +16,66 @@ import {
   type RGBA,
 } from "../../../state/store/types";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
+import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 /** Creates the overlay marker layers for one image panel. */
 export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const { toast } = useToast();
   const layersStates = useViewerStore(select.layersStates);
   const metadata = useViewerStore(select.metadata);
-  const loaderLength = useViewerStore((state) => state.loader?.length ?? 0);
+  const minZoom = useViewerStore(select.minZoom);
+  const maxZoom = useViewerStore(select.maxZoom);
   const panelLayersStateIndex = useViewerStore((state) => state.imagePanels)[imagePanelId];
   const setIsOverlaysLoading = useViewerStore(select.setIsOverlaysLoading);
   const { loadTile, finishTile } = useTilesLoading(imagePanelId, setIsOverlaysLoading);
 
-  const overlayState = layersStates[panelLayersStateIndex]?.overlays ?? null;
-  const overlaysFillOpacity = layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? undefined;
+  const imageWidth = metadata?.Pixels?.SizeX ?? 0;
+  const imageHeight = metadata?.Pixels?.SizeY ?? 0;
+
+  const fillOpacity =
+    layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? DEFAULT_OVERLAYS_FILL_OPACITY;
   const showCellOutline = layersStates[panelLayersStateIndex]?.showCellOutline ?? true;
 
-  const overlaysLayers = useMemo(
-    () =>
-      buildOverlaysLayers(
-        {
-          overlayState,
-          imageWidth: metadata?.Pixels?.SizeX ?? 0,
-          imageHeight: metadata?.Pixels?.SizeY ?? 0,
-          minZoom: -loaderLength,
-          maxZoom: 2,
-          overlaysFillOpacity,
-          showCellOutline,
-        },
+  const overlayState = layersStates[panelLayersStateIndex]?.overlays ?? null;
+
+  const overlaysLayers = useMemo(() => {
+    if (!overlayState) return [];
+
+    return Object.entries(overlayState).map(([resourceId, entry]) => {
+      const fileMarkers = entry.markers;
+
+      const enabledMarkers = Object.keys(fileMarkers).filter((key) => fileMarkers[key].isVisible);
+
+      const markerProps = createMarkerProps(fileMarkers, fillOpacity);
+
+      return OverlaysLayer({
+        resourceId,
+        overlayConfig: entry.config,
+        enabledMarkers,
+        fileMarkers,
+        markerProps,
+        imageWidth,
+        imageHeight,
+        minZoom,
+        maxZoom,
+        strokeOpacity: showCellOutline ? 1 : 0,
         loadTile,
         finishTile,
-        toast,
-      ),
-    [
-      overlayState,
-      metadata,
-      loaderLength,
-      overlaysFillOpacity,
-      showCellOutline,
-      loadTile,
-      finishTile,
-      toast,
-    ],
-  );
+        showToast: toast,
+      });
+    });
+  }, [
+    overlayState,
+    imageWidth,
+    imageHeight,
+    minZoom,
+    maxZoom,
+    fillOpacity,
+    showCellOutline,
+    loadTile,
+    finishTile,
+    toast,
+  ]);
 
   const tooltipCtx = useMemo(() => {
     if (!overlayState) return null;
@@ -133,7 +151,7 @@ export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
         },
       );
 
-      return [{ type: "Overlays" as const, id, values, geometryColor, geometry }];
+      return [{ type: "Overlays" as const, id, values, geometry, geometryColor }];
     },
     [tooltipCtx],
   );

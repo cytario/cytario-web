@@ -1,7 +1,7 @@
 import { InteractionState, PickingInfo } from "@deck.gl/core";
 import type { Effect, FilterContext, Layer } from "@deck.gl/core";
 import type { DeckGLRef } from "@deck.gl/react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useRef } from "react";
 
 import { useViewerStore, useViewerStoreApi } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
@@ -18,22 +18,15 @@ import {
 } from "../Annotations/pickFeaturesAt";
 import { useAnnotationsLayer } from "../Annotations/useAnnotationsLayer";
 import { useChannelsLayer } from "../Channels/useChannelsLayer";
-import {
-  OVERLAY_COMPOSITE_LAYER_ID,
-  OverlayCompositeEffect,
-  OverlayCompositeLayer,
-  type OverlayCompositeResult,
-} from "../Overlays/OverlayComposite";
-import { isOverlayLayerId } from "../Overlays/OverlaysLayer";
 import { useOverlaysLayers } from "../Overlays/useOverlaysLayer";
+import { useViewerLayers } from "../useViewerLayers";
 
 /**
- * Single hover orchestrator for the image viewer: calls the three layer hooks,
- * merges their layers, and provides a deck.gl-level `onHover` using
- * `deck.pickMultipleObjects` to gather all picks at the cursor — each routed by
- * layer-id prefix to the provider's `getTooltipItems`. Transparent annotation picks
- * (hidden class → alpha 0) return `[]` so they no longer steal the cursor from
- * pixel reads beneath them.
+ * Single hover orchestrator for the image viewer: a deck.gl-level `onHover`
+ * using `deck.pickMultipleObjects` to gather all picks at the cursor — each
+ * routed by layer-id prefix to the provider's `getTooltipItems`. Transparent
+ * annotation picks (hidden class → alpha 0) return `[]` so they no longer steal
+ * the cursor from pixel reads beneath them.
  *
  * The hook also owns `getCursor`: pointer over non-transparent annotations in
  * view/inspect modes, crosshair in draw modes.
@@ -71,39 +64,11 @@ export const useCompositeHover = (
   const deckRef = useRef<DeckGLRef | null>(null);
   const storeApi = useViewerStoreApi();
 
-  const { layers: channelLayers, getTooltipItems: getChannelTooltipItems } =
-    useChannelsLayer(imagePanelId);
-  const { layers: overlayLayers, getTooltipItems: getOverlayTooltipItems } =
-    useOverlaysLayers(imagePanelId);
-  const { layers: annotationLayers, getTooltipItems: getAnnotationTooltipItems } =
-    useAnnotationsLayer(imagePanelId);
+  const { layers, effects, layerFilter } = useViewerLayers(imagePanelId);
 
-  // Offscreen additive-overlay composition: the effect renders the overlay layers into an
-  // FBO each frame, the composite layer premultiplied-over blends the result onto the base.
-  const overlayComposite = useMemo(() => {
-    const result: OverlayCompositeResult = {};
-    return {
-      result,
-      layer: new OverlayCompositeLayer({
-        id: OVERLAY_COMPOSITE_LAYER_ID,
-        pickable: false,
-        result,
-      }),
-      effects: [new OverlayCompositeEffect(result)],
-    };
-  }, []);
-
-  const layers = useMemo(
-    () => [...channelLayers, ...overlayLayers, overlayComposite.layer, ...annotationLayers],
-    [channelLayers, overlayLayers, overlayComposite.layer, annotationLayers],
-  );
-
-  // Overlay layers render offscreen only (the composite layer draws their result); they
-  // must still draw in the picking pass so hovering over overlays keeps working.
-  const layerFilter = useCallback(
-    ({ layer, isPicking }: FilterContext) => !isOverlayLayerId(layer.id) || isPicking,
-    [],
-  );
+  const { getTooltipItems: getChannelTooltipItems } = useChannelsLayer(imagePanelId);
+  const { getTooltipItems: getOverlayTooltipItems } = useOverlaysLayers(imagePanelId);
+  const { getTooltipItems: getAnnotationTooltipItems } = useAnnotationsLayer(imagePanelId);
 
   const setCompositeTooltip = useViewerStore(select.setCompositeTooltip);
   const clearPixelValues = useViewerStore(select.clearPixelValues);
@@ -221,7 +186,7 @@ export const useCompositeHover = (
 
   return {
     layers,
-    effects: overlayComposite.effects,
+    effects,
     layerFilter,
     deckRef,
     onHover,

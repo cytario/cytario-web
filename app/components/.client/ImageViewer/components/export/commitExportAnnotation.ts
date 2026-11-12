@@ -1,35 +1,31 @@
-import type { ExportViewResult, ViewerStoreSource } from "../../export/exportView";
+import type { ViewerStoreSource } from "./composeCapture";
 import { UNCLASSIFIED } from "../../state/store/annotations/annotations.store";
 import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
+export interface ExportProvenanceInput {
+  /** Level-0 pixel bounds of the exported extent: [minX, minY, maxX, maxY]. */
+  bounds: [number, number, number, number];
+  /** The captured filename — the region's default name. */
+  filename: string;
+}
+
 /**
- * Commits the provenance box annotation after a region export: a rectangle
- * region of exactly the exported level-0 pixel extent, written through the
- * same store path a canvas-stamped box takes — minted identity (id, name from
- * the captured filename, timestamps) exactly as the layer's `stampEdit` mints
- * it for a committed draw, validated, `updateSetFeatures` (which the sync
- * middleware persists and the undo history records), auto-selected, and its
- * class revealed. No new persistence surface.
+ * Commits the provenance box annotation after a current-view capture: a
+ * rectangle region of exactly the exported level-0 pixel extent, written
+ * through the same store path a canvas-stamped box takes — minted identity
+ * (id, name from the captured filename, timestamps) exactly as the layer's
+ * `stampEdit` mints it for a committed draw, validated, `updateSetFeatures`
+ * (which the sync middleware persists and the undo history records),
+ * auto-selected, and its class revealed. No new persistence surface.
  */
 export const commitExportAnnotation = (
   storeSource: ViewerStoreSource,
-  sourceSetId: string,
-  result: ExportViewResult,
-  sourceFeature: AnnotationFeature,
+  sourceSetId: string | null,
+  { bounds, filename }: ExportProvenanceInput,
 ): void => {
   const store = storeSource.getState();
-  const geometry = sourceFeature.geometry;
-  if (!geometry || geometry.type !== "Polygon") return;
-  const ring = geometry.coordinates[0];
-  if (!ring || ring.length < 4) return;
-
-  const xs = ring.map(([x]) => x);
-  const ys = ring.map(([, y]) => y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const maxX = Math.max(...xs);
-  const maxY = Math.max(...ys);
+  const [minX, minY, maxX, maxY] = bounds;
 
   const now = new Date().toISOString();
   const exportedRegion: AnnotationFeature = {
@@ -48,7 +44,7 @@ export const commitExportAnnotation = (
       ],
     },
     properties: {
-      name: result.filename.replace(/\.png$/, ""),
+      name: filename.replace(/\.png$/, ""),
       createdAt: now,
       updatedAt: now,
     },
@@ -60,7 +56,7 @@ export const commitExportAnnotation = (
 
   const targetSet =
     store.annotationSets.find((set) => set.id === store.activeSetId) ??
-    store.annotationSets.find((set) => set.id === sourceSetId);
+    (sourceSetId ? store.annotationSets.find((set) => set.id === sourceSetId) : undefined);
   if (!targetSet) return;
 
   store.updateSetFeatures(targetSet.id, [...targetSet.features, ...valid]);

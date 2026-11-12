@@ -6,7 +6,8 @@ import { useStore } from "zustand";
 
 import { createViewerStore } from "../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../state/store/types";
-import { ExportDialog } from "../ExportDialog";
+import { CaptureExportSection } from "../CaptureExportSection";
+import { commitExportAnnotation as commitExportAnnotationActual } from "../commitExportAnnotation";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -21,31 +22,28 @@ vi.mock("~/hooks/useCurrentUser", () => ({
   useCurrentUser: () => ({ sub: "own-user" }),
 }));
 
-const exportViewMock = vi.fn();
-const commitExportAnnotationMock = vi.fn();
-
 vi.mock("~/utils/db/getTileDataWasm", () => ({
   readAllAnnotations: vi.fn().mockResolvedValue([]),
+}));
+
+const runExportMock = vi.fn();
+const commitExportAnnotationMock = vi.fn();
+
+vi.mock("../runExport", () => ({
+  runExport: (...args: unknown[]) => runExportMock(...args),
+  downloadExport: vi.fn(),
+  copyExportToClipboard: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../commitExportAnnotation", () => ({
   commitExportAnnotation: (...args: unknown[]) => commitExportAnnotationMock(...args),
 }));
 
-vi.mock("../../../export/exportView", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../export/exportView")>();
-  return {
-    ...actual,
-    exportView: (...args: unknown[]) => exportViewMock(...args),
-    rectangleRegionsOfOwnSets: actual.rectangleRegionsOfOwnSets,
-    downloadExport: vi.fn(),
-    copyExportToClipboard: vi.fn().mockResolvedValue(undefined),
-  };
-});
-
-vi.mock("../FramedViewPreview", () => ({
-  FramedViewPreview: () => (
-    <canvas data-testid="framed-view-preview" aria-label="Framed view preview" />
+vi.mock("~/components/Section/Section", () => ({
+  Section: ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => (
+    <section aria-label={title} data-section-id={id}>
+      {children}
+    </section>
   ),
 }));
 
@@ -155,176 +153,202 @@ const buildStore = () => {
   });
 };
 
-const renderDialog = (canAnnotate = true) => {
+const renderSection = (canAnnotate = true) => {
   seedViewerConnection("test-conn", canAnnotate ? "annotate" : "read-only");
   return render(
     <ToastProvider>
-      <ExportDialog isOpen onClose={() => {}} />
+      <CaptureExportSection />
     </ToastProvider>,
   );
 };
 
-const exportBlob = () =>
+const exportResult = () =>
   ({
     blob: new Blob(["png"], { type: "image/png" }),
     filename: "slide_2025-01-07-130509.png",
-    width: 1600,
-    height: 1200,
+    width: 9449,
+    height: 7087,
     clamped: false,
     upscaled: false,
   }) as never;
 
-describe("ExportDialog", () => {
+const within = () => screen.getByRole("region", { name: "Capture and export" });
+
+describe("Capture and export section", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    exportViewMock.mockResolvedValue(exportBlob());
+    runExportMock.mockResolvedValue(exportResult());
     buildStore();
   });
 
-  test("renders with spec defaults: Current view, 2×, As viewed, decoration states", () => {
-    renderDialog();
+  test("renders with spec defaults: Current view, Presentation, decoration states", () => {
+    renderSection();
 
     expect(screen.getByRole("radio", { name: /current view/i })).toBeInTheDocument();
-    expect(screen.getAllByText("2×").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("As viewed").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Presentation (300 DPI)").length).toBeGreaterThan(0);
   });
 
-  test("defaults decorations per spec and channel labels follow visible channels", () => {
-    renderDialog();
+  test("defaults decorations per spec", () => {
+    renderSection();
 
     const checkbox = (name: string) => screen.getByRole("checkbox", { name }) as HTMLInputElement;
-    // Two visible channels → channel labels default on.
     expect(checkbox("Scale bar").checked).toBe(true);
     expect(checkbox("Magnification").checked).toBe(true);
-    expect(checkbox("Channel labels").checked).toBe(true);
+    expect(checkbox("Channel and overlay legend").checked).toBe(true);
     expect(checkbox("Annotation regions").checked).toBe(false);
     expect(checkbox("Caption").checked).toBe(false);
   });
 
-  test("channel labels default off with a single visible channel", () => {
-    currentStore.setState((state) => {
-      state.channels.FITC.isVisible = false;
-      state.layersStates[0].channels.FITC.isVisible = false;
-    });
+  test("the resolution combobox exposes the three intent presets", () => {
+    renderSection();
 
-    renderDialog();
+    const combobox = screen.getByRole("combobox", { name: "Resolution" });
+    expect(combobox).toHaveValue("presentation");
 
-    const checkbox = screen.getByRole("checkbox", { name: "Channel labels" }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
+    expect(screen.queryByText("2×")).toBeNull();
+    expect(screen.queryByText("4×")).toBeNull();
   });
 
   test("shows the region picker only when the source is Annotation region", async () => {
     const user = userEvent.setup();
-    renderDialog();
+    renderSection();
 
-    expect(screen.queryByRole("button", { name: /annotation region/i })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Region" })).toBeNull();
 
     await user.click(screen.getByRole("radio", { name: /annotation region/i }));
 
-    expect(screen.getByRole("button", { name: /annotation region/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
   });
 
   test("read-only connections keep the source at Current view", () => {
-    renderDialog(false);
+    renderSection(false);
 
     const regionOption = screen.getByRole("radio", { name: /annotation region/i });
     expect(regionOption).toBeDisabled();
-    expect(screen.queryByRole("button", { name: /annotation region/i })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Region" })).toBeNull();
   });
 
-  test("the create-export-annotation checkbox appears only for region exports", async () => {
+  test("the create-export-annotation checkbox appears only for current-view exports and defaults off", async () => {
     const user = userEvent.setup();
-    renderDialog();
-
-    expect(screen.queryByRole("checkbox", { name: /create export annotation/i })).toBeNull();
-
-    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    renderSection();
 
     const checkbox = screen.getByRole("checkbox", {
       name: /create export annotation/i,
     }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(true); // defaults on
+    expect(checkbox.checked).toBe(false);
+
+    // Switching to a region source removes it — the region itself records the extent.
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    expect(screen.queryByRole("checkbox", { name: /create export annotation/i })).toBeNull();
   });
 
-  test("Download runs the engine with the chosen options", async () => {
+  test("the summary line names the resolved output size", () => {
+    renderSection();
+
+    expect(screen.getByText(/Output: \d+ × \d+ px/)).toBeInTheDocument();
+  });
+
+  test("Download runs the capture with the chosen options", async () => {
     const user = userEvent.setup();
-    renderDialog();
+    renderSection();
 
     await user.click(screen.getByRole("button", { name: /download/i }));
 
     await waitFor(() => {
-      expect(exportViewMock).toHaveBeenCalledTimes(1);
+      expect(runExportMock).toHaveBeenCalledTimes(1);
     });
-    const call = exportViewMock.mock.calls[0][0];
-    expect(call.options).toMatchObject({
-      source: { kind: "current-view" },
-      scale: 2,
-      aspect: "as-viewed",
-      decorations: {
-        scaleBar: true,
-        magnification: true,
-        channelLabels: true,
-        annotationRegions: false,
-        caption: false,
-      },
+    const call = runExportMock.mock.calls[0][0];
+    expect(call.preset).toMatchObject({ id: "presentation", dpi: 300 });
+    expect(call.decorations).toMatchObject({
+      scaleBar: true,
+      magnification: true,
+      legend: true,
+      annotationRegions: false,
+      caption: false,
     });
-    expect(call.options.imageBasename).toBe("slide");
+    expect(call.imageBasename).toBe("slide");
+    expect(call.regionFeatureId).toBeNull();
   });
 
-  test("Copy to clipboard runs the engine once", async () => {
+  test("Copy runs the capture once", async () => {
     const user = userEvent.setup();
-    renderDialog();
+    renderSection();
 
-    await user.click(screen.getByRole("button", { name: /copy to clipboard/i }));
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
 
     await waitFor(() => {
-      expect(exportViewMock).toHaveBeenCalledTimes(1);
+      expect(runExportMock).toHaveBeenCalledTimes(1);
     });
   });
 
   test("shows progress state while the render is pending", async () => {
     let resolveRender: (value: never) => void;
-    exportViewMock.mockImplementation(
+    runExportMock.mockImplementation(
       () => new Promise((resolve) => (resolveRender = resolve as never)),
     );
 
     const user = userEvent.setup();
-    renderDialog();
+    renderSection();
 
     await user.click(screen.getByRole("button", { name: /download/i }));
 
-    expect(await screen.findByText(/Rendering 1600 × 1200 px…/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /cancel render/i })).toBeInTheDocument();
+    expect(await screen.findByText(/Rendering \d+ × \d+ px…/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /download/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /copy to clipboard/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^copy$/i })).toBeDisabled();
 
-    resolveRender!(exportBlob());
+    resolveRender!(exportResult());
   });
 
-  test("a region export with the annotation checkbox commits the provenance region", async () => {
+  test("a current-view capture with the checkbox commits the exported extent", async () => {
     const user = userEvent.setup();
-    renderDialog();
+    renderSection();
 
-    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
-
-    // Pick a region in the Select (react-aria listbox opens on trigger click).
-    await user.click(screen.getByRole("button", { name: /annotation region/i }));
-    await user.click(await screen.findByRole("option", { name: "Region A" }));
-
+    await user.click(screen.getByRole("checkbox", { name: /create export annotation/i }));
     await user.click(screen.getByRole("button", { name: /download/i }));
-
-    await waitFor(() => {
-      expect(exportViewMock).toHaveBeenCalledTimes(1);
-    });
-    const call = exportViewMock.mock.calls[0][0];
-    expect(call.options.source).toMatchObject({ kind: "annotation-region" });
 
     await waitFor(() => {
       expect(commitExportAnnotationMock).toHaveBeenCalled();
     });
-    const [storeSource, setId] = commitExportAnnotationMock.mock.calls[0];
-    expect(setId).toBe("own-set");
-    expect(storeSource.getState().annotationSets).toBeDefined();
+    const [storeSource, setId, provenance] = commitExportAnnotationMock.mock.calls[0];
+    expect(setId).toBeNull();
     expect(storeSource.getState().currentUserId).toBe("own-user");
+    // The provenance rectangle is the exported extent: the current view's
+    // level-0 extent (800 × 600 px at zoom 0) around the target [512, 512].
+    const [minX, minY, maxX, maxY] = provenance.bounds;
+    expect(minX).toBeCloseTo(112, 0);
+    expect(minY).toBeCloseTo(212, 0);
+    expect(maxX).toBeCloseTo(912, 0);
+    expect(maxY).toBeCloseTo(812, 0);
+  });
+
+  test("a region capture never commits a provenance annotation", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Region" }), "rect-1");
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(runExportMock).toHaveBeenCalledTimes(1);
+    });
+    expect(commitExportAnnotationMock).not.toHaveBeenCalled();
+    expect(runExportMock.mock.calls[0][0].regionFeatureId).toBe("rect-1");
+  });
+
+  test("selecting a region frames the active panel on the region's extent", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Region" }), "rect-1");
+
+    await waitFor(() => {
+      const viewState = currentStore.getState().viewStateActive;
+      expect(viewState?.target).toEqual([256, 256]);
+    });
   });
 });
+
+void commitExportAnnotationActual;
+void within;

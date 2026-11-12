@@ -1,5 +1,5 @@
 import { IconButton } from "@cytario/design";
-import { Suspense, lazy, useState } from "react";
+import { useCallback } from "react";
 
 import { Magnifier } from "./Magnifier";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
@@ -7,16 +7,30 @@ import { select } from "../../../state/store/selectors";
 import { ImagePreview } from "../../canvas/ImagePreview";
 import { ResetViewStateButton } from "../../canvas/ResetViewStateButton";
 import { CameraIcon } from "../../export/CameraIcon";
+import { useViewerSidebarStore } from "../../useViewerSidebarStore";
 import { Section } from "~/components/Section/Section";
 
-const ExportDialog = lazy(() =>
-  import("../../export/ExportDialog").then((module) => ({ default: module.ExportDialog })),
-);
+const CAPTURE_SECTION_ID = "capture";
+const CAPTURE_SECTION_CONTENT_ID = `section-${CAPTURE_SECTION_ID}-content`;
 
-/** Sidebar overview: navigation thumbnail + magnification presets + reset. */
+/** Sidebar overview: navigation thumbnail + magnification presets + reset. The
+ *  Capture view action expands the Capture and export section and scrolls it
+ *  into view — the same button reveals and navigates. */
 export const OverviewSection = () => {
   const objectivePower = useViewerStore(select.objectivePower);
-  const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const expandCaptureSection = useCallback(() => {
+    const state = useViewerSidebarStore.getState();
+    if (!(state.sections[CAPTURE_SECTION_ID]?.isOpen ?? true)) {
+      state.toggleSection(CAPTURE_SECTION_ID);
+    }
+    // The section header scrolls into view inside the sidebar panel (or its
+    // floating panel) once expanded.
+    document
+      .getElementById(CAPTURE_SECTION_CONTENT_ID)
+      ?.closest("header")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   return (
     <Section
@@ -30,7 +44,7 @@ export const OverviewSection = () => {
             label="Capture view"
             size="sm"
             icon={CameraIcon}
-            onPress={() => setIsExportOpen(true)}
+            onPress={expandCaptureSection}
           />
         </>
       }
@@ -40,12 +54,6 @@ export const OverviewSection = () => {
       </div>
 
       <Magnifier objectivePower={objectivePower} />
-
-      {isExportOpen && (
-        <Suspense fallback={null}>
-          <ExportDialog isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
-        </Suspense>
-      )}
     </Section>
   );
 };

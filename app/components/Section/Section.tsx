@@ -1,4 +1,4 @@
-import { Icon, IconButton, type IconName } from "@cytario/design";
+import { Icon, IconButton, type IconComponent, type IconName } from "@cytario/design";
 import { motion, useMotionValue } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
@@ -36,7 +36,7 @@ interface SectionProps {
   /** Store key — also anchors the persisted state and the a11y ids. */
   id: string;
   title: string;
-  icon: IconName;
+  icon: IconName | IconComponent;
   /** Floating panel width — callers pass their content's reflow breakpoint. */
   floatWidth?: number;
   badge?: string;
@@ -59,7 +59,7 @@ interface DragGesture {
 
 interface FloatDockButtonProps {
   title: string;
-  icon: IconName;
+  icon: IconName | IconComponent;
   isFloating: boolean;
   onPress: () => void;
   className?: string;

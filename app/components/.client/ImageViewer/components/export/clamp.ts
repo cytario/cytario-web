@@ -1,5 +1,3 @@
-import type { ViewPort } from "../state/store/types";
-
 /** Measured rendering limits for the user's browser. */
 export interface ExportRenderLimits {
   /** Largest square side a canvas can hold (probed, e.g. 16384 or 8192). */
@@ -14,17 +12,21 @@ export const BROWSER_MAX_CANVAS_SIDE = 16384;
 /** Total-pixel ceiling: 2^28 ≈ 268M px guards GPU memory + readback cost. */
 export const BROWSER_AREA_LIMIT = 16384 * 16384;
 
-export interface ClampExportSizeInput {
-  viewport: ViewPort;
-  /** 1 | 2 | 4 — multiplier applied to the viewport's CSS size. */
-  scale: number;
+export interface PixelDensityInput {
+  /** Physical size (mm) of the framed extent's width. */
+  widthMm: number;
+  /** Physical size (mm) of the framed extent's height. */
+  heightMm: number;
+  /** Target density in DPI (Web 90 / Presentation 300 / Print 600). */
+  dpi: number;
+  /** Limits measured at capture time; probed from the environment when omitted. */
   limits: ExportRenderLimits;
 }
 
-export interface ClampExportSizeResult {
+export interface PixelDensityResult {
   width: number;
   height: number;
-  /** The output had to be shrunk below the requested size. */
+  /** The requested size exceeded the measured limits and was shrunk. */
   clamped: boolean;
 }
 
@@ -34,19 +36,23 @@ const floorEven = (value: number): number => {
   return floored % 2 === 0 ? floored : floored - 1;
 };
 
+const MM_PER_INCH = 25.4;
+
 /**
- * Clamps a requested export size (viewport × scale) to the limits the user's
- * browser can actually render: the probed canvas side cap, the GPU texture
- * cap, and a total-area ceiling. The result keeps the viewport's aspect ratio
- * while shrinking as little as possible.
+ * Maps a resolution preset (DPI) against the framed extent's physical size to
+ * the export's pixel dimensions, clamped to what the user's browser can
+ * actually render: the probed canvas side cap and a total-area ceiling. The
+ * result keeps the framed extent's aspect ratio while shrinking as little as
+ * possible.
  */
-export const clampExportSize = ({
-  viewport,
-  scale,
+export const pixelsForDensity = ({
+  widthMm,
+  heightMm,
+  dpi,
   limits,
-}: ClampExportSizeInput): ClampExportSizeResult => {
-  const requestedWidth = viewport.width * scale;
-  const requestedHeight = viewport.height * scale;
+}: PixelDensityInput): PixelDensityResult => {
+  const requestedWidth = (widthMm / MM_PER_INCH) * dpi;
+  const requestedHeight = (heightMm / MM_PER_INCH) * dpi;
 
   const maxSide = Math.min(limits.maxCanvasSide, Math.sqrt(limits.areaLimit));
 
@@ -75,8 +81,8 @@ export const clampExportSize = ({
 /**
  * Caps an export at the image's native scan resolution (level-0 pixels): at
  * 1 export px = 1 level-0 px, more pixels add no information. A request up to
- * 2× beyond native is allowed but flagged `upscaled` (SRS-CY-33408); beyond
- * that the size is clamped to 2× native.
+ * 2× beyond native is allowed but flagged `upscaled`; beyond that the size is
+ * clamped to 2× native.
  */
 export const capAtNativeResolution = (
   size: { width: number; height: number },

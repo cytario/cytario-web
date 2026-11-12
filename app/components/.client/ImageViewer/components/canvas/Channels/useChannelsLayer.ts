@@ -1,11 +1,7 @@
 import { PickingInfo } from "@deck.gl/core";
-import { MultiscaleImageLayer } from "@hms-dbmi/viv";
+import { MultiscaleImageLayer, ColorPaletteExtension, SIGNAL_ABORTED } from "@hms-dbmi/viv";
 import { useCallback, useMemo } from "react";
 
-import {
-  buildChannelsLayer,
-  visibleChannelsOfColumns,
-} from "../../../export/buildChannelsLayerConfig";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import {
@@ -15,9 +11,31 @@ import {
 } from "../../../state/store/types";
 import { handleImageViewerHover } from "../../../utils/handleImageViewerHover";
 import { mapChannelConfigsToState } from "../../../utils/mapChannelConfigsToState";
+import { getCachedTile } from "../../../utils/sharedTileCache";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
+
+/** Both abort shapes loaders use: DOMException (plugins, spec) and plain Error. */
+const isAbortError = (error: unknown): boolean =>
+  (error instanceof DOMException || error instanceof Error) && error.name === "AbortError";
+
+// `getTile` runs once per tile per channel per load — and again for each
+// channel of a `best-available` refinement — so serializing `params.selection`
+// inline re-stringified the same array on every fetch. The selection array is
+// stable for a given layer state, so memoize its JSON form per instance; a new
+// layer state hands a new array and the key is rebuilt.
+const selectionKeyCache = new WeakMap<object, string>();
+export const selectionKey = (selection: unknown): string => {
+  if (typeof selection !== "object" || selection === null) return String(selection);
+  const cached = selectionKeyCache.get(selection);
+  if (cached !== undefined) return cached;
+  const key = JSON.stringify(selection);
+  selectionKeyCache.set(selection, key);
+  return key;
+};
+
+type MultiscaleImageLayerProps = ConstructorParameters<typeof MultiscaleImageLayer>[0];
 
 export const useChannelsLayer = (
   imagePanelId: number,
@@ -64,6 +82,11 @@ export const useChannelsLayer = (
     [admittedSelectionsKey],
   );
 
+  const extensions = useMemo(() => [new ColorPaletteExtension()], []);
+
+  const { ids, contrastLimits, colors, channelsVisible } = columnsWithoutSelections;
+  const selections = stableSelections;
+
   const rawLoader = useViewerStore(select.loader);
   const setIsChannelsLoading = useViewerStore(select.setIsChannelsLoading);
   const setPixelValues = useViewerStore(select.setPixelValues);
@@ -73,31 +96,110 @@ export const useChannelsLayer = (
     return state.layersStates[channelsStateIndex]?.channelsOpacity ?? 1;
   });
 
-  // The stable columns pair the memoized `selections` array with the fresh
-  // contrast/color/visibility columns — identity-stable selections below,
-  // live uniforms above, exactly as before the builder extraction.
-  const stableColumns = useMemo(
-    () => ({ ...columnsWithoutSelections, selections: stableSelections }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [admittedSelectionsKey, columnsWithoutSelections],
-  );
+  const loader = useMemo(() => {
+    if (!rawLoader || rawLoader.length === 0) return rawLoader;
+
+    return rawLoader.map((loaderLevel, levelIndex) => {
+      const originalGetTile = loaderLevel.getTile.bind(loaderLevel);
+
+      const wrappedLoader = Object.create(Object.getPrototypeOf(loaderLevel));
+      Object.assign(wrappedLoader, loaderLevel);
+
+      wrappedLoader.getTile = async (params: Parameters<typeof originalGetTile>[0]) => {
+        const tileId = `${params.x}-${params.y}-${params.selection?.z || 0}`;
+
+        loadTile(tileId);
+
+        // Shared across panels: a second ImagePanel's getTile resolves from memory
+        // instead of refetching. Keyed by level + tile coords + full selection;
+        // namespaced to rawLoader so an image switch drops the cache. signal is
+        // intentionally excluded from the key.
+        const cacheKey = `${levelIndex}:${params.x}:${params.y}:${selectionKey(params.selection)}`;
+        // deck.gl's per-tile signal is deliberately NOT threaded into the
+        // loader. geotiff's BlockedSource coalesces sibling tiles into shared
+        // 64 KiB block-group fetches, so one tile's abort kills the group and
+        // every sibling rejects with AggregateError — which deck.gl treats as
+        // terminal (content = null, never re-requested), parking those tiles at
+        // their blurry parent level. Letting fetches complete instead is safe:
+        // deck.gl's loaderId guard discards results whose tile was aborted.
+        const fetchTile = () =>
+          getCachedTile(rawLoader, cacheKey, () =>
+            originalGetTile({ ...params, signal: undefined }),
+          );
+
+        // deck.gl treats a getTileData rejection as terminal (content = null,
+        // never re-requested — the tile parks at its blurry parent level), so a
+        // single transient read error (S3 5xx/429, network blip, SigV4 hiccup)
+        // would strand the tile with no retry anywhere. Abort errors convert to
+        // viv's SIGNAL_ABORTED sentinel (the composite getTileData catches it and
+        // returns null, which deck.gl marks refinable — plugin loaders throw
+        // DOMException AbortError, viv's own loaders throw the sentinel). One
+        // retry covers transient failures; persistent ones still reject.
+        try {
+          const result = await fetchTile();
+          finishTile(tileId);
+          return result;
+        } catch (error) {
+          if (isAbortError(error)) {
+            finishTile(tileId);
+            throw SIGNAL_ABORTED;
+          }
+          try {
+            const retried = await fetchTile();
+            finishTile(tileId);
+            return retried;
+          } catch (retryError) {
+            finishTile(tileId);
+            throw retryError;
+          }
+        }
+      };
+
+      return wrappedLoader as typeof rawLoader;
+    });
+  }, [finishTile, loadTile, rawLoader]);
 
   // Channel sublayers are pickable so the composite hover hook can find the
   // channels pick via `pickMultipleObjects`; the explicit id lets it identify this
   // layer. No per-layer `onHover` — the composite hook handles all hover orchestration.
-  const multiscaleLayer = useMemo(
-    () =>
-      buildChannelsLayer({
-        imagePanelId,
-        columns: stableColumns,
-        rawLoader,
-        dtype,
-        channelsOpacity,
-        loadTile,
-        finishTile,
-      }),
-    [imagePanelId, stableColumns, rawLoader, dtype, channelsOpacity, loadTile, finishTile],
-  );
+  const multiscaleLayer = useMemo(() => {
+    if (!loader || loader.length === 0) return null;
+
+    return new MultiscaleImageLayer({
+      id: `channels-${imagePanelId}`,
+      loader,
+      extensions,
+      selections,
+      contrastLimits,
+      colors,
+      channelsVisible,
+      dtype,
+      opacity: channelsOpacity,
+      // viv defaults to `no-overlap` whenever opacity < 1, which shows blank
+      // holes at the target level instead of the parent-level fallback while
+      // new tiles load — visible as flicker across a zoom step. Pin
+      // `best-available` so a partial-resolution image is always shown.
+      refinementStrategy: "best-available",
+      pickable: true,
+      onTileError: (error: unknown) => {
+        if (isAbortError(error)) return;
+        if (error === SIGNAL_ABORTED) return;
+        if (error instanceof AggregateError && error.errors.every((e) => e?.name === "AbortError"))
+          return;
+        console.error(error);
+      },
+    } as unknown as MultiscaleImageLayerProps);
+  }, [
+    loader,
+    extensions,
+    selections,
+    contrastLimits,
+    colors,
+    channelsVisible,
+    dtype,
+    channelsOpacity,
+    imagePanelId,
+  ]);
 
   // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState`, which
   // now includes hidden-but-initialized channels; filter to the visible ones so
@@ -106,7 +208,14 @@ export const useChannelsLayer = (
   // thus in `selections` and viv's per-selection hoverData) — the column index
   // and the visible index diverge as soon as any hidden channel precedes a
   // visible one.
-  const visibleChannels = useMemo(() => visibleChannelsOfColumns(stableColumns), [stableColumns]);
+  const visibleChannels = useMemo(() => {
+    const result: { id: string; color: number[]; selectionIndex: number }[] = [];
+    for (let i = 0; i < ids.length; i++) {
+      if (!channelsVisible[i]) continue;
+      result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255], selectionIndex: i });
+    }
+    return result;
+  }, [ids, colors, channelsVisible]);
 
   const getTooltipItems = useCallback(
     (info: PickingInfo): LayerTooltipItem[] => {
