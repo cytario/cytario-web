@@ -115,6 +115,38 @@ describe("callback loader", () => {
     expect(response.headers.get("Location")).toBe("/dashboard");
   });
 
+  test("an org-path return_to wins over a persisted preference for a different org", async () => {
+    // Second-org creation re-mints through /auth/refresh with the inner
+    // return_to pointing at the NEW org. The callback must honor that path —
+    // collapsing it to the default org would land the user back in their OLD
+    // org right after creating a new one.
+    vi.mocked(getPreferredOrg).mockResolvedValue("org1");
+    vi.mocked(validateOAuthState).mockResolvedValue({
+      ...mockStateData,
+      redirectTo: "/org2/",
+    });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/org2/");
+  });
+
+  test("only a bare / is rewritten to the default org; other paths pass through", async () => {
+    vi.mocked(getPreferredOrg).mockResolvedValue("org1");
+    vi.mocked(validateOAuthState).mockResolvedValue({
+      ...mockStateData,
+      redirectTo: "/org1/settings",
+    });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/org1/settings");
+  });
+
   test("a zero-org session redirects to the bare root (onboarding funnel)", async () => {
     vi.mocked(profileFromAccessToken).mockReturnValue(mock.user({ organizations: {} }));
     vi.mocked(validateOAuthState).mockResolvedValue({ ...mockStateData, redirectTo: undefined });
