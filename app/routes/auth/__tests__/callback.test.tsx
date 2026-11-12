@@ -5,6 +5,7 @@ import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { profileFromAccessToken } from "~/.server/auth/getUserInfo";
 import { validateOAuthState } from "~/.server/auth/oauthState";
 import { getPreferredOrg, setPreferredOrg } from "~/.server/auth/orgPreference.server";
+import { applyPendingGroupAssignments } from "~/.server/auth/pendingGroupAssignments";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import mock from "~/utils/__tests__/__mocks__";
@@ -42,6 +43,10 @@ vi.mock("~/.server/auth/verifyIdToken", () => ({
   verifyIdToken: vi.fn(),
 }));
 
+vi.mock("~/.server/auth/pendingGroupAssignments", () => ({
+  applyPendingGroupAssignments: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock("~/config", () => ({
   cytarioConfig: {
     endpoints: { webapp: "https://app.example.com" },
@@ -73,6 +78,7 @@ describe("callback loader", () => {
     vi.mocked(profileFromAccessToken).mockReturnValue(mockUser);
     vi.mocked(getPreferredOrg).mockResolvedValue(null);
     vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
+    vi.mocked(applyPendingGroupAssignments).mockResolvedValue(false);
   });
 
   test("a preference the token still carries drives the landing redirect", async () => {
@@ -300,5 +306,31 @@ describe("callback loader", () => {
     await loader({ request } as LoaderFunctionArgs);
 
     expect(sessionStorage.commitSession).toHaveBeenCalled();
+  });
+
+  test("redirects through /auth/refresh when pending group assignments were applied", async () => {
+    vi.mocked(applyPendingGroupAssignments).mockResolvedValue(true);
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect((response as Response).status).toBe(302);
+    expect((response as Response).headers.get("location")).toBe(
+      "/auth/refresh?return_to=%2Fdashboard",
+    );
+    // Applied per member org — the mock user belongs to org1.
+    expect(applyPendingGroupAssignments).toHaveBeenCalledWith(mockUser, "org1");
+  });
+
+  test("redirects directly to the target when no assignments were applied", async () => {
+    vi.mocked(applyPendingGroupAssignments).mockResolvedValue(false);
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect((response as Response).status).toBe(302);
+    expect((response as Response).headers.get("location")).toBe("/dashboard");
   });
 });
