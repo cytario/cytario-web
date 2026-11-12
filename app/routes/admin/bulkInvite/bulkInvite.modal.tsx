@@ -1,22 +1,25 @@
 import { Button } from "@cytario/design";
 import { useState } from "react";
-import { useNavigate, useNavigation } from "react-router";
+import { useLoaderData, useNavigate, useNavigation } from "react-router";
 
 import { BulkInviteForm } from "./bulkInvite.form";
+import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { RouteModal } from "~/components/RouteModal";
 
 export { bulkInviteAction as action } from "./bulkInvite.action";
+export { bulkInviteLoader as loader } from "./bulkInvite.loader";
 
 export default function BulkInviteModal() {
   const navigate = useNavigate();
   const { state } = useNavigation();
   const isSubmitting = state === "submitting";
+  const { groups } = useLoaderData<{ groups: GroupInfo[] }>();
 
   const [nonEmptyCount, setNonEmptyCount] = useState(0);
 
   return (
     <RouteModal title="Bulk Invite Users" size="xl">
-      <BulkInviteForm onNonEmptyCountChange={setNonEmptyCount} />
+      <BulkInviteForm groups={groups} onNonEmptyCountChange={setNonEmptyCount} />
       <footer className="flex gap-3 justify-end mt-6">
         <Button onPress={() => navigate(-1)} variant="secondary">
           Cancel

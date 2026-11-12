@@ -1,26 +1,30 @@
-import { Description, Fieldset, Input } from "@cytario/design";
+import { CheckboxGroup, Description, Fieldset, Input } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useSubmit } from "react-router";
 
-import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
+import {
+  type InviteUserFormData,
+  type InviteUserInput,
+  inviteUserSchema,
+} from "./inviteUser.schema";
+import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 
 interface InviteUserFormProps {
-  scope: string;
+  groups: GroupInfo[];
   inviteAnother?: boolean;
   actionData?: { success?: boolean; message?: string };
 }
 
-export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserFormProps) {
+export function InviteUserForm({ groups, inviteAnother, actionData }: InviteUserFormProps) {
   const submit = useSubmit();
 
-  const { control, handleSubmit, reset } = useForm<InviteUserFormData>({
+  const { control, handleSubmit, reset } = useForm<InviteUserInput, unknown, InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
       email: "",
-      firstName: "",
-      lastName: "",
+      groupIds: [],
     },
     mode: "onBlur",
   });
@@ -29,23 +33,24 @@ export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserF
     if (actionData?.success === true) {
       reset({
         email: "",
-        firstName: "",
-        lastName: "",
+        groupIds: [],
       });
     }
   }, [actionData, reset]);
 
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, String(value));
-    });
-    formData.append("scope", scope);
+    formData.append("email", data.email);
+    for (const groupId of data.groupIds) {
+      formData.append("groupIds", groupId);
+    }
     if (inviteAnother) {
       formData.append("inviteAnother", "true");
     }
     submit(formData, { method: "post" });
   };
+
+  const groupItems = groups.map((group) => ({ id: group.id, name: group.path }));
 
   return (
     <form id="invite-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -67,35 +72,20 @@ export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserF
         />
         <Controller
           control={control}
-          name="firstName"
-          render={({ field, fieldState }) => (
-            <Input
-              label="First name (optional)"
-              size="lg"
-              value={field.value ?? ""}
-              onChange={field.onChange}
+          name="groupIds"
+          render={({ field }) => (
+            <CheckboxGroup
+              label="Groups"
+              items={groupItems}
+              value={field.value}
+              onChange={(values) => field.onChange(values)}
               onBlur={field.onBlur}
-              errorMessage={fieldState.error?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="lastName"
-          render={({ field, fieldState }) => (
-            <Input
-              label="Last name (optional)"
-              size="lg"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              errorMessage={fieldState.error?.message}
             />
           )}
         />
         <Description size="sm">
-          Keycloak emails the invite to the address above. Group membership can be assigned after
-          the user accepts.
+          The invited user joins the selected groups at their first login and sees their shared data
+          immediately.
         </Description>
       </Fieldset>
     </form>
