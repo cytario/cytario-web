@@ -89,6 +89,19 @@ describe("refresh loader (silent re-authentication primitive)", () => {
     );
   });
 
+  test("an org-path return_to is carried into the state verbatim", async () => {
+    // The admin portal's second-org flow rewrites the inner return_to to the
+    // new org's path before bouncing here; the re-mint must preserve it so
+    // the callback lands the user in the org they just created.
+    (getSession as Mock).mockResolvedValue(authenticatedSession());
+    primeOAuthState();
+
+    const request = new Request("http://localhost/auth/refresh?return_to=/org2/");
+    await loader({ request } as LoaderFunctionArgs);
+
+    expect(generateOAuthState).toHaveBeenCalledWith("/org2/");
+  });
+
   // `Sec-`-prefixed headers are forbidden header names the Request constructor
   // silently drops, so stub the request shape to carry Sec-Fetch-Mode.
   const requestWithFetchMode = (urlStr: string, mode: string) =>
