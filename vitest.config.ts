@@ -7,11 +7,17 @@ dotenv.config({ path: ".env.test" });
 
 // Handle ?url imports for static assets (WASM, DuckDB's worker JS) in tests:
 // inlined deps run through this pipeline; externalized ones are denied by
-// vite's module server before plugins ever see them.
+// vite's module server before plugins ever see them. CSS files (the report
+// viewer's bundled KaTeX stylesheet) need the same path rewriting — but only
+// once opted into css processing via test.css.include below, which is where
+// the pipeline lets the transform see them.
 const assetUrlPlugin = () => ({
   name: "asset-url-loader",
   transform(_code: string, id: string) {
-    if (id.includes("?url") && (id.includes(".wasm") || id.includes(".worker.js"))) {
+    if (
+      id.includes("?url") &&
+      (id.includes(".wasm") || id.includes(".worker.js") || id.includes(".css"))
+    ) {
       const assetPath = id.split("?")[0];
       return {
         code: `export default ${JSON.stringify(assetPath)};`,
@@ -57,6 +63,9 @@ export default defineConfig({
       deps: {
         inline: ["@cornerstonejs/codec-openjpeg", "@cytario/design", "@duckdb/duckdb-wasm"],
       },
+    },
+    css: {
+      include: [/katex/],
     },
     coverage: {
       include: ["app/**"],
