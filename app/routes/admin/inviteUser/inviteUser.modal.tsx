@@ -1,11 +1,13 @@
 import { Button, Checkbox, useToast } from "@cytario/design";
 import { useEffect, useState } from "react";
-import { useActionData, useNavigate, useNavigation, useOutletContext } from "react-router";
+import { useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
 
 import { InviteUserForm } from "./inviteUser.form";
+import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { RouteModal } from "~/components/RouteModal";
 
 export { inviteUserAction as action } from "./inviteUser.action";
+export { inviteUserLoader as loader } from "./inviteUser.loader";
 
 export default function InviteModal() {
   const navigate = useNavigate();
@@ -13,7 +15,7 @@ export default function InviteModal() {
   const isSubmitting = state === "submitting";
   const { toast } = useToast();
 
-  const { scope } = useOutletContext<{ scope: string }>();
+  const { groups } = useLoaderData<{ groups: GroupInfo[] }>();
 
   const [inviteAnother, setInviteAnother] = useState(false);
 
@@ -32,7 +34,7 @@ export default function InviteModal() {
 
   return (
     <RouteModal title="Invite User">
-      <InviteUserForm scope={scope} inviteAnother={inviteAnother} actionData={actionData} />
+      <InviteUserForm groups={groups} inviteAnother={inviteAnother} actionData={actionData} />
       <footer className="flex items-center gap-3 mt-6">
         <Checkbox isSelected={inviteAnother} onChange={setInviteAnother} className="mr-auto">
           <span className="text-sm text-muted-foreground">Invite another</span>

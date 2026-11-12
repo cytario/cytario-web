@@ -25,6 +25,10 @@ export default defineConfig({
     alias: {
       "~": path.resolve(__dirname, "app"),
     },
+    // A linked @cytario/design (CYTARIO_LOCAL_PATHS / file: install) resolves
+    // react from its own node_modules — a second react instance breaks hooks
+    // in happy-dom. Pin the singletons to this app's copies.
+    dedupe: ["react", "react-dom"],
   },
   assetsInclude: ["**/*.wasm"],
   test: {

@@ -10,6 +10,7 @@ export {
   getGroupWithMembers,
   type GroupInfo,
   type GroupWithMembers,
+  listScopeGroups,
   type UserWithGroups,
 } from "./orgGroups";
 
