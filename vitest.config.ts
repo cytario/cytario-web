@@ -5,14 +5,18 @@ import { defineConfig } from "vitest/config";
 
 dotenv.config({ path: ".env.test" });
 
-// Handle ?url imports for WASM files in tests
-const wasmUrlPlugin = () => ({
-  name: "wasm-url-loader",
+// Handle ?url imports in tests. Vite's asset pipeline turns `?url` specifiers
+// into root-relative URLs (`/node_modules/...`), which break consumers that
+// need a real path (emscripten's locateFile opens the file); for CSS the
+// module would come back empty unless the file is opted into css processing
+// via test.css.include. The transform rewrites both to the absolute path.
+const urlLoaderPlugin = () => ({
+  name: "url-loader",
   transform(_code: string, id: string) {
-    if (id.includes("?url") && id.includes(".wasm")) {
-      const wasmPath = id.split("?")[0];
+    if (id.includes("?url")) {
+      const filePath = id.split("?")[0]!;
       return {
-        code: `export default ${JSON.stringify(wasmPath)};`,
+        code: `export default ${JSON.stringify(filePath)};`,
         map: null,
       };
     }
@@ -20,7 +24,7 @@ const wasmUrlPlugin = () => ({
 });
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), wasmUrlPlugin()],
+  plugins: [tsconfigPaths(), urlLoaderPlugin()],
   resolve: {
     alias: {
       "~": path.resolve(__dirname, "app"),
@@ -46,6 +50,9 @@ export default defineConfig({
       deps: {
         inline: ["@cornerstonejs/codec-openjpeg", "@cytario/design"],
       },
+    },
+    css: {
+      include: [/katex/],
     },
     coverage: {
       include: ["app/**"],

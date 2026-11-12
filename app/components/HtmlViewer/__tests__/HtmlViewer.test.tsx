@@ -96,4 +96,81 @@ describe("HtmlViewer", () => {
     resolveLoad?.();
     // No state update after unmount — the test would fail on React's act warning.
   });
+
+  test("a bridge request from the frame is answered through the signed-read pipeline", async () => {
+    const reportWithAsset = `<!DOCTYPE html><html><body><h1>Report</h1></body></html>`;
+    const bridgingFetch: SignedFetch = (async (url: string) => {
+      if (/report\.html$/.test(url)) {
+        return new Response(reportWithAsset, {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        });
+      }
+      if (/data\.json$/.test(url)) {
+        return new Response('{"rows":42}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("Not Found", { status: 404 });
+    }) as SignedFetch;
+    const { container } = renderViewer(bridgingFetch);
+
+    const iframe = await waitFor(() => {
+      const frame = container.querySelector("iframe");
+      expect(frame).not.toBeNull();
+      return frame as HTMLIFrameElement;
+    });
+
+    // A shimmed relative fetch inside the frame postMessages the host. The
+    // host replies to the frame's contentWindow — spy on it to see the reply.
+    const frameWindow = iframe.contentWindow;
+    expect(frameWindow).not.toBeNull();
+    const replies: unknown[] = [];
+    const postSpy = vi.spyOn(frameWindow!, "postMessage").mockImplementation((message: unknown) => {
+      replies.push(message);
+    });
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        source: frameWindow,
+        data: {
+          source: "cytario-report-bridge",
+          requestId: "req1",
+          ref: "report_files/data.json",
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(replies.length).toBeGreaterThan(0);
+    });
+    const response = replies[0] as {
+      requestId: string;
+      status: number;
+      contentType: string | null;
+      bodyBase64: string | null;
+    };
+    expect(response.requestId).toBe("req1");
+    expect(response.status).toBe(200);
+    expect(response.contentType).toBe("application/json");
+    expect(atob(response.bodyBase64!)).toBe('{"rows":42}');
+    postSpy.mockRestore();
+  });
+
+  test("bridge requests from a source other than the report frame are ignored", async () => {
+    const otherWindow = window.open() ?? window;
+    const request = new MessageEvent("message", {
+      source: otherWindow,
+      data: {
+        source: "cytario-report-bridge",
+        requestId: "req2",
+        ref: "report_files/data.json",
+      },
+    });
+    const postSpy = vi.spyOn(otherWindow, "postMessage").mockImplementation(() => {});
+    window.dispatchEvent(request);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(postSpy).not.toHaveBeenCalled();
+    postSpy.mockRestore();
+  });
 });

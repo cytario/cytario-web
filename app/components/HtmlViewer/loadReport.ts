@@ -1,3 +1,5 @@
+import { katexStylesheet, renderMathSpans } from "./renderMath";
+import { buildReportShim } from "./reportShim";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import type { SignedFetch } from "~/utils/signedFetch";
 
@@ -125,17 +127,96 @@ class InlineBudget {
 }
 
 /**
+ * Serves relative asset refs of one report through the entry document's
+ * signed-read path, enforcing the preview caps. `fetchAsset` is also exposed
+ * to the interactive viewer's postMessage bridge: runtime fetches from inside
+ * the sandboxed frame are satisfied by the same path, in the host context.
+ */
+class ReportAssembler {
+  private readonly assetCache = new Map<string, Promise<Asset | null>>();
+
+  constructor(
+    private readonly resourceId: string,
+    private readonly signedFetch: SignedFetch,
+    private readonly budget: InlineBudget,
+  ) {}
+
+  /** Resolves a ref against a base object key; null = not an object key or missing. */
+  assetForKeyRef(baseKey: string, ref: string): Promise<Asset | null> {
+    const objectKey = resolveObjectKey(baseKey, ref);
+    if (objectKey === null) return Promise.resolve(null);
+    return this.fetchAssetByKey(objectKey).catch((error: unknown) => {
+      if (isReportSizeError(error)) throw error;
+      return null;
+    });
+  }
+
+  /** Resolves a document ref (relative to the entry) to an asset. */
+  assetForRef(ref: string): Promise<Asset | null> {
+    return this.assetForKeyRef(this.pathName, ref);
+  }
+
+  async dataUriForRef(baseKey: string, ref: string): Promise<string | null> {
+    const asset = await this.assetForKeyRef(baseKey, ref);
+    return asset === null ? null : toDataUri(asset.bytes, asset.contentType);
+  }
+
+  async textForRef(ref: string): Promise<string | null> {
+    const asset = await this.assetForRef(ref);
+    return asset === null ? null : new TextDecoder("utf-8").decode(asset.bytes);
+  }
+
+  private get pathName(): string {
+    return resolveResourceId(this.resourceId).pathName;
+  }
+
+  private fetchAssetByKey(objectKey: string): Promise<Asset | null> {
+    let promise = this.assetCache.get(objectKey);
+    if (promise === undefined) {
+      const assetResourceId = `${this.resourceId.slice(0, this.resourceId.indexOf("/"))}/${objectKey}`;
+      const assetUrl = resolveResourceId(assetResourceId).httpsUrl;
+      promise = this.signedFetch(assetUrl).then(async (response) => {
+        if (!response.ok) return null;
+        const assetLength = Number(response.headers.get("content-length") ?? 0);
+        if (assetLength > MAX_ASSET_BYTES) {
+          throw reportTooLarge(`an asset larger than ${MAX_ASSET_BYTES / (1024 * 1024)} MB`);
+        }
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength === 0) return null;
+        this.budget.chargeAsset(buffer.byteLength);
+        return {
+          bytes: new Uint8Array(buffer),
+          contentType: response.headers.get("content-type"),
+        };
+      });
+      this.assetCache.set(objectKey, promise);
+    }
+    return promise;
+  }
+}
+
+/**
+ * Resolves a relative asset ref through the entry document's signed-read
+ * path (enforcing the preview caps); null when the ref is not an object-key
+ * ref or the asset is missing. Serves the viewer's postMessage bridge:
+ * runtime fetches from inside the sandboxed frame.
+ */
+export type ReportAssetFetcher = ReportAssembler["assetForRef"];
+
+/**
  * Fetch and rewrite one report. Returns a self-contained document string:
- * images/media/fonts as `data:` URIs, scripts and stylesheets inlined.
- * External absolute URLs stay untouched — the inherited host CSP governs
- * them. Missing sibling assets degrade (refs dropped or elements removed)
+ * images/media/fonts as `data:` URIs, scripts and stylesheets inlined, the
+ * frame-side shim as the first head script (fragment-link scrolling and the
+ * relative-fetch bridge), and TeX math pre-rendered host-side. External
+ * absolute URLs stay untouched — the inherited host CSP governs them at
+ * runtime. Missing sibling assets degrade (refs dropped or elements removed)
  * rather than failing the render; size/count overruns throw a size error
  * identified by {@link isReportSizeError}.
  */
 export async function loadReportDocument(
   resourceId: string,
   signedFetch: SignedFetch,
-): Promise<string> {
+): Promise<{ documentHtml: string; fetchAsset: ReportAssetFetcher }> {
   const { httpsUrl, pathName } = resolveResourceId(resourceId);
   const entryResponse = await signedFetch(httpsUrl);
   if (!entryResponse.ok) {
@@ -152,56 +233,25 @@ export async function loadReportDocument(
 
   const budget = new InlineBudget();
   budget.totalBytes = html.length;
+  const assembler = new ReportAssembler(resourceId, signedFetch, budget);
   const doc = new DOMParser().parseFromString(html, "text/html");
 
-  // One fetch per unique object key — deduped across scripts, images, css.
-  const assetCache = new Map<string, Promise<Asset | null>>();
-  const fetchAssetByKey = (objectKey: string): Promise<Asset | null> => {
-    let promise = assetCache.get(objectKey);
-    if (promise === undefined) {
-      const assetResourceId = `${resourceId.slice(0, resourceId.indexOf("/"))}/${objectKey}`;
-      const assetUrl = resolveResourceId(assetResourceId).httpsUrl;
-      promise = signedFetch(assetUrl).then(async (response) => {
-        if (!response.ok) return null;
-        const assetLength = Number(response.headers.get("content-length") ?? 0);
-        if (assetLength > MAX_ASSET_BYTES) {
-          throw reportTooLarge(`an asset larger than ${MAX_ASSET_BYTES / (1024 * 1024)} MB`);
-        }
-        const buffer = await response.arrayBuffer();
-        if (buffer.byteLength === 0) return null;
-        budget.chargeAsset(buffer.byteLength);
-        return {
-          bytes: new Uint8Array(buffer),
-          contentType: response.headers.get("content-type"),
-        };
-      });
-      assetCache.set(objectKey, promise);
+  // Frame-side shim, first in <head> so it is installed before any report
+  // script runs.
+  const shim = doc.createElement("script");
+  shim.textContent = buildReportShim();
+  doc.head.insertBefore(shim, doc.head.firstChild);
+
+  // Math is rendered host-side: the frame cannot load a math runtime, but
+  // KaTeX's output is plain HTML+CSS the frame can display as-is.
+  if (renderMathSpans(doc) > 0) {
+    const css = await katexStylesheet(signedFetch);
+    if (css !== null) {
+      const style = doc.createElement("style");
+      style.textContent = css;
+      doc.head.appendChild(style);
     }
-    return promise;
-  };
-
-  const dataUriForRef = async (baseKey: string, ref: string): Promise<string | null> => {
-    const asset = await assetForKeyRef(baseKey, ref);
-    return asset === null ? null : toDataUri(asset.bytes, asset.contentType);
-  };
-
-  /** Resolves a ref against a base object key; null = not an object key or missing. */
-  const assetForKeyRef = (baseKey: string, ref: string): Promise<Asset | null> => {
-    const objectKey = resolveObjectKey(baseKey, ref);
-    if (objectKey === null) return Promise.resolve(null);
-    return fetchAssetByKey(objectKey).catch((error: unknown) => {
-      if (isReportSizeError(error)) throw error;
-      return null;
-    });
-  };
-
-  /** Resolves a document ref (relative to the entry) to an asset. */
-  const assetForRef = (ref: string): Promise<Asset | null> => assetForKeyRef(pathName, ref);
-
-  const textForRef = async (ref: string): Promise<string | null> => {
-    const asset = await assetForRef(ref);
-    return asset === null ? null : new TextDecoder("utf-8").decode(asset.bytes);
-  };
+  }
 
   // Stylesheets: <link rel="stylesheet"> → inline <style> with url() assets inlined.
   // Covers both object-store refs and data: URIs (self-contained exports — the
@@ -209,7 +259,9 @@ export async function loadReportDocument(
   for (const link of [...doc.querySelectorAll('link[rel~="stylesheet" i][href]')]) {
     const href = link.getAttribute("href")!;
     const dataUri = parseDataUri(href);
-    const css = dataUri ? new TextDecoder("utf-8").decode(dataUri.bytes) : await textForRef(href);
+    const css = dataUri
+      ? new TextDecoder("utf-8").decode(dataUri.bytes)
+      : await assembler.textForRef(href);
     if (css === null) {
       if (resolveObjectKey(pathName, href) !== null) link.remove();
       continue;
@@ -219,7 +271,11 @@ export async function loadReportDocument(
     // its refs can only be absolute or data: and are left as written.
     const stylesheetKey = resolveObjectKey(pathName, href);
     const inlinedCss =
-      stylesheetKey !== null ? await inlineCssUrls(css, stylesheetKey, dataUriForRef) : css;
+      stylesheetKey !== null
+        ? await inlineCssUrls(css, stylesheetKey, (baseKey, ref) =>
+            assembler.dataUriForRef(baseKey, ref),
+          )
+        : css;
     const style = doc.createElement("style");
     style.textContent = inlinedCss;
     link.replaceWith(style);
@@ -230,13 +286,15 @@ export async function loadReportDocument(
     styleElement.textContent = await inlineCssUrls(
       styleElement.textContent ?? "",
       pathName,
-      dataUriForRef,
+      (baseKey, ref) => assembler.dataUriForRef(baseKey, ref),
     );
   }
   for (const styled of [...doc.querySelectorAll("[style]")]) {
     styled.setAttribute(
       "style",
-      await inlineCssUrls(styled.getAttribute("style") ?? "", pathName, dataUriForRef),
+      await inlineCssUrls(styled.getAttribute("style") ?? "", pathName, (baseKey, ref) =>
+        assembler.dataUriForRef(baseKey, ref),
+      ),
     );
   }
 
@@ -247,7 +305,9 @@ export async function loadReportDocument(
   for (const script of [...doc.querySelectorAll("script[src]")]) {
     const src = script.getAttribute("src")!;
     const dataUri = parseDataUri(src);
-    const body = dataUri ? new TextDecoder("utf-8").decode(dataUri.bytes) : await textForRef(src);
+    const body = dataUri
+      ? new TextDecoder("utf-8").decode(dataUri.bytes)
+      : await assembler.textForRef(src);
     if (body === null) {
       if (resolveObjectKey(pathName, src) !== null) script.remove();
       continue;
@@ -263,7 +323,7 @@ export async function loadReportDocument(
   // Images, media, tracks, sources: rewrite src to data URIs.
   for (const element of [...doc.querySelectorAll("[src]")]) {
     const src = element.getAttribute("src")!;
-    const replacement = await dataUriForRef(pathName, src);
+    const replacement = await assembler.dataUriForRef(pathName, src);
     if (replacement !== null) element.setAttribute("src", replacement);
   }
   for (const element of [...doc.querySelectorAll("[srcset]")]) {
@@ -272,17 +332,20 @@ export async function loadReportDocument(
       const trimmed = candidate.trim();
       if (!trimmed) continue;
       const [url, ...descriptors] = trimmed.split(/\s+/);
-      const replacement = url ? await dataUriForRef(pathName, url) : null;
+      const replacement = url ? await assembler.dataUriForRef(pathName, url) : null;
       parts.push([replacement ?? url, ...descriptors].join(" "));
     }
     element.setAttribute("srcset", parts.join(", "));
   }
   for (const video of [...doc.querySelectorAll("video[poster]")]) {
-    const replacement = await dataUriForRef(pathName, video.getAttribute("poster")!);
+    const replacement = await assembler.dataUriForRef(pathName, video.getAttribute("poster")!);
     if (replacement !== null) video.setAttribute("poster", replacement);
   }
 
-  return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
+  return {
+    documentHtml: `<!DOCTYPE html>${doc.documentElement.outerHTML}`,
+    fetchAsset: (ref) => assembler.assetForRef(ref),
+  };
 }
 
 const CSS_URL_PATTERN = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)'" ][^)]*))\s*\)/g;

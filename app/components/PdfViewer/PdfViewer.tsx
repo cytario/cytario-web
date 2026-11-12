@@ -1,6 +1,6 @@
 import { Button } from "@cytario/design";
 import { type PDFDocumentProxy } from "pdfjs-dist";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { loadPdfDocument, MAX_ZOOM, MIN_ZOOM, renderPdfPage, type RenderHandle } from "./loadPdf";
 import { LoaderView } from "../Loader/LoaderView";
@@ -101,6 +101,36 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
   const hasPrev = pageNumber > 1;
   const hasNext = pageNumber < totalPages;
 
+  // The selector's text mirrors `pageNumber` until the user edits it; Enter or
+  // blur commits (clamped to the page range), and the navigation buttons keep
+  // both states in step — no setState-in-effect needed for the mirror.
+  const [pageInput, setPageInput] = useState("1");
+
+  const goToPage = useCallback(
+    (page: number) => {
+      const clamped = Math.min(Math.max(page, 1), totalPages || 1);
+      setPageNumber(clamped);
+      setPageInput(String(clamped));
+    },
+    [totalPages],
+  );
+
+  const commitPageInput = useCallback(
+    (raw: string) => {
+      const parsed = Number.parseInt(raw, 10);
+      if (Number.isNaN(parsed)) {
+        setPageInput(String(pageNumber));
+        return;
+      }
+      goToPage(parsed);
+    },
+    [goToPage, pageNumber],
+  );
+
+  const handlePageInputChanged = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setPageInput(event.target.value);
+  }, []);
+
   if (loading) {
     return <LoaderView label="Loading document…" />;
   }
@@ -123,17 +153,36 @@ export const PdfViewer = ({ resourceId, signedFetch }: PdfViewerProps) => {
           <Button
             variant="secondary"
             isDisabled={!hasPrev}
-            onPress={() => setPageNumber((n) => Math.max(1, n - 1))}
+            onPress={() => goToPage(pageNumber - 1)}
           >
             Previous
           </Button>
-          <span className="text-sm text-muted-foreground tabular-nums" aria-live="polite">
+          <span aria-live="polite" className="sr-only">
             Page {pageNumber} of {totalPages}
           </span>
+          <label className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span>Page</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages || 1}
+              value={pageInput}
+              onChange={handlePageInputChanged}
+              onBlur={(event) => commitPageInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  commitPageInput(event.currentTarget.value);
+                  event.currentTarget.blur();
+                }
+              }}
+              className="w-16 rounded-md border bg-background px-2 py-1 text-right text-foreground tabular-nums"
+            />
+            <span>of {totalPages}</span>
+          </label>
           <Button
             variant="secondary"
             isDisabled={!hasNext}
-            onPress={() => setPageNumber((n) => Math.min(totalPages, n + 1))}
+            onPress={() => goToPage(pageNumber + 1)}
           >
             Next
           </Button>
