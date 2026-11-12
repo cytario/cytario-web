@@ -9,6 +9,7 @@ import {
   listOrganizationGroups,
 } from "./organizations";
 import { ORG_ROOT_SCOPE } from "~/utils/authorization";
+import { compareGroupPaths } from "~/utils/groupPath";
 
 async function attachOrgSubtree(orgId: string, root: KeycloakGroup): Promise<KeycloakGroup> {
   const children = await listOrganizationGroups(orgId, root.id);
@@ -79,6 +80,19 @@ export function flattenGroupsWithIds(
   }
 
   return accumulator;
+}
+
+// The flat, sorted group list of an admin scope for its membership UIs —
+// the synthesised org-root node is not a real group and is excluded.
+export async function listScopeGroups(orgId: string, scope: string): Promise<GroupInfo[]> {
+  const group = await getGroupWithMembers(orgId, scope);
+  return (
+    scope === ORG_ROOT_SCOPE
+      ? (group?.subGroups ?? []).flatMap((sg) => flattenGroupsWithIds(sg))
+      : group
+        ? flattenGroupsWithIds(group)
+        : []
+  ).sort((a, b) => compareGroupPaths(a.path, b.path));
 }
 
 export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {
