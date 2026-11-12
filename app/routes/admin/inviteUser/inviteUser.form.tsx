@@ -1,4 +1,4 @@
-import { CheckboxGroup, Description, Fieldset, Input } from "@cytario/design";
+import { Description, Fieldset, Input, MultiSelectComboBox } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -74,11 +74,12 @@ export function InviteUserForm({ groups, inviteAnother, actionData }: InviteUser
           control={control}
           name="groupIds"
           render={({ field }) => (
-            <CheckboxGroup
+            <MultiSelectComboBox
               label="Groups"
               items={groupItems}
+              placeholder="Search groups…"
               value={field.value}
-              onChange={(values) => field.onChange(values)}
+              onChange={field.onChange}
               onBlur={field.onBlur}
             />
           )}

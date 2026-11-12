@@ -1,4 +1,4 @@
-import { Button, CheckboxGroup, Description, Icon, IconButton, Input } from "@cytario/design";
+import { Button, Description, Icon, IconButton, Input, MultiSelectComboBox } from "@cytario/design";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSubmit } from "react-router";
 
@@ -122,7 +122,13 @@ export function BulkInviteForm({ groups, onNonEmptyCountChange }: BulkInviteForm
         handleSubmit();
       }}
     >
-      <CheckboxGroup label="Groups" items={groupItems} value={groupIds} onChange={setGroupIds} />
+      <MultiSelectComboBox
+        label="Groups"
+        items={groupItems}
+        placeholder="Search groups…"
+        value={groupIds}
+        onChange={(keys) => setGroupIds(keys.map(String))}
+      />
 
       <Description size="sm">
         The invited users join the selected groups at their first login and see their shared data
