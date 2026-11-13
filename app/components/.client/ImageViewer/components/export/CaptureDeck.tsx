@@ -89,6 +89,10 @@ export const CaptureDeck = ({
     <div style={hidden ? { ...HIDDEN_STYLE, ...style } : style} aria-hidden={hidden || undefined}>
       <DeckGL
         ref={deckRef}
+        // Distinct canvas id: without it the capture deck duplicates the
+        // live canvas's default "deckgl-overlay" id, making that id ambiguous
+        // in the DOM and in e2e selectors (same pitfall as ImagePreview).
+        id="capture-deck-canvas"
         width={width}
         height={height}
         views={[view]}

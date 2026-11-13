@@ -1,6 +1,7 @@
 import { ToastProvider } from "@cytario/design";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { useStore } from "zustand";
 
@@ -26,13 +27,27 @@ vi.mock("~/utils/db/getTileDataWasm", () => ({
   readAllAnnotations: vi.fn().mockResolvedValue([]),
 }));
 
-const runExportMock = vi.fn();
+const composeCaptureMock = vi.fn();
 const commitExportAnnotationMock = vi.fn();
 
-vi.mock("../runExport", () => ({
-  runExport: (...args: unknown[]) => runExportMock(...args),
-  downloadExport: vi.fn(),
-  copyExportToClipboard: vi.fn().mockResolvedValue(undefined),
+vi.mock("../composeCapture", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../composeCapture")>();
+  return {
+    ...actual,
+    composeCapture: (...args: unknown[]) => composeCaptureMock(...args),
+    copyExportToClipboard: vi.fn().mockResolvedValue(undefined),
+    downloadExport: vi.fn(),
+  };
+});
+
+vi.mock("../CaptureDeck", () => ({
+  // The deck settles synchronously in tests: on mount it reports its canvas.
+  CaptureDeck: ({ onSettled }: { onSettled: (canvas: HTMLCanvasElement) => void }) => {
+    React.useEffect(() => {
+      onSettled(document.createElement("canvas"));
+    }, [onSettled]);
+    return null;
+  },
 }));
 
 vi.mock("../commitExportAnnotation", () => ({
@@ -177,7 +192,7 @@ const within = () => screen.getByRole("region", { name: "Capture and export" });
 describe("Capture and export section", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    runExportMock.mockResolvedValue(exportResult());
+    composeCaptureMock.mockResolvedValue(exportResult());
     buildStore();
   });
 
@@ -291,9 +306,9 @@ describe("Capture and export section", () => {
     await user.click(screen.getByRole("button", { name: /download/i }));
 
     await waitFor(() => {
-      expect(runExportMock).toHaveBeenCalledTimes(1);
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
     });
-    const call = runExportMock.mock.calls[0][0];
+    const call = composeCaptureMock.mock.calls[0][1];
     expect(call.preset).toMatchObject({ id: "presentation", dpi: 300 });
     expect(call.decorations).toMatchObject({
       scaleBar: true,
@@ -303,7 +318,6 @@ describe("Capture and export section", () => {
       attribution: true,
     });
     expect(call.imageBasename).toBe("slide");
-    expect(call.regionFeatureId).toBeNull();
   });
 
   test("Copy runs the capture once", async () => {
@@ -313,13 +327,13 @@ describe("Capture and export section", () => {
     await user.click(screen.getByRole("button", { name: /^copy$/i }));
 
     await waitFor(() => {
-      expect(runExportMock).toHaveBeenCalledTimes(1);
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
     });
   });
 
   test("shows progress state while the render is pending, then resets on completion", async () => {
     let resolveRender: (value: never) => void;
-    runExportMock.mockImplementation(
+    composeCaptureMock.mockImplementation(
       () => new Promise((resolve) => (resolveRender = resolve as never)),
     );
 
@@ -345,7 +359,7 @@ describe("Capture and export section", () => {
   });
 
   test("a failed capture leaves the error state, not the spinner", async () => {
-    runExportMock.mockRejectedValue(new Error("boom"));
+    composeCaptureMock.mockRejectedValue(new Error("boom"));
 
     const user = userEvent.setup();
     renderSection();
@@ -391,10 +405,9 @@ describe("Capture and export section", () => {
     await user.click(screen.getByRole("button", { name: /download/i }));
 
     await waitFor(() => {
-      expect(runExportMock).toHaveBeenCalledTimes(1);
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
     });
     expect(commitExportAnnotationMock).not.toHaveBeenCalled();
-    expect(runExportMock.mock.calls[0][0].regionFeatureId).toBe("rect-1");
   });
 
   test("selecting a region frames the active panel on the region's extent", async () => {

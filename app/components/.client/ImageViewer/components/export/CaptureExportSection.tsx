@@ -9,8 +9,10 @@ import {
 } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { CaptureDeck } from "./CaptureDeck";
 import { commitExportAnnotation } from "./commitExportAnnotation";
 import {
+  composeCapture,
   RESOLUTION_PRESETS,
   type ExportDecorations,
   type ResolutionPreset,
@@ -18,8 +20,8 @@ import {
 import { copyExportToClipboard, downloadExport } from "./composeCapture";
 import { scaleBarLabelForPixelSize } from "./decorations";
 import { frameCurrentView, frameRegion, REGION_MARGIN } from "./frameExport";
+import { planExport, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
 import { rectangleRegions } from "./regionSelection";
-import { runExport } from "./runExport";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
 import { useCanAnnotate } from "../../utils/useCanAnnotate";
@@ -32,8 +34,20 @@ import { parseResourceId } from "~/utils/resourceId";
 type SourceChoice = "current-view" | "annotation-region";
 type RunState =
   | { phase: "idle" }
-  | { phase: "rendering"; width: number; height: number }
+  | { phase: "rendering"; width: number; height: number; destination: "download" | "clipboard" }
   | { phase: "error"; message: string };
+
+/** An in-flight capture: the resolved plan plus everything the compose and
+ * delivery steps need. The deck that renders `plan` is mounted by the section
+ * — inside the app tree, where the viewer store context exists. */
+interface ActiveRun {
+  plan: CapturePlan;
+  destination: "download" | "clipboard";
+  preset: ResolutionPreset;
+  decorations: ExportDecorations;
+  imageBasename: string;
+  regionFeatureId: string | null;
+}
 
 const DEFAULT_DECORATIONS: ExportDecorations = {
   scaleBar: true,
@@ -78,6 +92,7 @@ export const CaptureExportSection = () => {
   const [decorations, setDecorations] = useState<ExportDecorations>(DEFAULT_DECORATIONS);
   const [createExportAnnotation, setCreateExportAnnotation] = useState(false);
   const [runState, setRunState] = useState<RunState>({ phase: "idle" });
+  const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
 
   const imageBasename = useMemo(() => {
     try {
@@ -180,24 +195,47 @@ export const CaptureExportSection = () => {
 
   const isRendering = runState.phase === "rendering";
 
-  const runCapture = useCallback(
-    async (destination: "download" | "clipboard") => {
-      setRunState({
-        phase: "rendering",
-        width: outputSize?.width ?? 0,
-        height: outputSize?.height ?? 0,
-      });
-      let failed = false;
-      try {
-        const result = await runExport({
-          store: storeApi,
-          preset,
-          decorations,
-          imageBasename,
-          regionFeatureId: source === "annotation-region" ? regionFeatureId : null,
-        });
+  const fail = useCallback((message: string) => {
+    setActiveRun(null);
+    setRunState({
+      phase: "error",
+      message,
+    });
+  }, []);
 
-        if (destination === "clipboard") {
+  // A run that never settles must fail on a clock, not hang — the deck can
+  // stall on tiles that never arrive.
+  useEffect(() => {
+    if (!activeRun) return;
+    const timer = window.setTimeout(() => {
+      fail("The capture timed out waiting for the image tiles to finish loading.");
+    }, RENDER_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeRun, fail]);
+
+  // The settle path: the in-tree capture deck reports every layer loaded and
+  // hands over its canvas — compose the export from it and deliver.
+  const deliver = useCallback(
+    (run: ActiveRun) =>
+      async (canvas: HTMLCanvasElement): Promise<void> => {
+        let result;
+        try {
+          result = await composeCapture(canvas, {
+            preset: run.preset,
+            imageBasename: run.imageBasename,
+            decorations: run.decorations,
+            level0Width: run.plan.level0Width,
+            level0Height: run.plan.level0Height,
+            millimetersPerLevel0Pixel: run.plan.millimetersPerLevel0Pixel,
+            metadata: run.plan.metadata,
+            legendItems: run.plan.legendItems,
+          });
+        } catch (error) {
+          fail(error instanceof Error ? error.message : "The capture could not be rendered.");
+          return;
+        }
+
+        if (run.destination === "clipboard") {
           try {
             await copyExportToClipboard(result.blob);
           } catch {
@@ -210,7 +248,12 @@ export const CaptureExportSection = () => {
 
         // The provenance region records the exported extent on the current-view
         // path only — a region export's own annotation already records it.
-        if (createExportAnnotation && canAnnotate && source === "current-view" && viewStateActive) {
+        if (
+          createExportAnnotation &&
+          canAnnotate &&
+          run.regionFeatureId === null &&
+          viewStateActive
+        ) {
           const framed = frameCurrentView(viewStateActive, 1);
           const halfWidth = framed.level0Width / 2;
           const halfHeight = framed.level0Height / 2;
@@ -229,7 +272,7 @@ export const CaptureExportSection = () => {
         const notes: string[] = [];
         if (result.clamped) {
           notes.push(
-            `exported at ${result.width} × ${result.height} px (clipped from ${outputSize?.width} × ${outputSize?.height} px)`,
+            `exported at ${result.width} × ${result.height} px (clipped from the requested size)`,
           );
         }
         if (result.upscaled) {
@@ -239,35 +282,61 @@ export const CaptureExportSection = () => {
           variant: "success",
           message: [`Captured ${result.filename}`, ...notes].join(" — "),
         });
+        setActiveRun(null);
+        setRunState({ phase: "idle" });
+      },
+    [fail, toast, storeApi, createExportAnnotation, canAnnotate, viewStateActive],
+  );
+
+  const runCapture = useCallback(
+    (destination: "download" | "clipboard") => {
+      try {
+        const plan = planExport({
+          store: storeApi,
+          preset,
+          regionFeatureId: source === "annotation-region" ? regionFeatureId : null,
+        });
+        setActiveRun({
+          plan,
+          destination,
+          preset,
+          decorations,
+          imageBasename,
+          regionFeatureId: source === "annotation-region" ? regionFeatureId : null,
+        });
+        setRunState({
+          phase: "rendering",
+          width: outputSize?.width ?? 0,
+          height: outputSize?.height ?? 0,
+          destination,
+        });
       } catch (error) {
-        failed = true;
         setRunState({
           phase: "error",
           message: error instanceof Error ? error.message : "The capture could not be rendered.",
         });
-      } finally {
-        // The run ends on success too — without this the spinner and the
-        // disabled run actions stick forever after a completed capture.
-        if (!failed) setRunState({ phase: "idle" });
       }
     },
-    [
-      storeApi,
-      source,
-      regionFeatureId,
-      preset,
-      decorations,
-      imageBasename,
-      toast,
-      createExportAnnotation,
-      canAnnotate,
-      viewStateActive,
-      outputSize,
-    ],
+    [storeApi, source, regionFeatureId, preset, decorations, imageBasename, outputSize],
   );
 
   return (
     <Section id="capture" title="Capture and export" icon="Camera">
+      {/* The capture run's deck mounts HERE — inside the app tree, within the
+       * ViewerStoreProvider the shared layer hooks require. Hidden from
+       * interaction; torn down with the run (or the section) by React. */}
+      {activeRun && (
+        <CaptureDeck
+          viewState={activeRun.plan.viewState}
+          width={activeRun.plan.viewState.width}
+          height={activeRun.plan.viewState.height}
+          devicePixels={activeRun.plan.devicePixels}
+          hidden
+          onSettled={(canvas) => {
+            void deliver(activeRun)(canvas);
+          }}
+        />
+      )}
       <div className="flex flex-col gap-3 p-2 pb-3">
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">Source</span>
@@ -385,15 +454,11 @@ export const CaptureExportSection = () => {
           <Button
             variant="outline"
             isDisabled={isRendering}
-            onPress={() => void runCapture("clipboard")}
+            onPress={() => runCapture("clipboard")}
           >
             Copy
           </Button>
-          <Button
-            variant="primary"
-            isDisabled={isRendering}
-            onPress={() => void runCapture("download")}
-          >
+          <Button variant="primary" isDisabled={isRendering} onPress={() => runCapture("download")}>
             Download
           </Button>
         </div>
