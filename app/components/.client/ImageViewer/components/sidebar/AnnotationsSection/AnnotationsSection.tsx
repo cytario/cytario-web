@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Dialog,
+  EmptyState,
   IconButton,
   Menu,
   MenuItem,
@@ -329,6 +330,19 @@ export const AnnotationsSection = () => {
             selectionOrderedIds={selectionOrderedIds}
           />
         ))}
+
+        {annotationSets.length === 0 && (
+          <EmptyState
+            title={canAnnotate ? "No annotations yet" : "No annotations on this image yet"}
+            description={
+              canAnnotate
+                ? "Add an annotation set, then use the draw tools to add your first region."
+                : "Regions drawn on this image will appear here."
+            }
+            icon="Spline"
+            className="py-4"
+          />
+        )}
       </div>
     </Section>
   );

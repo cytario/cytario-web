@@ -171,6 +171,10 @@ describe("AnnotationsSection — empty own block", () => {
     // ensureOwnSet is not called at render time (only on first draw), so an
     // empty store shows zero blocks until the first draw.
     expect(screen.queryAllByTestId(/^node-link-/)).toHaveLength(0);
+
+    // The section itself never renders blank: with no sets at all, a
+    // section-level empty state explains the gap.
+    expect(screen.getByText("No annotations yet")).toBeInTheDocument();
   });
 
   test("no blocks render when ownUserId is unknown", () => {
@@ -183,6 +187,14 @@ describe("AnnotationsSection — empty own block", () => {
 
     // Restore for subsequent tests.
     currentUserId = "own-user";
+  });
+
+  test("read-only empty images get a view-only empty state", () => {
+    buildStore("read-only");
+
+    renderController();
+
+    expect(screen.getByText("No annotations on this image yet")).toBeInTheDocument();
   });
 });
 
