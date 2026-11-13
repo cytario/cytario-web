@@ -18,7 +18,7 @@ const collectPositions = (coords: unknown, out: Position[]): void => {
 
 /** Pixel-space bounds of one or more GeoJSON geometries combined, or null if
  *  none of them carries coordinates. */
-const geometriesBounds = (geometries: Geometry[]): Bounds | null => {
+export const geometriesBounds = (geometries: Geometry[]): Bounds | null => {
   const positions: Position[] = [];
   for (const geometry of geometries) {
     if (!("coordinates" in geometry)) continue; // GeometryCollection — not emitted by draw modes
