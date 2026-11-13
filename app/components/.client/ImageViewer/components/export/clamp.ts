@@ -13,12 +13,10 @@ export const BROWSER_MAX_CANVAS_SIDE = 16384;
 export const BROWSER_AREA_LIMIT = 16384 * 16384;
 
 export interface PixelDensityInput {
-  /** Physical size (mm) of the framed extent's width. */
-  widthMm: number;
-  /** Physical size (mm) of the framed extent's height. */
-  heightMm: number;
-  /** Target density in DPI (Web 90 / Presentation 300 / Print 600). */
-  dpi: number;
+  /** Target width in device pixels — the preset's intended display width. */
+  targetWidthPx: number;
+  /** Target height in device pixels, following the framing's own aspect. */
+  targetHeightPx: number;
   /** Limits measured at capture time; probed from the environment when omitted. */
   limits: ExportRenderLimits;
 }
@@ -36,8 +34,6 @@ const floorEven = (value: number): number => {
   return floored % 2 === 0 ? floored : floored - 1;
 };
 
-const MM_PER_INCH = 25.4;
-
 /**
  * Maps a resolution preset (DPI) against the framed extent's physical size to
  * the export's pixel dimensions, clamped to what the user's browser can
@@ -46,13 +42,12 @@ const MM_PER_INCH = 25.4;
  * possible.
  */
 export const pixelsForDensity = ({
-  widthMm,
-  heightMm,
-  dpi,
+  targetWidthPx,
+  targetHeightPx,
   limits,
 }: PixelDensityInput): PixelDensityResult => {
-  const requestedWidth = (widthMm / MM_PER_INCH) * dpi;
-  const requestedHeight = (heightMm / MM_PER_INCH) * dpi;
+  const requestedWidth = targetWidthPx;
+  const requestedHeight = targetHeightPx;
 
   const maxSide = Math.min(limits.maxCanvasSide, Math.sqrt(limits.areaLimit));
 

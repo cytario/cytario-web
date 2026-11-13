@@ -10,7 +10,7 @@ import {
 } from "./composeCapture";
 import type { LegendItem } from "./decorations";
 import { frameCurrentView, frameRegion } from "./frameExport";
-import { rectangleRegionsOfOwnSets } from "./regionSelection";
+import { rectangleRegions } from "./regionSelection";
 import { geometriesBounds } from "../annotations/flyToFeature";
 import { millimetersPerUnit } from "../canvas/Measurements/utils";
 
@@ -71,7 +71,7 @@ export const runExport = async ({
   }
 
   const regions = regionFeatureId
-    ? rectangleRegionsOfOwnSets(state).find((region) => region.id === regionFeatureId)
+    ? rectangleRegions(state).find((region) => region.id === regionFeatureId)
     : null;
   if (regionFeatureId && !regions) {
     throw new Error("The selected annotation region is no longer available.");
@@ -92,17 +92,11 @@ export const runExport = async ({
     (metadata.Pixels.PhysicalSizeX ?? 1) * millimetersPerUnit(metadata.Pixels.PhysicalSizeXUnit);
   const level0Width = framed.level0Width;
   const level0Height = framed.level0Height;
-  const widthMm = level0Width * mmPerLevel0Px;
-  const heightMm = level0Height * mmPerLevel0Px;
 
-  // Pixels per CSS px: the deck's CSS size is the framing's own aspect at a
-  // manageable base, and devicePixels lifts the buffer to the preset density.
-  const targetWidthPx = (widthMm / 25.4) * preset.dpi;
-  const targetHeightPx = (heightMm / 25.4) * preset.dpi;
-  const scaleFactor = Math.min(
-    targetWidthPx / framed.viewState.width,
-    targetHeightPx / framed.viewState.height,
-  );
+  // The preset's DPI applies to the image's intended use (half a screen /
+  // slide / page): the scale targets the preset's pixel width against the
+  // viewport, never the tissue's physical size.
+  const scaleFactor = preset.targetWidthPx / framed.viewState.width;
   const scale = Math.max(1, scaleFactor);
   const scaledFramed = regions
     ? (() => {
@@ -115,7 +109,7 @@ export const runExport = async ({
   const canvas = await renderCaptureDeck(store, scaledFramed, scale);
 
   return composeCapture(canvas, {
-    dpi: preset.dpi,
+    preset,
     imageBasename,
     decorations,
     level0Width,

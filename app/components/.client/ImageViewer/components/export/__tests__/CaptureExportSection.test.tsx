@@ -220,12 +220,14 @@ describe("Capture and export section", () => {
     expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
   });
 
-  test("read-only connections keep the source at Current view", () => {
+  test("read-only connections can export regions from any set", () => {
     renderSection(false);
 
+    // Exporting a region needs no write access — the gate is only "a
+    // rectangle exists", never the connection grant.
     const regionOption = screen.getByRole("radio", { name: /annotation region/i });
-    expect(regionOption).toBeDisabled();
-    expect(screen.queryByRole("combobox", { name: "Region" })).toBeNull();
+    expect(regionOption).not.toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: /create export annotation/i })).toBeNull();
   });
 
   test("the create-export-annotation checkbox appears only for current-view exports and defaults off", async () => {

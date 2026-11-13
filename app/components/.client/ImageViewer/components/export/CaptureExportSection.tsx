@@ -19,7 +19,7 @@ import {
 import { copyExportToClipboard, downloadExport } from "./composeCapture";
 import { scaleBarLabelForPixelSize } from "./decorations";
 import { frameCurrentView, frameRegion, REGION_MARGIN } from "./frameExport";
-import { rectangleRegionsOfOwnSets } from "./regionSelection";
+import { rectangleRegions } from "./regionSelection";
 import { runExport } from "./runExport";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
@@ -88,14 +88,11 @@ export const CaptureExportSection = () => {
     }
   }, [resourceId]);
 
-  const rectangleRegions = useMemo(
-    () => (canAnnotate ? rectangleRegionsOfOwnSets(storeApi.getState()) : []),
-    [canAnnotate, storeApi],
-  );
+  const availableRegions = useMemo(() => rectangleRegions(storeApi.getState()), [storeApi]);
 
   const selectedRegion = useMemo(
-    () => rectangleRegions.find((region) => region.id === regionFeatureId) ?? null,
-    [rectangleRegions, regionFeatureId],
+    () => availableRegions.find((region) => region.id === regionFeatureId) ?? null,
+    [availableRegions, regionFeatureId],
   );
 
   const regionBounds = useMemo(
@@ -137,14 +134,13 @@ export const CaptureExportSection = () => {
 
     const millimetersPerLevel0Px =
       (metadata.Pixels.PhysicalSizeX ?? 1) * millimetersPerUnit(metadata.Pixels.PhysicalSizeXUnit);
-    const widthMm = framed.level0Width * millimetersPerLevel0Px;
-    const heightMm = framed.level0Height * millimetersPerLevel0Px;
-    const pxPerInch = preset.dpi;
-    return {
-      width: Math.max(1, Math.round((widthMm / 25.4) * pxPerInch)),
-      height: Math.max(1, Math.round((heightMm / 25.4) * pxPerInch)),
-      millimetersPerPixel: millimetersPerLevel0Px / (framed.level0Width / framed.level0Width),
-    };
+    // The preset targets its display width; the height follows the framing's
+    // own aspect. Never the tissue's mm size.
+    const width = Math.round(preset.targetWidthPx);
+    const height = Math.round(
+      (width * framed.viewState.height) / Math.max(framed.viewState.width, 1),
+    );
+    return { width, height, millimetersPerPixel: millimetersPerLevel0Px };
   }, [regionBounds, viewStateActive, metadata, preset]);
 
   const scaleBarLabel = useMemo(() => {
@@ -285,14 +281,14 @@ export const CaptureExportSection = () => {
             <SegmentedControlItem
               id="annotation-region"
               className="flex items-center gap-1.5 px-2"
-              isDisabled={!canAnnotate || rectangleRegions.length === 0}
+              isDisabled={availableRegions.length === 0}
             >
               <Icon icon="Square" size="sm" />
               Annotation region
             </SegmentedControlItem>
           </SegmentedControl>
 
-          {source === "annotation-region" && rectangleRegions.length > 0 && (
+          {source === "annotation-region" && availableRegions.length > 0 && (
             <select
               className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
               value={regionFeatureId ?? ""}
@@ -306,7 +302,7 @@ export const CaptureExportSection = () => {
                   Select a rectangle region
                 </option>
               )}
-              {rectangleRegions.map((region) => (
+              {availableRegions.map((region) => (
                 <option key={region.id} value={region.id}>
                   {region.name}
                 </option>

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 
@@ -55,8 +55,7 @@ describe("Capture view action", () => {
 
   test("expands a collapsed Capture and export section and scrolls it into view", async () => {
     const scrollIntoView = vi.fn();
-    const closest = vi.fn(() => ({ scrollIntoView }));
-    const getElementById = vi.fn(() => ({ closest }));
+    const getElementById = vi.fn(() => ({ scrollIntoView }));
 
     Object.defineProperty(document, "getElementById", {
       configurable: true,
@@ -71,14 +70,14 @@ describe("Capture view action", () => {
     await user.click(screen.getByRole("button", { name: "Capture view" }));
 
     expect(mockToggleSection).toHaveBeenCalledWith("capture");
-    expect(getElementById).toHaveBeenCalledWith("section-capture-content");
+    // The scroll runs inside a rAF; flush it before asserting.
+    await waitFor(() => expect(getElementById).toHaveBeenCalledWith("section-capture-title"));
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
   test("an already-open capture section is not re-toggled, only scrolled into view", async () => {
     const scrollIntoView = vi.fn();
-    const closest = vi.fn(() => ({ scrollIntoView }));
-    const getElementById = vi.fn(() => ({ closest }));
+    const getElementById = vi.fn(() => ({ scrollIntoView }));
 
     Object.defineProperty(document, "getElementById", {
       configurable: true,
@@ -94,6 +93,6 @@ describe("Capture view action", () => {
     await user.click(screen.getByRole("button", { name: "Capture view" }));
 
     expect(mockToggleSection).not.toHaveBeenCalled();
-    expect(scrollIntoView).toHaveBeenCalled();
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
   });
 });

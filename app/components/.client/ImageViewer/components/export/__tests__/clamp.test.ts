@@ -9,43 +9,33 @@ const limits = (over: Partial<ExportRenderLimits> = {}): ExportRenderLimits => (
 });
 
 describe("pixelsForDensity", () => {
-  test("maps the framed extent's physical size through the DPI preset", () => {
-    // A 25.4 mm extent at 300 DPI is exactly 300 px.
+  test("passes the preset's target size through unclamped", () => {
     const result = pixelsForDensity({
-      widthMm: 25.4,
-      heightMm: 25.4,
-      dpi: 300,
+      targetWidthPx: 2000,
+      targetHeightPx: 1500,
       limits: limits(),
     });
 
-    expect(result.width).toBe(300);
-    expect(result.height).toBe(300);
+    expect(result.width).toBe(2000);
+    expect(result.height).toBe(1500);
     expect(result.clamped).toBe(false);
   });
 
-  test("scales each preset against the same physical extent (90 / 300 / 600 DPI)", () => {
-    const widthMm = 10;
-    const heightMm = 5;
-    for (const [dpi, expectedWidth] of [
-      [90, Math.floor((10 / 25.4) * 90)],
-      [300, Math.floor((10 / 25.4) * 300)],
-      [600, Math.floor((10 / 25.4) * 600)],
-    ] as const) {
-      const result = pixelsForDensity({ widthMm, heightMm, dpi, limits: limits() });
-      expect(result.width).toBe(expectedWidth % 2 === 0 ? expectedWidth : expectedWidth - 1);
-      expect(result.height).toBe(
-        Math.floor((5 / 25.4) * dpi) % 2 === 0
-          ? Math.floor((5 / 25.4) * dpi)
-          : Math.floor((5 / 25.4) * dpi) - 1,
-      );
+  test("scales each preset's target width (600 / 2000 / 3500 px)", () => {
+    for (const target of [600, 2000, 3500] as const) {
+      const result = pixelsForDensity({
+        targetWidthPx: target,
+        targetHeightPx: Math.round(target * (2 / 3)),
+        limits: limits(),
+      });
+      expect(result.width).toBe(target % 2 === 0 ? target : target - 1);
     }
   });
 
   test("keeps the extent's own aspect — no aspect transformation", () => {
     const result = pixelsForDensity({
-      widthMm: 30,
-      heightMm: 10,
-      dpi: 600,
+      targetWidthPx: 3000,
+      targetHeightPx: 1000,
       limits: limits(),
     });
 
@@ -53,12 +43,10 @@ describe("pixelsForDensity", () => {
   });
 
   test("clamps to the canvas side cap while keeping the aspect", () => {
-    // 254 mm at 600 DPI is 6000 px; side-capped at 8192 the wide axis governs.
     const result = pixelsForDensity({
-      widthMm: 500,
-      heightMm: 400,
-      dpi: 600,
-      limits: limits({ maxCanvasSide: 8192 }),
+      targetWidthPx: 5000,
+      targetHeightPx: 4000,
+      limits: limits({ maxCanvasSide: 4096 }),
     });
 
     expect(result.width).toBeLessThanOrEqual(8192);
@@ -68,9 +56,8 @@ describe("pixelsForDensity", () => {
 
   test("clamps to the area limit even when both sides individually fit", () => {
     const result = pixelsForDensity({
-      widthMm: 1500,
-      heightMm: 1300,
-      dpi: 600,
+      targetWidthPx: 15_000,
+      targetHeightPx: 13_000,
       // Side caps would allow 16384, but the area cap is tighter.
       limits: limits({ areaLimit: 100_000_000 }),
     });

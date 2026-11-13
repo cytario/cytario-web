@@ -23,18 +23,15 @@ const isRectanglePolygon = (feature: AnnotationFeature): boolean => {
 };
 
 /**
- * Rectangle regions of the user's own annotation sets, identified by annotation
- * name. Unowned sets (legacy imports with no cytario envelope) count as own —
- * they are editable by anyone, matching the layer's own-set treatment.
+ * Rectangle regions across every annotation set, identified by annotation
+ * name. Exporting a region needs no write access, so peer sets count too —
+ * the set's author only gates editing, never reading.
  */
-export const rectangleRegionsOfOwnSets = (
+export const rectangleRegions = (
   store: ViewerStore,
 ): { id: string; name: string; feature: AnnotationFeature; setId: string }[] => {
-  const ownSets = store.annotationSets.filter(
-    (set) => !set.createdBy || set.createdBy === store.currentUserId,
-  );
   const regions: { id: string; name: string; feature: AnnotationFeature; setId: string }[] = [];
-  for (const set of ownSets) {
+  for (const set of store.annotationSets) {
     for (const feature of set.features) {
       if (!isRectanglePolygon(feature)) continue;
       regions.push({

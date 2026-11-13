@@ -29,18 +29,30 @@ export interface ExportDecorations {
   attribution: boolean;
 }
 
+/** Intent presets: the DPI applies to the image's intended use — half a
+ *  screen (web), half a slide (presentation), half a page (print) — never to
+ *  the tissue's physical size. The target width follows from the assumed
+ *  display width at that density. */
 export interface ResolutionPreset {
   id: "web" | "presentation" | "print";
   name: string;
   dpi: number;
+  /** Assumed display width in inches for the intended use. */
+  displayWidthInches: number;
+  /** Target export width in device pixels. */
+  targetWidthPx: number;
 }
 
-/** Intent presets: the DPI maps to pixels through the framed extent's
- *  physical size (mm / 25.4 × DPI). */
 export const RESOLUTION_PRESETS: ResolutionPreset[] = [
-  { id: "web", name: "Web (90 DPI)", dpi: 90 },
-  { id: "presentation", name: "Presentation (300 DPI)", dpi: 300 },
-  { id: "print", name: "Print (600 DPI)", dpi: 600 },
+  { id: "web", name: "Web (90 DPI)", dpi: 90, displayWidthInches: 6.7, targetWidthPx: 600 },
+  {
+    id: "presentation",
+    name: "Presentation (300 DPI)",
+    dpi: 300,
+    displayWidthInches: 6.7,
+    targetWidthPx: 2000,
+  },
+  { id: "print", name: "Print (600 DPI)", dpi: 600, displayWidthInches: 5.8, targetWidthPx: 3500 },
 ];
 
 export interface ExportViewResult {
@@ -69,8 +81,8 @@ export const captureFilename = (imageBasename: string): string => {
 };
 
 export interface ComposeCaptureInput {
-  /** DPI preset the capture runs at. */
-  dpi: number;
+  /** The chosen preset — its DPI sizes the 12 pt font; its target width sizes the output. */
+  preset: ResolutionPreset;
   /** Stem for the capture filename (basename + timestamp appended here). */
   imageBasename: string;
   decorations: ExportDecorations;
@@ -103,13 +115,14 @@ export const composeCapture = async (
   }
 
   const limits = input.limits ?? fallbackRenderLimits();
-  const widthMm = input.level0Width * input.millimetersPerLevel0Pixel;
-  const heightMm = input.level0Height * input.millimetersPerLevel0Pixel;
 
+  // The preset's target width against the render's own aspect — the intended
+  // display size, never the tissue's physical size.
+  const targetWidthPx = input.preset.targetWidthPx;
+  const targetHeightPx = Math.round((targetWidthPx * canvas.height) / Math.max(canvas.width, 1));
   const sized = pixelsForDensity({
-    widthMm,
-    heightMm,
-    dpi: input.dpi,
+    targetWidthPx,
+    targetHeightPx,
     limits,
   });
   const capped = capAtNativeResolution(sized, {
@@ -141,7 +154,7 @@ export const composeCapture = async (
     await ensureDocumentFonts();
   }
 
-  const fontPx = decorationFontPx(input.dpi);
+  const fontPx = decorationFontPx(input.preset.dpi);
 
   if (input.decorations.scaleBar) {
     const millimetersPerPixel =

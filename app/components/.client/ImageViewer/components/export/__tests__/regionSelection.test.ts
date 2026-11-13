@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 
 import { createViewerStore } from "../../../state/store/createViewerStore";
-import { rectangleRegionsOfOwnSets } from "../regionSelection";
+import { rectangleRegions } from "../regionSelection";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 const rectangleFeature = (
@@ -77,26 +77,29 @@ const seedStore = () => {
   });
 };
 
-describe("rectangleRegionsOfOwnSets", () => {
+describe("rectangleRegions", () => {
   beforeEach(seedStore);
 
-  test("lists rectangle regions of own and unowned sets by annotation name", () => {
-    const regions = rectangleRegionsOfOwnSets(store.getState());
+  test("lists rectangle regions of every set by annotation name", () => {
+    const regions = rectangleRegions(store.getState());
 
     expect(regions.map((region) => region.id)).toEqual([
       "own-rect-1",
       "own-rect-2",
+      "peer-rect",
       "unowned-rect",
     ]);
     expect(regions[0].name).toBe("Region A");
     // A feature with no name falls back to its id.
     expect(regions[1].name).toBe("own-rect-2");
+    // Peer and unowned sets carry their own setId.
+    expect(regions[2].setId).toBe("peer-set");
+    expect(regions[3].setId).toBe("unowned-set");
   });
 
-  test("excludes peer sets and non-rectangular polygons", () => {
-    const regions = rectangleRegionsOfOwnSets(store.getState());
+  test("excludes non-rectangular polygons", () => {
+    const regions = rectangleRegions(store.getState());
 
-    expect(regions.some((region) => region.setId === "peer-set")).toBe(false);
     expect(regions.some((region) => region.id === "own-poly")).toBe(false);
   });
 
@@ -126,6 +129,6 @@ describe("rectangleRegionsOfOwnSets", () => {
       activeSetId: "own",
     });
 
-    expect(rectangleRegionsOfOwnSets(skewedStore.getState())).toEqual([]);
+    expect(rectangleRegions(skewedStore.getState())).toEqual([]);
   });
 });

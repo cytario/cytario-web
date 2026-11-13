@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { GESTURE_DEBOUNCE_MS } from "../../../state/store/core/viewerTemporal";
 import { createViewerStore } from "../../../state/store/createViewerStore";
 import { commitExportAnnotation } from "../commitExportAnnotation";
-import { captureFilename, composeCapture, ExportRenderError } from "../composeCapture";
+import {
+  captureFilename,
+  composeCapture,
+  ExportRenderError,
+  RESOLUTION_PRESETS,
+} from "../composeCapture";
 
 vi.mock("~/utils/db/getTileDataWasm", () => ({
   readAllAnnotations: vi.fn().mockResolvedValue([]),
@@ -76,7 +81,7 @@ describe("composeCapture", () => {
     renderCanvas.height = 1080;
 
     const result = await composeCapture(renderCanvas, {
-      dpi: 300,
+      preset: RESOLUTION_PRESETS[1],
       imageBasename: "slide",
       decorations: {
         scaleBar: false,
@@ -119,9 +124,8 @@ describe("composeCapture", () => {
     renderCanvas.width = 1280;
     renderCanvas.height = 720;
 
-    // level0 extent 254 × 127 level-0 px at 10 µm/px = 2.54 × 1.27 mm.
     const result = await composeCapture(renderCanvas, {
-      dpi: 1000, // 2.54 mm at 1000 DPI = 100 px wide, 1.27 mm → 50 px.
+      preset: RESOLUTION_PRESETS[0], // Web: 600 px target width.
       imageBasename: "slide",
       decorations: {
         scaleBar: false,
@@ -132,15 +136,16 @@ describe("composeCapture", () => {
       },
       level0Width: 254,
       level0Height: 127,
-      millimetersPerLevel0Pixel: 0.01, // 10 µm/px → 254 × 127 level-0 px = 2.54 × 1.27 mm
+      millimetersPerLevel0Pixel: 0.01,
       metadata: null,
       legendItems: [],
       limits: { maxCanvasSide: 16384, areaLimit: 16384 * 16384 },
     });
 
-    // 2.54 mm at 1000 DPI = 100 px wide.
-    expect(result.width).toBe(100);
-    expect(result.height).toBe(50);
+    // Web targets 600 px wide, but the framed extent is only 254 level-0 px
+    // wide — the native cap allows at most 2× native (508 wide, 254 tall).
+    expect(result.width).toBe(508);
+    expect(result.height).toBe(254);
     expect(drawImage).toHaveBeenCalledWith(
       renderCanvas,
       0,
@@ -149,8 +154,8 @@ describe("composeCapture", () => {
       renderCanvas.height,
       0,
       0,
-      100,
-      50,
+      508,
+      254,
     );
 
     getContext.mockRestore();
@@ -164,7 +169,7 @@ describe("composeCapture", () => {
 
     await expect(
       composeCapture(renderCanvas, {
-        dpi: 300,
+        preset: RESOLUTION_PRESETS[1],
         imageBasename: "slide",
         decorations: {
           scaleBar: false,
