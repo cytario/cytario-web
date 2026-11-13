@@ -2,8 +2,8 @@ import type { ResolutionPreset, ViewerStoreSource } from "./composeCapture";
 import type { LegendItem } from "./decorations";
 import { frameCurrentView, frameRegion } from "./frameExport";
 import { rectangleRegions } from "./regionSelection";
-import type { ViewerStore, ViewState } from "../../state/store/types";
 import { channelsStateForPanel } from "../../state/store/selectors";
+import type { ViewerStore, ViewState } from "../../state/store/types";
 import { geometriesBounds } from "../annotations/flyToFeature";
 import { millimetersPerUnit } from "../canvas/Measurements/utils";
 

@@ -2,25 +2,6 @@ import { describe, expect, test } from "vitest";
 
 import { createViewerStore } from "../../../state/store/createViewerStore";
 import { planExport } from "../planExport";
-import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
-
-const rectangleFeature = (id: string, name: string): AnnotationFeature => ({
-  type: "Feature",
-  id,
-  geometry: {
-    type: "Polygon",
-    coordinates: [
-      [
-        [0, 0],
-        [512, 0],
-        [512, 512],
-        [0, 512],
-        [0, 0],
-      ],
-    ],
-  },
-  properties: { name },
-});
 
 const seedStore = () => {
   const store = createViewerStore("conn-1/images/slide.ome.tif", "user-a");
