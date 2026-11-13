@@ -317,7 +317,7 @@ describe("Capture and export section", () => {
     });
   });
 
-  test("shows progress state while the render is pending", async () => {
+  test("shows progress state while the render is pending, then resets on completion", async () => {
     let resolveRender: (value: never) => void;
     runExportMock.mockImplementation(
       () => new Promise((resolve) => (resolveRender = resolve as never)),
@@ -333,6 +333,31 @@ describe("Capture and export section", () => {
     expect(screen.getByRole("button", { name: /^copy$/i })).toBeDisabled();
 
     resolveRender!(exportResult());
+
+    // A completed capture must leave the idle state — a stuck "rendering"
+    // phase would keep the run actions disabled forever.
+    await waitFor(() =>
+      expect(screen.queryByText(/Rendering \d+ × \d+ px…/)).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /download/i })).not.toBeDisabled(),
+    );
+  });
+
+  test("a failed capture leaves the error state, not the spinner", async () => {
+    runExportMock.mockRejectedValue(new Error("boom"));
+
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/The capture could not be rendered\.|boom/)).toBeInTheDocument(),
+    );
+    // The error path must not be clobbered back to idle by the finally clause.
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Rendering \d+ × \d+ px…/)).not.toBeInTheDocument();
   });
 
   test("a current-view capture with the checkbox commits the exported extent", async () => {

@@ -188,6 +188,7 @@ export const CaptureExportSection = () => {
         width: outputSize?.width ?? 0,
         height: outputSize?.height ?? 0,
       });
+      let failed = false;
       try {
         const result = await runExport({
           store: storeApi,
@@ -203,7 +204,6 @@ export const CaptureExportSection = () => {
           } catch {
             downloadExport(result.blob, result.filename);
             toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
-            return;
           }
         } else {
           downloadExport(result.blob, result.filename);
@@ -241,10 +241,15 @@ export const CaptureExportSection = () => {
           message: [`Captured ${result.filename}`, ...notes].join(" — "),
         });
       } catch (error) {
+        failed = true;
         setRunState({
           phase: "error",
           message: error instanceof Error ? error.message : "The capture could not be rendered.",
         });
+      } finally {
+        // The run ends on success too — without this the spinner and the
+        // disabled run actions stick forever after a completed capture.
+        if (!failed) setRunState({ phase: "idle" });
       }
     },
     [

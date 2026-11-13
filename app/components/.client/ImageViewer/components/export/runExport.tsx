@@ -138,32 +138,30 @@ const renderCaptureDeck = async (
   document.body.appendChild(host);
   const root: Root = createRoot(host);
 
-  const canvas = await new Promise<HTMLCanvasElement>((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      reject(new Error("The capture timed out waiting for the image tiles to finish loading."));
-    }, RENDER_TIMEOUT_MS);
+  try {
+    return await new Promise<HTMLCanvasElement>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        reject(new Error("The capture timed out waiting for the image tiles to finish loading."));
+      }, RENDER_TIMEOUT_MS);
 
-    root.render(
-      <CaptureDeck
-        viewState={framed.viewState}
-        width={width}
-        height={height}
-        devicePixels={scale}
-        onSettled={(deckCanvas) => {
-          window.clearTimeout(timer);
-          resolve(deckCanvas);
-        }}
-      />,
-    );
-  });
-
-  const unmount = new Promise<void>((resolve) => {
+      root.render(
+        <CaptureDeck
+          viewState={framed.viewState}
+          width={width}
+          height={height}
+          devicePixels={scale}
+          onSettled={(deckCanvas) => {
+            window.clearTimeout(timer);
+            resolve(deckCanvas);
+          }}
+        />,
+      );
+    });
+  } finally {
+    // The deck must come down on every exit — a timed-out run that leaks its
+    // hidden deck leaves a full-size render loop running and stacks a new
+    // one on every retry.
     root.unmount();
-    // unmount is async in react-dom/client; flush by resolving after the call.
-    resolve();
-  });
-  await unmount;
-  host.remove();
-
-  return canvas;
+    host.remove();
+  }
 };
