@@ -3,6 +3,7 @@ import type { LegendItem } from "./decorations";
 import { frameCurrentView, frameRegion } from "./frameExport";
 import { rectangleRegions } from "./regionSelection";
 import type { ViewerStore, ViewState } from "../../state/store/types";
+import { channelsStateForPanel } from "../../state/store/selectors";
 import { geometriesBounds } from "../annotations/flyToFeature";
 import { millimetersPerUnit } from "../canvas/Measurements/utils";
 
@@ -41,20 +42,23 @@ export interface PlanExportInput {
 }
 
 /** Builds the legend entries — visible channels then enabled overlay markers,
- *  in their assigned colors, exactly as the viewer renders them. */
+ *  in their assigned colors, exactly as the viewer renders them. Visibility
+ *  lives in the per-preset layersStates merge (the top-level channels entries
+ *  carry image data only), so the panel's resolved channelsState is the
+ *  source of truth — same as useChannelsLayer. */
 const legendItemsForState = (store: ViewerStoreSource): LegendItem[] => {
   const state = store.getState();
   const items: LegendItem[] = [];
 
-  const layersStateIndex = state.imagePanels[state.imagePanelIndex];
-  const layerState = state.layersStates[layersStateIndex];
+  const panelId = state.imagePanels[state.imagePanelIndex];
+  const channelsState = channelsStateForPanel(panelId)(state);
   for (const id of state.channelIds) {
-    const channel = state.channels[id];
-    const isVisible = channel?.isVisible && layerState?.channels[id]?.isVisible !== false;
-    if (!isVisible || !channel) continue;
+    const channel = channelsState?.[id];
+    if (!channel?.isVisible) continue;
     items.push({ name: id, color: channel.color ?? [255, 255, 255] });
   }
 
+  const layerState = state.layersStates[panelId];
   const overlays = layerState?.overlays ?? {};
   for (const entry of Object.values(overlays)) {
     for (const [markerKey, marker] of Object.entries(entry.markers)) {
