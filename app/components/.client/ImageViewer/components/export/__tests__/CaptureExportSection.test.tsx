@@ -196,7 +196,7 @@ describe("Capture and export section", () => {
     expect(checkbox("Magnification").checked).toBe(true);
     expect(checkbox("Channel and overlay legend").checked).toBe(true);
     expect(checkbox("Annotation regions").checked).toBe(false);
-    expect(checkbox("Caption").checked).toBe(false);
+    expect(checkbox("Cytario attribution").checked).toBe(true);
   });
 
   test("the resolution combobox exposes the three intent presets", () => {
@@ -264,7 +264,7 @@ describe("Capture and export section", () => {
       magnification: true,
       legend: true,
       annotationRegions: false,
-      caption: false,
+      attribution: true,
     });
     expect(call.imageBasename).toBe("slide");
     expect(call.regionFeatureId).toBeNull();

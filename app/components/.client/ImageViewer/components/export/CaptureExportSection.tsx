@@ -41,7 +41,7 @@ const DEFAULT_DECORATIONS: ExportDecorations = {
   magnification: true,
   legend: true,
   annotationRegions: false,
-  caption: false,
+  attribution: true,
 };
 
 /** Frames a region's bounds in the active panel's viewport with the shared
@@ -177,7 +177,7 @@ export const CaptureExportSection = () => {
     { id: "magnification", label: "Magnification" },
     { id: "legend", label: "Channel and overlay legend" },
     { id: "annotationRegions", label: "Annotation regions" },
-    { id: "caption", label: "Caption" },
+    { id: "attribution", label: "Cytario attribution" },
   ];
 
   const isRendering = runState.phase === "rendering";

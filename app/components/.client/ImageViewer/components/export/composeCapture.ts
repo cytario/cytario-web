@@ -6,6 +6,7 @@ import {
 } from "./clamp";
 import {
   decorationFontPx,
+  drawAttributionDecoration,
   drawLegendDecoration,
   drawMagnificationDecoration,
   drawScaleBarDecoration,
@@ -25,7 +26,7 @@ export interface ExportDecorations {
   magnification: boolean;
   legend: boolean;
   annotationRegions: boolean;
-  caption: boolean;
+  attribution: boolean;
 }
 
 export interface ResolutionPreset {
@@ -134,6 +135,7 @@ export const composeCapture = async (
   if (
     input.decorations.scaleBar ||
     input.decorations.magnification ||
+    input.decorations.attribution ||
     (input.decorations.legend && input.legendItems.length > 0)
   ) {
     await ensureDocumentFonts();
@@ -149,6 +151,9 @@ export const composeCapture = async (
   if (input.decorations.magnification) {
     const magnification = magnificationText(input.metadata);
     if (magnification) drawMagnificationDecoration(context, magnification.text, fontPx);
+  }
+  if (input.decorations.attribution) {
+    drawAttributionDecoration(context, fontPx);
   }
   if (input.decorations.legend) {
     drawLegendDecoration(context, input.legendItems, fontPx);

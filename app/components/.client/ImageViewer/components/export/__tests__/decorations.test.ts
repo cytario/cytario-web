@@ -1,8 +1,19 @@
-import { describe, expect, test, vi } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
+
+beforeAll(() => {
+  // happy-dom ships no Path2D; the attribution wordmark builds one per letter.
+  vi.stubGlobal(
+    "Path2D",
+    class {
+      constructor(public path: string) {}
+    },
+  );
+});
 
 import { millimetersPerUnit } from "../../canvas/Measurements/utils";
 import {
   decorationFontPx,
+  drawAttributionDecoration,
   drawLegendDecoration,
   magnificationText,
   scaleBarForPixelSize,
@@ -13,6 +24,11 @@ const context = () =>
   ({
     canvas: { width: 1920, height: 1080 },
     fillStyle: "",
+    fill: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
     font: "",
     textBaseline: "",
     fillRect: vi.fn(),
@@ -99,7 +115,7 @@ describe("drawLegendDecoration", () => {
     // One backdrop + two chips; two name labels.
     expect(ctx.fillRect).toHaveBeenCalledTimes(3);
     expect(ctx.fillText).toHaveBeenCalledTimes(2);
-    expect(ctx.fillStyle).toBe("rgba(20, 20, 20, 0.9)");
+    expect(ctx.fillStyle).toBe("#3d3d3d");
   });
 
   test("draws nothing with no items", () => {
@@ -107,6 +123,15 @@ describe("drawLegendDecoration", () => {
     drawLegendDecoration(ctx, [], 50);
     expect(ctx.fillRect).not.toHaveBeenCalled();
     expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  test("the attribution wordmark draws every letter in the brand colors", () => {
+    const ctx = context();
+    drawAttributionDecoration(ctx, 50);
+    // 8 letterforms (c, y, t, a, r, i, o, ®), each translated, scaled, filled.
+    expect(ctx.fill).toHaveBeenCalledTimes(8);
+    expect(ctx.translate).toHaveBeenCalledTimes(8);
+    expect(ctx.scale).toHaveBeenCalledTimes(8);
   });
 });
 
