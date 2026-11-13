@@ -1,4 +1,4 @@
-import { IconButton } from "@cytario/design";
+import { IconButton, Tooltip } from "@cytario/design";
 import { useCallback } from "react";
 
 import { Magnifier } from "./Magnifier";
@@ -11,7 +11,7 @@ import { useViewerSidebarStore } from "../../useViewerSidebarStore";
 import { Section } from "~/components/Section/Section";
 
 const CAPTURE_SECTION_ID = "capture";
-const CAPTURE_SECTION_CONTENT_ID = `section-${CAPTURE_SECTION_ID}-content`;
+const CAPTURE_SECTION_TITLE_ID = `section-${CAPTURE_SECTION_ID}-title`;
 
 /** Sidebar overview: navigation thumbnail + magnification presets + reset. The
  *  Capture view action expands the Capture and export section and scrolls it
@@ -20,16 +20,18 @@ export const OverviewSection = () => {
   const objectivePower = useViewerStore(select.objectivePower);
 
   const expandCaptureSection = useCallback(() => {
-    const state = useViewerSidebarStore.getState();
-    if (!(state.sections[CAPTURE_SECTION_ID]?.isOpen ?? true)) {
-      state.toggleSection(CAPTURE_SECTION_ID);
+    // An entry is absent until first toggled — absent means open (the Section
+    // default), so only toggle when the entry says closed.
+    const store = useViewerSidebarStore.getState();
+    if (store.sections[CAPTURE_SECTION_ID]?.isOpen === false) {
+      store.toggleSection(CAPTURE_SECTION_ID);
     }
-    // The section header scrolls into view inside the sidebar panel (or its
-    // floating panel) once expanded.
-    document
-      .getElementById(CAPTURE_SECTION_CONTENT_ID)
-      ?.closest("header")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // The section title scrolls into view once the open state has rendered.
+    requestAnimationFrame(() => {
+      document
+        .getElementById(CAPTURE_SECTION_TITLE_ID)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }, []);
 
   return (
@@ -40,12 +42,14 @@ export const OverviewSection = () => {
       actions={
         <>
           <ResetViewStateButton />
-          <IconButton
-            label="Capture view"
-            size="sm"
-            icon={CameraIcon}
-            onPress={expandCaptureSection}
-          />
+          <Tooltip content="Capture view — jump to the export section">
+            <IconButton
+              label="Capture view"
+              size="sm"
+              icon={CameraIcon}
+              onPress={expandCaptureSection}
+            />
+          </Tooltip>
         </>
       }
     >
