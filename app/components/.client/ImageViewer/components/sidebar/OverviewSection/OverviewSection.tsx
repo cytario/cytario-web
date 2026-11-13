@@ -6,7 +6,6 @@ import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ImagePreview } from "../../canvas/ImagePreview";
 import { ResetViewStateButton } from "../../canvas/ResetViewStateButton";
-import { CameraIcon } from "../../export/CameraIcon";
 import { useViewerSidebarStore } from "../../useViewerSidebarStore";
 import { Section } from "~/components/Section/Section";
 
@@ -46,7 +45,7 @@ export const OverviewSection = () => {
             <IconButton
               label="Capture view"
               size="sm"
-              icon={CameraIcon}
+              icon="Camera"
               onPress={expandCaptureSection}
             />
           </Tooltip>

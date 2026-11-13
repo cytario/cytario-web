@@ -9,7 +9,6 @@ import {
 } from "@cytario/design";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { CameraIcon } from "./CameraIcon";
 import { commitExportAnnotation } from "./commitExportAnnotation";
 import {
   RESOLUTION_PRESETS,
@@ -268,7 +267,7 @@ export const CaptureExportSection = () => {
   );
 
   return (
-    <Section id="capture" title="Capture and export" icon={CameraIcon}>
+    <Section id="capture" title="Capture and export" icon="Camera">
       <div className="flex flex-col gap-3 p-2 pb-3">
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-foreground">Source</span>
