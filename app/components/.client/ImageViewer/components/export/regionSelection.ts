@@ -1,5 +1,4 @@
-import type { ViewerStore } from "../../state/store/types";
-import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
+import type { AnnotationFeature, AnnotationSet } from "~/utils/db/getAnnotationsWasm";
 
 /** Rectangle-polygon check: a closed 5-position ring that is axis-aligned. */
 const isRectanglePolygon = (feature: AnnotationFeature): boolean => {
@@ -28,10 +27,10 @@ const isRectanglePolygon = (feature: AnnotationFeature): boolean => {
  * the set's author only gates editing, never reading.
  */
 export const rectangleRegions = (
-  store: ViewerStore,
+  annotationSets: AnnotationSet[],
 ): { id: string; name: string; feature: AnnotationFeature; setId: string }[] => {
   const regions: { id: string; name: string; feature: AnnotationFeature; setId: string }[] = [];
-  for (const set of store.annotationSets) {
+  for (const set of annotationSets) {
     for (const feature of set.features) {
       if (!isRectanglePolygon(feature)) continue;
       regions.push({

@@ -220,6 +220,40 @@ describe("Capture and export section", () => {
     expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
   });
 
+  test("regions that load after mount enable the annotation-region source", async () => {
+    // Annotation sidecars land in the store asynchronously — at mount the
+    // store can still be empty even on images that carry regions.
+    buildStore();
+    currentStore.setState({
+      annotationSets: [],
+      activeSetId: null,
+    });
+    const user = userEvent.setup();
+    renderSection();
+
+    const regionOption = screen.getByRole("radio", { name: /annotation region/i });
+    expect(regionOption).toBeDisabled();
+
+    currentStore.setState({
+      annotationSets: [
+        {
+          id: "late-set",
+          createdBy: "own-user",
+          name: "Late",
+          features: [rectangleFeature("late-rect", "Late region")],
+        },
+      ],
+    });
+
+    await waitFor(() => expect(regionOption).not.toBeDisabled());
+
+    await user.click(regionOption);
+    expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Region" }).querySelector('option[value="late-rect"]'),
+    ).not.toBeNull();
+  });
+
   test("read-only connections can export regions from any set", () => {
     renderSection(false);
 

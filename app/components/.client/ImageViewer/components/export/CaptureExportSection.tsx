@@ -88,7 +88,10 @@ export const CaptureExportSection = () => {
     }
   }, [resourceId]);
 
-  const availableRegions = useMemo(() => rectangleRegions(storeApi.getState()), [storeApi]);
+  const annotationSets = useViewerStore((s) => s.annotationSets);
+  // Annotation sets load into the store asynchronously, so the region list
+  // follows the subscribed array — not a mount-time store snapshot.
+  const availableRegions = useMemo(() => rectangleRegions(annotationSets), [annotationSets]);
 
   const selectedRegion = useMemo(
     () => availableRegions.find((region) => region.id === regionFeatureId) ?? null,

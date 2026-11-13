@@ -14,8 +14,12 @@ import { rectangleRegions } from "./regionSelection";
 import { geometriesBounds } from "../annotations/flyToFeature";
 import { millimetersPerUnit } from "../canvas/Measurements/utils";
 
-/** How long a run may wait for the capture deck to settle before failing. */
-const RENDER_TIMEOUT_MS = 30_000;
+/** How long a run may wait for the capture deck to settle before failing.
+ * The capture renders at a lifted zoom — one pyramid level finer than the
+ * on-screen view — so on a cold WSI every tile of that level is a fresh S3
+ * fetch the live panel never warmed. Tens of seconds of tile traffic is
+ * normal there; 30 s cut real scans off mid-load. */
+const RENDER_TIMEOUT_MS = 180_000;
 
 export interface RunExportInput {
   store: ViewerStoreSource;
@@ -71,7 +75,7 @@ export const runExport = async ({
   }
 
   const regions = regionFeatureId
-    ? rectangleRegions(state).find((region) => region.id === regionFeatureId)
+    ? rectangleRegions(state.annotationSets).find((region) => region.id === regionFeatureId)
     : null;
   if (regionFeatureId && !regions) {
     throw new Error("The selected annotation region is no longer available.");

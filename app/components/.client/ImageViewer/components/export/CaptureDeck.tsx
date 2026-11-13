@@ -1,5 +1,5 @@
 import DeckGL, { type DeckGLRef } from "@deck.gl/react";
-import { useCallback, useRef, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, type CSSProperties } from "react";
 
 import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
@@ -65,7 +65,11 @@ export const CaptureDeck = ({
   const { layers, effects, layerFilter } = useViewerLayers(activeImagePanelId, interactive);
   const view = useView({ width, height });
 
-  const handleAfterRender = useCallback(() => {
+  // Settle can also be reached without a further rendered frame: when the
+  // last tile lands between deck's redraw windows the animation loop goes
+  // quiet without a dirty final frame, and onAfterRender never fires again —
+  // the poll closes that gap.
+  const trySettle = useCallback(() => {
     if (settledRef.current) return;
     const deck = deckRef.current?.deck;
     if (!deck?.isInitialized) return;
@@ -75,6 +79,11 @@ export const CaptureDeck = ({
       if (canvas) onSettled(canvas);
     }
   }, [layers, onSettled]);
+
+  useEffect(() => {
+    const poll = setInterval(trySettle, 500);
+    return () => clearInterval(poll);
+  }, [trySettle]);
 
   return (
     <div style={hidden ? { ...HIDDEN_STYLE, ...style } : style} aria-hidden={hidden || undefined}>
@@ -89,7 +98,7 @@ export const CaptureDeck = ({
         viewState={{ detail: viewState }}
         useDevicePixels={devicePixels}
         controller={false}
-        onAfterRender={handleAfterRender}
+        onAfterRender={trySettle}
         getCursor={() => "default"}
       />
     </div>

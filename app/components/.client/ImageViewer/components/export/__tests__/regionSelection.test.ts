@@ -81,7 +81,7 @@ describe("rectangleRegions", () => {
   beforeEach(seedStore);
 
   test("lists rectangle regions of every set by annotation name", () => {
-    const regions = rectangleRegions(store.getState());
+    const regions = rectangleRegions(store.getState().annotationSets);
 
     expect(regions.map((region) => region.id)).toEqual([
       "own-rect-1",
@@ -98,7 +98,7 @@ describe("rectangleRegions", () => {
   });
 
   test("excludes non-rectangular polygons", () => {
-    const regions = rectangleRegions(store.getState());
+    const regions = rectangleRegions(store.getState().annotationSets);
 
     expect(regions.some((region) => region.id === "own-poly")).toBe(false);
   });
@@ -129,6 +129,6 @@ describe("rectangleRegions", () => {
       activeSetId: "own",
     });
 
-    expect(rectangleRegions(skewedStore.getState())).toEqual([]);
+    expect(rectangleRegions(skewedStore.getState().annotationSets)).toEqual([]);
   });
 });
