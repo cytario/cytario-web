@@ -1,7 +1,7 @@
+import { useDisplayScale } from "./useDisplayScale";
 import { useMeasurements } from "./useMeasurements";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 export function SlideCarrier() {
   const {
@@ -14,7 +14,7 @@ export function SlideCarrier() {
     viewPortWidth,
     viewPortHeight,
   } = useMeasurements();
-  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
+  const { unit: displayUnit } = useDisplayScale();
   const metadata = useViewerStore(select.metadata);
 
   const widthTotal = displayUnit === "pixels" ? (metadata?.Pixels.SizeX ?? 0) : widthTotalMm;

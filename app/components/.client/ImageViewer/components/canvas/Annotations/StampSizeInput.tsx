@@ -1,9 +1,8 @@
 import { useState } from "react";
 
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
-import { select } from "../../../state/store/selectors";
-import { absoluteToMetricFactory, metricToAbsoluteFactory } from "../Measurements/utils";
-import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
+import { formatMetricLength, type MetricUnit } from "../Measurements/scaleBarGeometry";
+import { useDisplayScale, type DisplayScale } from "../Measurements/useDisplayScale";
 
 const inputClassName = `
   w-20 rounded-md border border-border bg-background
@@ -11,72 +10,73 @@ const inputClassName = `
   focus:outline-none focus:ring-1 focus:ring-primary
 `;
 
-/** Edge length of the stamped square, entered in nanometers (metric) or
- *  level-0 pixels and stored as level-0 pixels. The displayed value re-derives
- *  from the stored pixels when the unit flips. */
+const SIGNIFICANT_DIGITS = 3;
+
+/** The stamp size as the input shows it: level-0 px, or a metric length in
+ *  the scale bar's units rounded to three significant digits. */
+const shownSize = (
+  widthPx: number,
+  scale: DisplayScale,
+): { value: number; unit: MetricUnit | null } => {
+  if (scale.unit === "pixels") return { value: Math.round(widthPx), unit: null };
+  const { value, unit } = formatMetricLength(widthPx * scale.pixelSize.x);
+  return { value: Number(value.toPrecision(SIGNIFICANT_DIGITS)), unit };
+};
+
+/** A positive number, with either decimal separator; null otherwise. */
+const parseSize = (text: string): number | null => {
+  const value = Number(text.trim().replace(",", "."));
+  return text.trim() !== "" && Number.isFinite(value) && value > 0 ? value : null;
+};
+
+/** Edge length of the stamped square, stored as level-0 pixels. In metric
+ *  mode it is shown in the scale bar's units — the largest one that keeps the
+ *  value at least 1. Every valid keystroke applies to the stamp at once, read
+ *  in the unit shown when editing began; leaving the field re-derives it from
+ *  the stored size. */
 export const StampSizeInput = () => {
-  const metadata = useViewerStore(select.metadata);
   const stampWidthPx = useViewerStore((s) => s.annotationStampSize.widthPx);
   const setStampSize = useViewerStore((s) => s.setAnnotationStampSize);
-  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
+  const scale = useDisplayScale();
+  const shown = shownSize(stampWidthPx, scale);
 
-  // The metric variant of the input is always nanometers, independent of the
-  // image's metadata unit; the factories normalize to mm.
-  const metadataUnit = metadata?.Pixels.PhysicalSizeXUnit ?? "µm";
-  const nanometersPerMillimeter = 1_000_000;
-  // Per-axis spacing: a nanometer size stays square in physical dimensions even
-  // when the image's pixels are anisotropic.
-  const spacingX = metadata?.Pixels.PhysicalSizeX ?? 1;
-  const spacingY = metadata?.Pixels.PhysicalSizeY ?? spacingX;
+  // While editing, the unit stays put so "200" → "2000 µm" doesn't jump to mm.
+  const [editing, setEditing] = useState<{ text: string; unit: MetricUnit | null } | null>(null);
+  const unit = editing ? editing.unit : shown.unit;
 
-  const toDisplay = (widthPx: number): number =>
-    displayUnit === "pixels"
-      ? Math.round(widthPx)
-      : Math.round(
-          absoluteToMetricFactory(spacingX, metadataUnit)(widthPx) * nanometersPerMillimeter,
-        );
-
-  const [draft, setDraft] = useState(String(toDisplay(stampWidthPx)));
-  const [draftSync, setDraftSync] = useState({ sizePx: stampWidthPx, unit: displayUnit });
-  if (draftSync.sizePx !== stampWidthPx || draftSync.unit !== displayUnit) {
-    // Re-derive the draft when the stored size or the unit flips; the user's
-    // in-progress typing wins until commit.
-    setDraftSync({ sizePx: stampWidthPx, unit: displayUnit });
-    setDraft(String(toDisplay(stampWidthPx)));
-  }
-
-  const commit = () => {
-    const value = Number(draft);
-    if (!Number.isFinite(value) || value <= 0) {
-      setDraft(String(toDisplay(stampWidthPx)));
+  const apply = (text: string) => {
+    setEditing({ text, unit });
+    const value = parseSize(text);
+    if (value === null) return;
+    if (scale.unit === "pixels" || !unit) {
+      setStampSize(value, value);
       return;
     }
-    const nanometersToLevel0Px = (spacing: number) =>
-      metricToAbsoluteFactory(spacing, metadataUnit)(value / nanometersPerMillimeter);
-    setStampSize(
-      displayUnit === "pixels" ? value : nanometersToLevel0Px(spacingX),
-      displayUnit === "pixels" ? value : nanometersToLevel0Px(spacingY),
-    );
+    // Per-axis spacing: a metric size stays square in physical dimensions even
+    // when the image's pixels are anisotropic.
+    const millimeters = value * unit.millimeters;
+    setStampSize(millimeters / scale.pixelSize.x, millimeters / scale.pixelSize.y);
   };
 
   return (
     <label className="flex items-center gap-1 text-xs text-muted-foreground">
       Size
       <input
-        type="number"
-        min={1}
+        type="text"
+        inputMode="decimal"
         aria-label="Stamp size in display units"
         className={inputClassName}
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
+        value={editing ? editing.text : String(shown.value)}
+        onFocus={() => setEditing({ text: String(shown.value), unit: shown.unit })}
+        onChange={(event) => apply(event.target.value)}
+        onBlur={() => setEditing(null)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.currentTarget.blur();
           }
         }}
       />
-      {displayUnit === "pixels" ? "px" : "nm"}
+      {unit?.symbol ?? "px"}
     </label>
   );
 };

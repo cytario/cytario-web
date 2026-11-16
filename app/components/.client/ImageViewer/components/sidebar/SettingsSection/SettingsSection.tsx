@@ -1,5 +1,6 @@
 import { Switch, Radio, RadioGroup } from "@cytario/design";
 
+import { useDisplayScale } from "../../canvas/Measurements/useDisplayScale";
 import { Section } from "~/components/Section/Section";
 import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
@@ -11,6 +12,8 @@ const rowClassName = `
 /** Viewer display settings: scale bar / ruler visibility and the global display unit. */
 export const SettingsSection = () => {
   const displayUnit = useViewerDisplayStore((state) => state.displayUnit);
+  const scale = useDisplayScale();
+  const metricAvailable = scale.unit === "metric" || scale.metricAvailable;
   const scaleBarVisible = useViewerDisplayStore((state) => state.scaleBarVisible);
   const rulersVisible = useViewerDisplayStore((state) => state.rulersVisible);
   const toggleDisplayUnit = useViewerDisplayStore((state) => state.toggleDisplayUnit);
@@ -44,16 +47,23 @@ export const SettingsSection = () => {
           <RadioGroup
             aria-labelledby="settings-display-unit-label"
             orientation="horizontal"
-            value={displayUnit}
+            value={scale.unit}
             onChange={(value) => {
               if (value !== displayUnit) toggleDisplayUnit();
             }}
             className="flex items-center gap-4"
           >
-            <Radio value="metric">Metric</Radio>
+            <Radio value="metric" isDisabled={!metricAvailable}>
+              Metric
+            </Radio>
             <Radio value="pixels">Pixels</Radio>
           </RadioGroup>
         </div>
+        {!metricAvailable && (
+          <p className="px-2 text-xs text-muted-foreground">
+            This image has no physical pixel size, so measurements are shown in pixels.
+          </p>
+        )}
       </div>
     </Section>
   );
