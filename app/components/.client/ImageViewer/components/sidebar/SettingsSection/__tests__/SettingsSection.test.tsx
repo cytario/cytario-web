@@ -1,11 +1,20 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useRef, type ReactNode } from "react";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import { SettingsSection } from "../SettingsSection";
 import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
+
+let physicalSizeX: number | undefined = 0.25;
+
+vi.mock("../../../../state/store/core/ViewerStoreContext", () => ({
+  useViewerStore: <T,>(selector: (state: { metadata: unknown }) => T): T =>
+    selector({
+      metadata: { Pixels: { PhysicalSizeX: physicalSizeX, PhysicalSizeXUnit: "\u00b5m" } },
+    }),
+}));
 
 const Harness = ({ children }: { children: ReactNode }) => {
   const boundsRef = useRef<HTMLDivElement>(null);
@@ -71,5 +80,18 @@ describe("SettingsSection", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: "Metric" }));
     expect(useViewerDisplayStore.getState().displayUnit).toBe("metric");
+  });
+
+  test("without a physical pixel size, metric is disabled and pixels shown", () => {
+    resetDisplayStore();
+    physicalSizeX = undefined;
+    renderSection();
+
+    expect(screen.getByRole("radio", { name: "Metric" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Pixels" })).toBeChecked();
+    expect(screen.getByText(/no physical pixel size/)).toBeInTheDocument();
+    // The stored preference is kept for images that have a physical size.
+    expect(useViewerDisplayStore.getState().displayUnit).toBe("metric");
+    physicalSizeX = 0.25;
   });
 });

@@ -2,13 +2,11 @@ import { PickingInfo } from "@deck.gl/core";
 import { DeckGL } from "@deck.gl/react";
 import { useCallback, useEffect } from "react";
 
-import { useAnnotationsLayer } from "./Annotations/useAnnotationsLayer";
-import { useChannelsLayer } from "./Channels/useChannelsLayer";
 import { ImageContainer } from "./ImageContainer";
 import { ActiveViewStatePreview } from "./Measurements/ActiveViewStatePreview";
 import { calculateViewStateToFit } from "./Measurements/calculateViewStateToFit";
-import { useOverlaysLayers } from "./Overlays/useOverlaysLayer";
 import { useView } from "./useView";
+import { useViewerLayers } from "./useViewerLayers";
 import { registerDecoders } from "../../state/decoders/registerDecoders";
 import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
@@ -47,10 +45,8 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
   const view = useView(viewPort);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
-  const channelsResult = useChannelsLayer(activeImagePanelId);
-  const overlaysResult = useOverlaysLayers(activeImagePanelId);
   // Read-only: annotations render in the preview but are not editable.
-  const annotationsResult = useAnnotationsLayer(activeImagePanelId, false);
+  const { layers, effects, layerFilter } = useViewerLayers(activeImagePanelId, false);
 
   // Click handler: when interactive, pan the active viewport to the clicked coordinate.
   const setViewState = useCallback(
@@ -78,7 +74,9 @@ const ImagePreviewInner = ({ viewPort, isInteractive }: ViewProps) => {
       width={viewPort.width}
       height={viewPort.height}
       views={[view]}
-      layers={[...channelsResult.layers, ...overlaysResult.layers, ...annotationsResult.layers]}
+      layers={layers}
+      effects={effects}
+      layerFilter={layerFilter}
       viewState={{ detail: viewStatePreview }}
       onClick={setViewState}
       onDrag={setViewState}

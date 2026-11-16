@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, test, vi } from "vitest";
 
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import { useAnnotationsLayer } from "../useAnnotationsLayer";
@@ -60,5 +60,31 @@ describe("useAnnotationsLayer onEdit", () => {
 
     const [stamped] = activeSetFeatures();
     expect(stamped.properties?.classification).toBeUndefined();
+  });
+});
+
+describe("useAnnotationsLayer stamp size", () => {
+  const stampConfig = (layers: unknown[]) =>
+    (layers[layers.length - 1] as { props: { modeConfig?: Record<string, unknown> } }).props
+      .modeConfig;
+
+  test("the stamp tool draws at the stored stamp size and follows its changes", () => {
+    seedViewerConnection("test-conn");
+    store = createViewerStore("test-conn/images/stamp-size.ome.tif", "me");
+    store.getState().setAnnotationMode("draw-box");
+    store.getState().setAnnotationStampSize(250, 500);
+
+    const { result, rerender } = renderHook(() => useAnnotationsLayer(0));
+    expect(stampConfig(result.current.layers)).toMatchObject({
+      stampWidthPx: 250,
+      stampHeightPx: 500,
+    });
+
+    store.getState().setAnnotationStampSize(40, 80);
+    rerender();
+    expect(stampConfig(result.current.layers)).toMatchObject({
+      stampWidthPx: 40,
+      stampHeightPx: 80,
+    });
   });
 });

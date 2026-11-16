@@ -1,15 +1,14 @@
 import { Tick } from "./Tick";
+import { useDisplayScale } from "./useDisplayScale";
 import { useMeasurements } from "./useMeasurements";
-import { absoluteToMetricFactory } from "./utils";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { useViewerDisplayStore } from "~/utils/viewerDisplayStore/useViewerDisplayStore";
 
 export const CursorTick = ({ vertical }: { vertical?: boolean }) => {
   const { zoom, screenOffsetLeft, screenOffsetTop } = useMeasurements();
   const metadata = useViewerStore(select.metadata);
   const cursorPosition = useViewerStore(select.cursorPosition);
-  const displayUnit = useViewerDisplayStore((s) => s.displayUnit);
+  const scale = useDisplayScale();
 
   if (!cursorPosition) return null;
   if (!metadata) return null;
@@ -22,14 +21,12 @@ export const CursorTick = ({ vertical }: { vertical?: boolean }) => {
   const absoluteX = screenPixelsToAbsolutePixels(x - screenOffsetLeft);
   const absoluteY = screenPixelsToAbsolutePixels(y - screenOffsetTop);
 
-  if (displayUnit === "pixels") {
+  if (scale.unit === "pixels") {
     return <Tick number={Math.round(vertical ? absoluteY : absoluteX)} offset={vertical ? y : x} />;
   }
 
-  const unit = metadata.Pixels.PhysicalSizeXUnit;
-  const absoluteToMetric = absoluteToMetricFactory(metadata.Pixels.PhysicalSizeX ?? 1, unit);
-
-  const cursorOffset = vertical ? absoluteToMetric(absoluteY) : absoluteToMetric(absoluteX);
+  // The rulers measure both axes in X spacing; the cursor tick matches them.
+  const cursorOffset = (vertical ? absoluteY : absoluteX) * scale.pixelSize.x;
 
   return <Tick number={cursorOffset} offset={vertical ? y : x} />;
 };

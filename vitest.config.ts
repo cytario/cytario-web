@@ -5,14 +5,16 @@ import { defineConfig } from "vitest/config";
 
 dotenv.config({ path: ".env.test" });
 
-// Handle ?url imports for WASM files in tests
-const wasmUrlPlugin = () => ({
-  name: "wasm-url-loader",
+// Handle ?url imports for static assets (WASM, DuckDB's worker JS) in tests:
+// inlined deps run through this pipeline; externalized ones are denied by
+// vite's module server before plugins ever see them.
+const assetUrlPlugin = () => ({
+  name: "asset-url-loader",
   transform(_code: string, id: string) {
-    if (id.includes("?url") && id.includes(".wasm")) {
-      const wasmPath = id.split("?")[0];
+    if (id.includes("?url") && (id.includes(".wasm") || id.includes(".worker.js"))) {
+      const assetPath = id.split("?")[0];
       return {
-        code: `export default ${JSON.stringify(wasmPath)};`,
+        code: `export default ${JSON.stringify(assetPath)};`,
         map: null,
       };
     }
@@ -20,8 +22,13 @@ const wasmUrlPlugin = () => ({
 });
 
 export default defineConfig({
-  plugins: [tsconfigPaths(), wasmUrlPlugin()],
+  plugins: [tsconfigPaths(), assetUrlPlugin()],
   resolve: {
+    // A git worktree's node_modules is a symlink into the sibling checkout;
+    // resolving realpaths would move every dependency outside the vite root
+    // and vite's module server denies their ?url imports (DuckDB's worker
+    // JS, pdfjs's worker). Keeping the symlinked path keeps them inside.
+    preserveSymlinks: true,
     alias: {
       "~": path.resolve(__dirname, "app"),
     },
@@ -44,7 +51,7 @@ export default defineConfig({
     exclude: ["**/node_modules/**", "**/dist/**", "**/.claude/**"],
     server: {
       deps: {
-        inline: ["@cornerstonejs/codec-openjpeg", "@cytario/design"],
+        inline: ["@cornerstonejs/codec-openjpeg", "@cytario/design", "@duckdb/duckdb-wasm"],
       },
     },
     coverage: {

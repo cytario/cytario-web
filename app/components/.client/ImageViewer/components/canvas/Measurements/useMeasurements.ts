@@ -1,4 +1,4 @@
-import { absoluteToMetricFactory, metricToAbsoluteFactory } from "./utils";
+import { physicalPixelSize } from "./utils";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { ViewState } from "../../../state/store/types";
@@ -73,15 +73,10 @@ export const useMeasurements = (viewStateOptional?: ViewState | null): UseMeasur
   const viewPortWidth = viewState.width;
   const viewPortHeight = viewState.height;
 
-  const unit = metadata.Pixels.PhysicalSizeXUnit;
-
-  const absoluteToMetric = absoluteToMetricFactory(
-    // Falls back to 1 mm/px when metadata lacks a physical pixel size.
-    metadata.Pixels.PhysicalSizeX ?? 1,
-    unit,
-  );
-
-  const metricToAbsolute = metricToAbsoluteFactory(metadata.Pixels.PhysicalSizeX ?? 1, unit);
+  // Without a physical pixel size every metric value is 0; useDisplayScale keeps
+  // the surfaces in pixel units then, so none of them is ever shown.
+  const millimetersPerPixel = physicalPixelSize(metadata.Pixels)?.x ?? 0;
+  const absoluteToMetric = (size: number): number => size * millimetersPerPixel;
 
   const widthTotalMm = absoluteToMetric(metadata.Pixels.SizeX);
   const heightTotalMm = absoluteToMetric(metadata.Pixels.SizeY);
@@ -101,7 +96,8 @@ export const useMeasurements = (viewStateOptional?: ViewState | null): UseMeasur
     screenPixelsToAbsolutePixels(screenOffsetBottom, zoom),
   );
 
-  const one_mm = absolutePixelsToScreenPixels(metricToAbsolute(1), zoom);
+  const one_mm =
+    millimetersPerPixel > 0 ? absolutePixelsToScreenPixels(1 / millimetersPerPixel, zoom) : 0;
 
   return {
     widthTotalMm,

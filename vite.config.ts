@@ -34,11 +34,23 @@ export default defineConfig({
     // inert with focus dead on <body>. Pin the shared runtime singletons to
     // this app's copies regardless of which node_modules tree they resolve
     // from; an npm-registry layout is a single tree already, so this is a
-    // no-op there.
+    // no-op there. The scoped @deck.gl family joins them: deck.gl rejects
+    // duplicate versions at runtime, and a file:-linked ee assembly can
+    // resolve a plugin's nested @deck.gl to a newer patch than the host's
+    // pin. Bare `deck.gl` stays out — this app installs only the scoped
+    // packages, and a plugin dist that externalizes the meta-package (the
+    // spatialdata viewer) must keep resolving it from its own tree.
     dedupe: [
       "react",
       "react-dom",
       "react-aria-components",
+      "@deck.gl/core",
+      "@deck.gl/extensions",
+      "@deck.gl/geo-layers",
+      "@deck.gl/layers",
+      "@deck.gl/mesh-layers",
+      "@deck.gl/react",
+      "@deck.gl/widgets",
       ...(localDevelopment.resolve?.dedupe ?? []),
     ],
   },

@@ -9,6 +9,7 @@ import { OverlaysSection } from "./OverlaysSection/OverlaysSection";
 import { OverviewSection } from "./OverviewSection/OverviewSection";
 import { SettingsSection } from "./SettingsSection/SettingsSection";
 import { ViewsSection } from "./ViewsSection/ViewsSection";
+import { CaptureExportSection } from "../export/CaptureExportSection";
 import { Sidebar } from "~/components/Sidebar/Sidebar";
 
 export const IMAGE_SIDEBAR_NAME = "Image Controls";
@@ -20,6 +21,7 @@ const SECTIONS: { id: string; Component: ComponentType }[] = [
   { id: "channels", Component: ChannelsSection },
   { id: "overlays", Component: OverlaysSection },
   { id: "annotations", Component: AnnotationsSection },
+  { id: "capture", Component: CaptureExportSection },
   { id: "info", Component: InfoSection },
   { id: "settings", Component: SettingsSection },
 ];
@@ -29,7 +31,8 @@ interface ImageSidebarProps {
   boundsRef: RefObject<HTMLElement | null>;
 }
 
-/** Viewer controls sidebar: overview, views, channels, overlays, annotations. */
+/** Viewer controls sidebar: overview, views, channels, overlays, annotations,
+ *  capture and export, info, settings. */
 export const ImageSidebar = ({ boundsRef }: ImageSidebarProps) => (
   <>
     <Sidebar
