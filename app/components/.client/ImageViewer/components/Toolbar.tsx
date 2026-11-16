@@ -39,7 +39,7 @@ export const Toolbar = () => {
   return (
     <>
       {scaleBarVisible && (
-        <FloatingBar className="bottom-8 left-8 p-5">
+        <FloatingBar className="bottom-8 left-8">
           <ScaleBar />
         </FloatingBar>
       )}
