@@ -204,6 +204,14 @@ const exportResult = () =>
 
 const within = () => screen.getByRole("region", { name: "Capture and export" });
 
+/** Opens the design Select trigger (its accessible name is the selected
+ *  value plus the label) and returns the user — options are then clickable
+ *  by role. */
+const openSelect = async (user: ReturnType<typeof userEvent.setup>, label: string) => {
+  await user.click(screen.getByRole("button", { name: new RegExp(label) }));
+  return user;
+};
+
 describe("Capture and export section", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -215,7 +223,7 @@ describe("Capture and export section", () => {
     renderSection();
 
     expect(screen.getByRole("radio", { name: /current view/i })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Resolution" })).toHaveValue("presentation");
+    expect(screen.getByRole("button", { name: /Resolution/ })).toHaveTextContent(/Presentation/);
   });
 
   test("defaults decorations per spec", () => {
@@ -246,16 +254,21 @@ describe("Capture and export section", () => {
     expect(await screen.findByText(/no physical pixel size/)).toBeInTheDocument();
   });
 
-  test("the resolution combobox exposes the three intent presets", () => {
+  test("the resolution select exposes the three intent presets", async () => {
+    const user = userEvent.setup();
     renderSection();
 
-    const combobox = screen.getByRole("combobox", { name: "Resolution" });
-    expect(combobox).toHaveValue("presentation");
+    // The default trigger names the Presentation preset.
+    expect(screen.getByRole("button", { name: /Resolution/ })).toHaveTextContent(
+      "Presentation — 2000 px",
+    );
+
     // The three presets by intent name, pixel target in the label — DPI never
     // appears in the UI (it describes the scan's display use, not its quality).
-    const comboboxEl = combobox as HTMLSelectElement;
-    const options = [...comboboxEl.options].map((option) => option.text);
-    expect(options).toEqual(["Quick share — 1200 px", "Presentation — 2000 px", "Print — 3500 px"]);
+    await openSelect(user, "Resolution");
+    for (const option of ["Quick share — 1200 px", "Presentation — 2000 px", "Print — 3500 px"]) {
+      expect(screen.getByRole("option", { name: option })).toBeInTheDocument();
+    }
 
     expect(screen.queryByText("2×")).toBeNull();
     expect(screen.queryByText("4×")).toBeNull();
@@ -265,11 +278,11 @@ describe("Capture and export section", () => {
     const user = userEvent.setup();
     renderSection();
 
-    expect(screen.queryByRole("combobox", { name: "Region" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Region/ })).toBeNull();
 
     await user.click(screen.getByRole("radio", { name: /annotation region/i }));
 
-    expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Region/ })).toBeInTheDocument();
   });
 
   test("regions that load after mount enable the annotation-region source", async () => {
@@ -300,10 +313,9 @@ describe("Capture and export section", () => {
     await waitFor(() => expect(regionOption).not.toBeDisabled());
 
     await user.click(regionOption);
-    expect(screen.getByRole("combobox", { name: "Region" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("combobox", { name: "Region" }).querySelector('option[value="late-rect"]'),
-    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Region/ })).toBeInTheDocument();
+    await openSelect(user, "Region");
+    expect(screen.getByRole("option", { name: "Late region" })).toBeInTheDocument();
   });
 
   test("read-only connections can export regions from any set", () => {
@@ -479,7 +491,8 @@ describe("Capture and export section", () => {
     renderSection();
 
     await user.click(screen.getByRole("radio", { name: /annotation region/i }));
-    await user.selectOptions(screen.getByRole("combobox", { name: "Region" }), "rect-1");
+    await openSelect(user, "Region");
+    await user.click(screen.getByRole("option", { name: "Region A" }));
     await user.click(screen.getByRole("button", { name: /download/i }));
 
     await waitFor(() => {
@@ -493,7 +506,8 @@ describe("Capture and export section", () => {
     renderSection();
 
     await user.click(screen.getByRole("radio", { name: /annotation region/i }));
-    await user.selectOptions(screen.getByRole("combobox", { name: "Region" }), "rect-1");
+    await openSelect(user, "Region");
+    await user.click(screen.getByRole("option", { name: "Region A" }));
 
     await waitFor(() => {
       const viewState = currentStore.getState().viewStateActive;

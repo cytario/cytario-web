@@ -4,6 +4,7 @@ import {
   Icon,
   SegmentedControl,
   SegmentedControlItem,
+  Select,
   Tooltip,
   useToast,
 } from "@cytario/design";
@@ -338,43 +339,31 @@ export const CaptureExportSection = () => {
           </SegmentedControl>
 
           {source === "annotation-region" && availableRegions.length > 0 && (
-            <select
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-              value={regionFeatureId ?? ""}
-              onChange={(event) => {
-                if (event.target.value) setRegionFeatureId(event.target.value);
+            <Select
+              label="Region"
+              placeholder="Select a rectangle region"
+              size="sm"
+              items={availableRegions.map((region) => ({ id: region.id, name: region.name }))}
+              selectedKey={regionFeatureId}
+              onSelectionChange={(key) => {
+                if (typeof key === "string") setRegionFeatureId(key);
               }}
-              aria-label="Region"
-            >
-              {!regionFeatureId && (
-                <option value="" disabled>
-                  Select a rectangle region
-                </option>
-              )}
-              {availableRegions.map((region) => (
-                <option key={region.id} value={region.id}>
-                  {region.name}
-                </option>
-              ))}
-            </select>
+            />
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-foreground">Resolution</span>
-          <select
-            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
-            value={presetId}
-            onChange={(event) => setPresetId(event.target.value as ResolutionPreset["id"])}
-            aria-label="Resolution"
-          >
-            {RESOLUTION_PRESETS.map((presetOption) => (
-              <option key={presetOption.id} value={presetOption.id}>
-                {presetOption.name} — {presetOption.targetWidthPx} px
-              </option>
-            ))}
-          </select>
-        </div>
+        <Select
+          label="Resolution"
+          size="sm"
+          items={RESOLUTION_PRESETS.map((presetOption) => ({
+            id: presetOption.id,
+            name: `${presetOption.name} — ${presetOption.targetWidthPx} px`,
+          }))}
+          selectedKey={presetId}
+          onSelectionChange={(key) => {
+            if (typeof key === "string") setPresetId(key as ResolutionPreset["id"]);
+          }}
+        />
 
         <div className="flex flex-col gap-1.5">
           {decorationRows.map((row) => (
