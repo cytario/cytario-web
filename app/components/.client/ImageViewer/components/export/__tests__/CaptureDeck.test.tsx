@@ -111,6 +111,28 @@ describe("CaptureDeck", () => {
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
 
+  test("never settles before the deck has rendered its first frame", () => {
+    vi.useFakeTimers();
+    try {
+      layerInstances.length = 0;
+      layerInstances.push({ isLoaded: true });
+
+      const onSettled = vi.fn();
+      render(<CaptureDeck viewState={viewState} width={320} height={240} onSettled={onSettled} />);
+
+      // The 500ms settle poll can fire while layers are loaded but the deck has
+      // not drawn yet — it must not settle before the first onAfterRender.
+      vi.advanceTimersByTime(1000);
+      expect(onSettled).not.toHaveBeenCalled();
+
+      // The first rendered frame opens the gate; the settle then fires.
+      afterRenderCallback?.();
+      expect(onSettled).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("hands the layers to deck.gl with their pixel sizes scaled", () => {
     layerInstances.length = 0;
     layerInstances.push({ isLoaded: true });

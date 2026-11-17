@@ -62,6 +62,10 @@ export const CaptureDeck = ({
 }: CaptureDeckProps) => {
   const deckRef = useRef<DeckGLRef | null>(null);
   const settledRef = useRef(false);
+  // Settle must wait for at least one completed frame: with nothing to load
+  // (all channels hidden) every layer reports loaded before the first draw,
+  // and copying that canvas yields a blank export (C-728).
+  const frameRenderedRef = useRef(false);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
   const {
@@ -84,6 +88,7 @@ export const CaptureDeck = ({
   // the poll closes that gap.
   const trySettle = useCallback(() => {
     if (settledRef.current) return;
+    if (!frameRenderedRef.current) return;
     const deck = deckRef.current?.deck;
     if (!deck?.isInitialized) return;
     if (layers.every((layer) => layer.isLoaded)) {
@@ -92,6 +97,11 @@ export const CaptureDeck = ({
       if (canvas) onSettled(canvas);
     }
   }, [layers, onSettled]);
+
+  const handleAfterRender = useCallback(() => {
+    frameRenderedRef.current = true;
+    trySettle();
+  }, [trySettle]);
 
   useEffect(() => {
     const poll = setInterval(trySettle, 500);
@@ -115,7 +125,7 @@ export const CaptureDeck = ({
         viewState={{ detail: viewState }}
         useDevicePixels={1}
         controller={false}
-        onAfterRender={trySettle}
+        onAfterRender={handleAfterRender}
         getCursor={() => "default"}
       />
     </div>
