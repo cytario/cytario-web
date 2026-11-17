@@ -84,8 +84,7 @@ export function flattenGroupsWithIds(
 
 // The flat, sorted group list of an admin scope for its membership UIs —
 // the synthesised org-root node is not a real group and is excluded.
-export async function listScopeGroups(orgId: string, scope: string): Promise<GroupInfo[]> {
-  const group = await getGroupWithMembers(orgId, scope);
+export function scopeGroupsOf(group: GroupWithMembers | undefined, scope: string): GroupInfo[] {
   return (
     scope === ORG_ROOT_SCOPE
       ? (group?.subGroups ?? []).flatMap((sg) => flattenGroupsWithIds(sg))
@@ -93,6 +92,10 @@ export async function listScopeGroups(orgId: string, scope: string): Promise<Gro
         ? flattenGroupsWithIds(group)
         : []
   ).sort((a, b) => compareGroupPaths(a.path, b.path));
+}
+
+export async function listScopeGroups(orgId: string, scope: string): Promise<GroupInfo[]> {
+  return scopeGroupsOf(await getGroupWithMembers(orgId, scope), scope);
 }
 
 export function collectAllUsers(group: GroupWithMembers): UserWithGroups[] {

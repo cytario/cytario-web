@@ -13,6 +13,7 @@ vi.mock("~/.server/auth/keycloakAdmin", () => ({
   adminFetch: vi.fn(),
   getGroupWithMembers: vi.fn(),
   flattenGroupsWithIds: vi.fn(),
+  scopeGroupsOf: vi.fn(() => []),
   collectAllUsers: vi.fn(),
   findOrganizationByAlias: vi.fn(),
   getOrganizationGroupMembers: vi.fn(),
