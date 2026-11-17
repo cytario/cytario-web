@@ -257,6 +257,9 @@ export const CaptureExportSection = () => {
         if (result.upscaled) {
           notes.push("upscaled beyond native scan resolution");
         }
+        if (result.uniform) {
+          notes.push("the image area is a single flat color — nothing may have rendered");
+        }
         // An empty legend is invisible in the output — say so instead of
         // shipping it silently.
         if (

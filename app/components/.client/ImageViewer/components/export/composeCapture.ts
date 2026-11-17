@@ -68,6 +68,8 @@ export interface ExportViewResult {
   height: number;
   clamped: boolean;
   upscaled: boolean;
+  /** Every sampled pixel of the image area is the same color. */
+  uniform: boolean;
 }
 
 export class ExportRenderError extends Error {
@@ -105,6 +107,31 @@ export interface ComposeCaptureInput {
   legend: Legend;
 }
 
+/** True when a sparse sample of the image area is a single color — the
+ *  capture rendered nothing but its background (or one flat fill covers
+ *  everything). Decorations are excluded: only the image area is sampled. */
+const isUniformImage = (
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): boolean => {
+  const image = context.getImageData(0, 0, width, height).data;
+  const stepX = Math.max(1, Math.floor(width / 64));
+  const stepY = Math.max(1, Math.floor(height / 64));
+  const same = (a: number, b: number): boolean =>
+    image[a] === image[b] &&
+    image[a + 1] === image[b + 1] &&
+    image[a + 2] === image[b + 2] &&
+    image[a + 3] === image[b + 3];
+  for (let y = 0; y < height; y += stepY) {
+    for (let x = 0; x < width; x += stepX) {
+      const offset = (y * width + x) * 4;
+      if (!same(0, offset)) return false;
+    }
+  }
+  return true;
+};
+
 /**
  * Composites the settled render buffer into the export PNG: the buffer already
  * is the frame at its output size, so it is copied 1:1 and the decorations are
@@ -133,6 +160,8 @@ export const composeCapture = async (
   context.fillStyle = theme.background;
   context.fillRect(0, 0, frame.width, frame.height);
   context.drawImage(canvas, 0, 0);
+  // Sampled before the decorations: only the image area decides uniformity.
+  const uniform = isUniformImage(context, frame.width, frame.height);
 
   if (input.decorations.scaleBar || input.decorations.legend) {
     await ensureDocumentFonts();
@@ -170,6 +199,7 @@ export const composeCapture = async (
     height: frame.height,
     clamped: frame.clamped,
     upscaled: frame.upscaled,
+    uniform,
   };
 };
 
