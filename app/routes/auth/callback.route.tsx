@@ -134,25 +134,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         : validateRedirectTo(stateData.redirectTo);
     console.info(`${label} Authentication successful, redirecting to:`, redirectTo);
 
-    // Group memberships recorded at invite time are applied here, after the
-    // session is complete — the invitee's first login lands them in their
-    // designated groups. The token minted during this login predates the
-    // membership, so when anything was applied the silent re-auth re-runs the
-    // group mappers before the user reaches their target. Rows are
-    // tenant-scoped and the profile carries every membership, so each member
-    // org is applied in turn; a failure in one org does not block the rest.
+    // This login's token predates any membership added here, so a silent
+    // re-auth picks up the new group claims.
     let appliedGroups = false;
-    for (const organization of Object.keys(user.organizations)) {
-      try {
-        if (await applyPendingGroupAssignments(user, organization)) {
-          appliedGroups = true;
-        }
-      } catch (error) {
-        console.error(
-          `${label} Pending group assignment application failed for ${organization}:`,
-          error,
-        );
-      }
+    try {
+      appliedGroups = await applyPendingGroupAssignments(user, Object.keys(user.organizations));
+    } catch (error) {
+      console.error(`${label} Pending group assignment application failed:`, error);
     }
     if (appliedGroups) {
       console.info(`${label} Pending group assignments applied, refreshing session`);

@@ -319,8 +319,22 @@ describe("callback loader", () => {
     expect((response as Response).headers.get("location")).toBe(
       "/auth/refresh?return_to=%2Fdashboard",
     );
-    // Applied per member org — the mock user belongs to org1.
-    expect(applyPendingGroupAssignments).toHaveBeenCalledWith(mockUser, "org1");
+    expect(applyPendingGroupAssignments).toHaveBeenCalledWith(
+      mockUser,
+      Object.keys(mockUser.organizations),
+    );
+  });
+
+  test("redirects directly to the target when applying pending assignments throws", async () => {
+    vi.mocked(applyPendingGroupAssignments).mockRejectedValue(new Error("db down"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = await loader({ request } as LoaderFunctionArgs);
+
+    expect((response as Response).headers.get("location")).toBe("/dashboard");
+    error.mockRestore();
   });
 
   test("redirects directly to the target when no assignments were applied", async () => {
