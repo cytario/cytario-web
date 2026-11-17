@@ -68,23 +68,24 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
     // "user is already a member" — indistinguishable, and both leave an
     // invitee who should claim the groups, so the assignment is recorded for
     // either outcome. A real error throws and records nothing.
-    let inviteLanded = false;
+    let alreadyInvited = false;
     try {
       await inviteOrganizationUser(org.id, email);
-      inviteLanded = true;
     } catch (e) {
       if (!(e instanceof KeycloakAdminError) || e.status !== 409) throw e;
-      inviteLanded = true;
+      alreadyInvited = true;
     }
-    if (inviteLanded && groupPaths.length > 0) {
+    if (groupPaths.length > 0) {
       await createPendingGroupAssignments(requestOrganization, [email], groupPaths, user.sub);
     }
 
-    const message = `Invited ${email} to ${requestOrganization}.`;
+    const message = alreadyInvited
+      ? `${email} already has a pending invitation or is a member.`
+      : `Invited ${email} to ${requestOrganization}.`;
     if (inviteAnother) {
       return { success: true, message };
     }
-    session.set("notification", { status: "success", message });
+    session.set("notification", { status: alreadyInvited ? "warning" : "success", message });
   } catch (e) {
     if (e instanceof Response) throw e;
     const status = e instanceof KeycloakAdminError ? e.status : undefined;

@@ -179,7 +179,7 @@ describe("inviteUserAction", () => {
     );
     expect(response).toEqual({
       success: true,
-      message: expect.stringContaining("Invited"),
+      message: expect.stringContaining("already has a pending invitation or is a member"),
     });
   });
 
