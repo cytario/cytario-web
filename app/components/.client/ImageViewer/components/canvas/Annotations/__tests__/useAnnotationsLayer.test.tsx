@@ -4,6 +4,7 @@ import { describe, expect, it, test, vi } from "vitest";
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import { useAnnotationsLayer } from "../useAnnotationsLayer";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
+import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
 let store: ReturnType<typeof createViewerStore>;
 
@@ -60,6 +61,59 @@ describe("useAnnotationsLayer onEdit", () => {
 
     const [stamped] = activeSetFeatures();
     expect(stamped.properties?.classification).toBeUndefined();
+  });
+});
+
+describe("useAnnotationsLayer excluded feature", () => {
+  const featuresOf = (layer: unknown) =>
+    (layer as { props: { data: { features: unknown[] } } }).props.data.features;
+
+  test("drops the excluded feature from the own and peer layers", () => {
+    seedViewerConnection("test-conn");
+    store = createViewerStore("test-conn/images/exclude-region.ome.tif", "me");
+    const setId = store.getState().ensureOwnSet();
+    const kept: AnnotationFeature = {
+      type: "Feature",
+      id: "kept-1",
+      geometry: { type: "Point", coordinates: [1, 1] },
+      properties: {},
+    };
+    const excluded: AnnotationFeature = {
+      type: "Feature",
+      id: "region-1",
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [9, 0],
+            [9, 9],
+            [0, 0],
+          ],
+        ],
+      },
+      properties: {},
+    };
+    store.getState().updateSetFeatures(setId, [kept, excluded]);
+    store
+      .getState()
+      .seedAnnotations([
+        { id: "peer-set", createdBy: "peer", features: [kept, excluded], name: undefined },
+      ]);
+
+    const { result: withAll } = renderHook(() => useAnnotationsLayer(0, false, null));
+    const { result: excluding } = renderHook(() => useAnnotationsLayer(0, false, "region-1"));
+
+    const annotationData = (layers: unknown[]) =>
+      layers.filter((layer) => String((layer as { id: string }).id).startsWith("annotations-0"));
+
+    // Without exclusion both features render in own and peer layers.
+    expect(annotationData(withAll.current.layers).flatMap(featuresOf)).toHaveLength(4);
+
+    // With exclusion, every annotations layer drops the region feature.
+    const remaining = annotationData(excluding.current.layers).flatMap(featuresOf);
+    expect(remaining).toHaveLength(2);
+    expect(remaining.every((f) => (f as { id: string }).id !== "region-1")).toBe(true);
   });
 });
 

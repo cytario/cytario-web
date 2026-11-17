@@ -22,6 +22,9 @@ export interface CaptureDeckProps {
   onSettled: (canvas: HTMLCanvasElement) => void;
   /** Whether annotations render read-only (non-pickable, not editable). */
   interactive?: boolean;
+  /** One annotation feature id to leave out — the region being exported must
+   *  not draw its own boundary onto the capture. */
+  excludeAnnotationId?: string | null;
   /** Mount visibly (preview) or hidden (capture run). */
   hidden?: boolean;
   style?: CSSProperties;
@@ -57,6 +60,7 @@ export const CaptureDeck = ({
   pixelScale = 1,
   onSettled,
   interactive = false,
+  excludeAnnotationId = null,
   hidden = false,
   style,
 }: CaptureDeckProps) => {
@@ -71,7 +75,7 @@ export const CaptureDeck = ({
     layers: viewerLayers,
     effects,
     layerFilter,
-  } = useViewerLayers(activeImagePanelId, interactive);
+  } = useViewerLayers(activeImagePanelId, interactive, excludeAnnotationId);
   const layers = useMemo(
     () =>
       pixelScale === 1

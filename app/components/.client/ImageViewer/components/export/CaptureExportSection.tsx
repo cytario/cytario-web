@@ -320,6 +320,7 @@ export const CaptureExportSection = () => {
           width={activeRun.plan.frame.width}
           height={activeRun.plan.frame.height}
           pixelScale={activeRun.plan.pixelScale}
+          excludeAnnotationId={activeRun.regionFeatureId}
           hidden
           onSettled={(canvas) => {
             void deliver(activeRun)(canvas);

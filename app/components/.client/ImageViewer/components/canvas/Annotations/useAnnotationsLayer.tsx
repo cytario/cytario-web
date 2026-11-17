@@ -113,10 +113,14 @@ const stampEdit = (
 
 /** Builds the editable annotations layer over the shared working set in the viewer
  *  store. With `interactive: false` (preview/minimap decks) the own set renders
- *  read-only and picking is disabled so clicks pan the preview. */
+ *  read-only and picking is disabled so clicks pan the preview.
+ *  `excludeFeatureId` omits one feature everywhere (own set, peer sets, selection
+ *  rings) — the capture deck uses it so the region being exported never draws
+ *  its own boundary onto the export. */
 export const useAnnotationsLayer = (
   imagePanelId: number,
   interactive = true,
+  excludeFeatureId: string | null = null,
 ): CytarioLayerResult<GeoJsonLayer | EditableGeoJsonLayer> => {
   const ownUserId = useCurrentUser()?.sub;
   const canAnnotate = useCanAnnotate();
@@ -149,7 +153,10 @@ export const useAnnotationsLayer = (
   }, [activeClass, setClasses, features]);
 
   return useMemo(() => {
-    const data: FeatureCollection = { type: "FeatureCollection", features };
+    const shownFeatures = excludeFeatureId
+      ? features.filter((f) => f.id !== excludeFeatureId)
+      : features;
+    const data: FeatureCollection = { type: "FeatureCollection", features: shownFeatures };
     const ownView = activeSetId ? annotationView[activeSetId] : undefined;
     const ownHidden = new Set(ownView?.hiddenClasses ?? []);
     const isHidden = (f: AnnotationFeature) => ownHidden.has(classNameOf(f));
@@ -157,7 +164,7 @@ export const useAnnotationsLayer = (
     // Resolve selected ids → array indexes only here, at the deck boundary.
     const selected = new Set(selectedIds);
     const isSelected = (f: AnnotationFeature) => !!f.id && selected.has(f.id);
-    const selectedFeatureIndexes = features.reduce<number[]>((acc, f, i) => {
+    const selectedFeatureIndexes = shownFeatures.reduce<number[]>((acc, f, i) => {
       if (isSelected(f)) acc.push(i);
       return acc;
     }, []);
@@ -245,9 +252,12 @@ export const useAnnotationsLayer = (
       .filter((s) => s.id !== activeSetId)
       .map((set) => {
         const peerView = annotationView[set.id];
+        const peerFeatures = excludeFeatureId
+          ? set.features.filter((f) => f.id !== excludeFeatureId)
+          : set.features;
         return new GeoJsonLayer({
           id: `annotations-${imagePanelId}-peer-${set.id}`,
-          data: { type: "FeatureCollection", features: set.features },
+          data: { type: "FeatureCollection", features: peerFeatures },
           ...paint(
             peerView?.hiddenClasses,
             Math.round(annotationsOpacity * 170),
@@ -264,12 +274,14 @@ export const useAnnotationsLayer = (
     // Selection halo (selection isn't visibly rendered in view mode) spans own + peer
     // sets; hidden features are excluded so a halo never reveals one.
     const selectedFeatures: AnnotationFeature[] = [
-      ...features.filter((f) => isSelected(f) && !isHidden(f)),
+      ...shownFeatures.filter((f) => isSelected(f) && !isHidden(f)),
       ...annotationSets
         .filter((s) => s.id !== activeSetId)
         .flatMap((set) => {
           const peerHidden = new Set(annotationView[set.id]?.hiddenClasses ?? []);
-          return set.features.filter((f) => isSelected(f) && !peerHidden.has(classNameOf(f)));
+          return set.features.filter(
+            (f) => f.id !== excludeFeatureId && isSelected(f) && !peerHidden.has(classNameOf(f)),
+          );
         }),
     ];
 
@@ -356,5 +368,6 @@ export const useAnnotationsLayer = (
     showAnnotationClass,
     activeClassification,
     interactive,
+    excludeFeatureId,
   ]);
 };

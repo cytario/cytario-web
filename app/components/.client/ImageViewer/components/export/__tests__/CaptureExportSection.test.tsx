@@ -34,6 +34,7 @@ const captureDeckProps: {
   pixelScale?: number;
   viewState: { zoom: number };
   onSettled: (canvas: HTMLCanvasElement) => void;
+  excludeAnnotationId?: string | null;
 }[] = [];
 const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
 // While set, the deck mock parks each onSettled instead of firing it on
@@ -217,6 +218,7 @@ const exportResult = () =>
     height: 7087,
     clamped: false,
     upscaled: false,
+    uniform: false,
   }) as never;
 
 const within = () => screen.getByRole("region", { name: "Capture and export" });
@@ -571,6 +573,22 @@ describe("Capture and export section", () => {
       expect(composeCaptureMock).toHaveBeenCalledTimes(1);
     });
     expect(commitExportAnnotationMock).not.toHaveBeenCalled();
+  });
+
+  test("a region capture hides the exported region's own annotation from the deck", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    await openSelect(user, "Region");
+    await user.click(screen.getByRole("option", { name: "Region A" }));
+    captureDeckProps.length = 0;
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(captureDeckProps.length).toBeGreaterThan(0));
+    // rect-1 is Region A's feature id — the deck must drop it so the region's
+    // own boundary never draws onto the export.
+    expect(captureDeckProps[0].excludeAnnotationId).toBe("rect-1");
   });
 
   test("selecting a region frames the active panel on the region's extent", async () => {

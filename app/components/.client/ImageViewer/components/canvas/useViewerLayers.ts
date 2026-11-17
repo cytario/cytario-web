@@ -25,11 +25,21 @@ export interface ViewerLayersResult {
  *  overlays and annotations merged with the overlay composite. Every deck
  *  (live panel, preview, capture) renders through this so the composite can
  *  never drift between surfaces. With `interactive: false` the annotations
- *  render read-only and are not pickable. */
-export const useViewerLayers = (imagePanelId: number, interactive = true): ViewerLayersResult => {
+ *  render read-only and are not pickable. `excludeAnnotationId` drops that one
+ *  annotation from every annotations layer (the capture deck hides the region
+ *  being exported). */
+export const useViewerLayers = (
+  imagePanelId: number,
+  interactive = true,
+  excludeAnnotationId: string | null = null,
+): ViewerLayersResult => {
   const { layers: channelLayers } = useChannelsLayer(imagePanelId);
   const { layers: overlayLayers } = useOverlaysLayers(imagePanelId);
-  const { layers: annotationLayers } = useAnnotationsLayer(imagePanelId, interactive);
+  const { layers: annotationLayers } = useAnnotationsLayer(
+    imagePanelId,
+    interactive,
+    excludeAnnotationId,
+  );
 
   // Offscreen additive-overlay composition: the effect renders the overlay layers into an
   // FBO each frame, the composite layer premultiplied-over blends the result onto the base.
