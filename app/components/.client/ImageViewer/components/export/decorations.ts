@@ -101,8 +101,8 @@ const setLabelFont = (
   fontPx: number,
 ): void => {
   context.font = `${SCALE_BAR_LAYOUT.fontWeight} ${fontPx}px ${theme.fontFamily}`;
-  // letterSpacing is unsupported in Firefox — assigning it is a silent no-op
-  // there, and the check keeps the layout from silently depending on it.
+  // letterSpacing is a silent no-op on Firefox — feature-test so the
+  // layout never depends on it.
   if ("letterSpacing" in context) {
     context.letterSpacing = `${SCALE_BAR_LAYOUT.letterSpacing * fontPx}px`;
   }

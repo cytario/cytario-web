@@ -201,9 +201,8 @@ export const CaptureExportSection = () => {
   const deliver = useCallback(
     (run: ActiveRun) =>
       async (canvas: HTMLCanvasElement): Promise<void> => {
-        // The legend is resolved here, at settle time, from the same store the
-        // pixels rendered from — a capture planned before the sidecar's channel
-        // state hydrated would otherwise silently carry no legend (C-728).
+        // The legend must reflect the store the pixels rendered from —
+        // resolve it at settle time, not from the plan-time snapshot.
         const legend = legendForState(storeApi);
         let result;
         try {
@@ -258,8 +257,8 @@ export const CaptureExportSection = () => {
         if (result.upscaled) {
           notes.push("upscaled beyond native scan resolution");
         }
-        // Silent absence was the missing-legend bug's camouflage (C-728): say
-        // it when the legend is on but nothing visible was left to list.
+        // An empty legend is invisible in the output — say so instead of
+        // shipping it silently.
         if (
           run.decorations.legend &&
           legend.channels.length === 0 &&

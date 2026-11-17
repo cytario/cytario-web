@@ -1303,8 +1303,7 @@ describe("createViewerStore", () => {
       expect(newPreset.channelsOpacity).toBe(1);
       expect(newPreset.showCellOutline).toBe(true);
       expect(newPreset.overlaysFillOpacity).toBe(0.5);
-      // Annotations default to fully transparent — they read as overlays on
-      // the image, and opaque unclassified fills hid tissue in exports.
+      // Annotation fills overlay the image — never default them to opaque.
       expect(newPreset.annotationsOpacity).toBe(0);
     });
 

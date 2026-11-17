@@ -384,9 +384,8 @@ describe("Capture and export section", () => {
       legend: true,
     });
     expect(call.imageBasename).toBe("slide");
-    // The legend is resolved at settle time from the live store — the compose
-    // receives the current visible channels, not a plan-time snapshot (C-728:
-    // a capture planned before channel-state hydration drew no legend).
+    // The legend resolves at settle time from the live store — compose
+    // receives the visible channels, not a plan-time snapshot.
     expect(call.legend).toEqual({
       channels: [
         { name: "DAPI", color: [0, 255, 0] },
@@ -397,8 +396,6 @@ describe("Capture and export section", () => {
   });
 
   test("the legend reflects the store at settle time, not plan time", async () => {
-    // Channel state hydrating after the capture was planned (the missing-
-    // legend bug's mechanism): DAPI becomes visible between click and settle.
     const user = userEvent.setup();
     deferDeckSettle = true;
     renderSection();

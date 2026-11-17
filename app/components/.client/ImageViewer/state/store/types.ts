@@ -13,10 +13,10 @@ import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 export type { OverlayConfig };
 
-/** Annotation fills render invisible by default (C-728): a view-state that
- *  declares no opacity — a fresh sidecar, a peer preset, a legacy localStorage
- *  entry — falls back to this, never to fully opaque. Outlines are governed
- *  separately by `showAnnotationOutline` and stay visible. */
+/** Fallback for view-states that declare no annotation opacity (fresh
+ *  sidecars, peer presets, legacy entries) — fills overlay the image, so this
+ *  is never fully opaque. Outlines are governed separately by
+ *  `showAnnotationOutline`. */
 export const DEFAULT_ANNOTATIONS_OPACITY = 0;
 
 export type RGBA = [number, number, number, number];

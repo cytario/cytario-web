@@ -62,9 +62,8 @@ export const CaptureDeck = ({
 }: CaptureDeckProps) => {
   const deckRef = useRef<DeckGLRef | null>(null);
   const settledRef = useRef(false);
-  // Settle must wait for at least one completed frame: with nothing to load
-  // (all channels hidden) every layer reports loaded before the first draw,
-  // and copying that canvas yields a blank export (C-728).
+  // Every layer can report loaded before the first draw (nothing to load) —
+  // settling then would copy a blank canvas.
   const frameRenderedRef = useRef(false);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
