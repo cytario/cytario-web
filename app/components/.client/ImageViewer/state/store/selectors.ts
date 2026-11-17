@@ -6,11 +6,11 @@ import {
   ChannelsState,
   ChannelsStateColumns,
   detectBrightfieldGroup,
-  DEFAULT_ANNOTATIONS_OPACITY,
   LayerChannelsState,
   ViewerStore,
 } from "./types";
 import { DEFAULT_OBJECTIVE_POWER } from "@cytario/plugin-api";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const EMPTY_OBJECT = Object.freeze({});

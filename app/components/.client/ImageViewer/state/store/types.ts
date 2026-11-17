@@ -8,16 +8,11 @@ import type { CoreSlice } from "./core/core.store";
 import type { ViewSlice } from "./core/viewport.store";
 import type { OverlaysSlice } from "./overlays/overlays.store";
 import type { ViewsSlice } from "./views/views.store";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 export type { OverlayConfig };
-
-/** Fallback for view-states that declare no annotation opacity (fresh
- *  sidecars, peer presets, legacy entries) — fills overlay the image, so this
- *  is never fully opaque. Outlines are governed separately by
- *  `showAnnotationOutline`. */
-export const DEFAULT_ANNOTATIONS_OPACITY = 0;
 
 export type RGBA = [number, number, number, number];
 export type RGB = [number, number, number];

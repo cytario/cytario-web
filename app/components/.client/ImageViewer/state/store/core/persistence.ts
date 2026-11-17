@@ -2,7 +2,8 @@ import type { PersistStorage, StorageValue } from "zustand/middleware";
 
 import type { AnnotationClass } from "../annotations/annotations.store";
 import { LEGACY_CLASSES_KEY } from "../annotations/annotations.store";
-import { DEFAULT_ANNOTATIONS_OPACITY, type ViewerStore } from "../types";
+import type { ViewerStore } from "../types";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import { createMigrate } from "~/utils/persistMigration";
 
 /** The subset of viewer state persisted to localStorage — the single source of

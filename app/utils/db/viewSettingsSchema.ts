@@ -5,7 +5,7 @@ import type {
   LayersStateEntry,
   RGB,
 } from "~/components/.client/ImageViewer/state/store/types";
-import { DEFAULT_ANNOTATIONS_OPACITY } from "~/components/.client/ImageViewer/state/store/types";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const SCHEMA_VERSION = "1.2";

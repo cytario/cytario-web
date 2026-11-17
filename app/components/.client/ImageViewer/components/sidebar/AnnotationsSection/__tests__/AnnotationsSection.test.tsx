@@ -5,6 +5,7 @@ import { useStore } from "zustand";
 
 import { createViewerStore } from "../../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../../state/store/types";
+import { SECTION_GRID_3COL_WIDTH } from "../../SectionRow/SectionGrid";
 import { AnnotationsSection } from "../AnnotationsSection";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
@@ -78,6 +79,33 @@ const makeFeature = (id: string): AnnotationFeature => ({
   properties: {},
 });
 
+// Section brings drag/float machinery that needs a layout; stub it to a
+// bare section that mirrors floatWidth so the width pass-through is
+// assertable without the real panel.
+vi.mock("~/components/Section/Section", () => ({
+  Section: ({
+    id,
+    title,
+    floatWidth,
+    header,
+    actions,
+    children,
+  }: {
+    id: string;
+    title: string;
+    floatWidth?: number;
+    header?: React.ReactNode;
+    actions?: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <section aria-label={title} data-section-id={id} data-float-width={floatWidth}>
+      {header}
+      {actions}
+      {children}
+    </section>
+  ),
+}));
+
 function buildStore(accessLevel: "annotate" | "read-only" = "annotate") {
   // A valid resourceId (connectionName/pathName) — the controller derives each
   // set's sidecar TreeNode from the image's resourceId. The connection's
@@ -119,6 +147,21 @@ function renderController() {
     </ToastProvider>,
   );
 }
+
+// -----------------------------------------------------------------------
+// Floating panel width
+// -----------------------------------------------------------------------
+
+describe("AnnotationsSection — floating panel width", () => {
+  test("floats at the three-column grid width like the other viewer sections", () => {
+    buildStore();
+
+    renderController();
+
+    const section = screen.getByRole("region", { name: "Annotations" });
+    expect(section).toHaveAttribute("data-float-width", String(SECTION_GRID_3COL_WIDTH));
+  });
+});
 
 // -----------------------------------------------------------------------
 // Own-first ordering

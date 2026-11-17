@@ -24,12 +24,9 @@ import {
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import {
-  DEFAULT_ANNOTATIONS_OPACITY,
-  type CytarioLayerResult,
-  type LayerTooltipItem,
-} from "../../../state/store/types";
+import type { CytarioLayerResult, LayerTooltipItem } from "../../../state/store/types";
 import { RGB, RGBA } from "../../../state/store/types";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import {
