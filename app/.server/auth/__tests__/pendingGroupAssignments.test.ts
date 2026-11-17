@@ -17,11 +17,12 @@ vi.mock("../../db/prisma", () => ({
 
 vi.mock("../keycloakAdmin", () => ({
   addUserToOrganizationGroup: vi.fn().mockResolvedValue(new Response(null, { status: 204 })),
+  findOrganizationByAlias: vi.fn(),
   findOrganizationGroupByPath: vi.fn(),
 }));
 
 const { prisma } = await import("../../db/prisma");
-const { addUserToOrganizationGroup, findOrganizationGroupByPath } =
+const { addUserToOrganizationGroup, findOrganizationByAlias, findOrganizationGroupByPath } =
   await import("../keycloakAdmin");
 
 const user = {
@@ -67,11 +68,17 @@ describe("createPendingGroupAssignments", () => {
 describe("applyPendingGroupAssignments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(findOrganizationGroupByPath).mockImplementation(async (_org, path) =>
-      path === "acme"
-        ? { id: "org-1", name: "acme", path: "/acme", subGroups: [] }
-        : { id: `g-${path}`, name: path, path: `/${path}`, subGroups: [] },
-    );
+    vi.mocked(findOrganizationByAlias).mockResolvedValue({
+      id: "org-1",
+      alias: "acme",
+      name: "acme",
+    });
+    vi.mocked(findOrganizationGroupByPath).mockImplementation(async (_orgId, path) => ({
+      id: `g-${path}`,
+      name: path,
+      path: `/${path}`,
+      subGroups: [],
+    }));
   });
 
   test("returns false when there are no rows", async () => {
@@ -103,6 +110,8 @@ describe("applyPendingGroupAssignments", () => {
 
     expect(await applyPendingGroupAssignments(user, "acme")).toBe(true);
     expect(addUserToOrganizationGroup).toHaveBeenCalledTimes(2);
+    expect(findOrganizationByAlias).toHaveBeenCalledWith("acme");
+    expect(findOrganizationGroupByPath).toHaveBeenCalledWith("org-1", "vericura");
     expect(addUserToOrganizationGroup).toHaveBeenCalledWith("org-1", "g-vericura", "user-1");
     expect(prisma.pendingGroupAssignment.deleteMany).toHaveBeenLastCalledWith({
       where: { id: { in: ["row-1", "row-2"] } },
@@ -120,9 +129,7 @@ describe("applyPendingGroupAssignments", () => {
         createdAt: new Date(),
       },
     ]);
-    vi.mocked(findOrganizationGroupByPath).mockImplementation(async (_org, path) =>
-      path === "acme" ? { id: "org-1", name: "acme", path: "/acme", subGroups: [] } : undefined,
-    );
+    vi.mocked(findOrganizationGroupByPath).mockResolvedValue(undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     expect(await applyPendingGroupAssignments(user, "acme")).toBe(true);
@@ -178,7 +185,7 @@ describe("applyPendingGroupAssignments", () => {
         createdAt: new Date(),
       },
     ]);
-    vi.mocked(findOrganizationGroupByPath).mockResolvedValue(undefined);
+    vi.mocked(findOrganizationByAlias).mockResolvedValue(undefined);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(await applyPendingGroupAssignments(user, "acme")).toBe(true);

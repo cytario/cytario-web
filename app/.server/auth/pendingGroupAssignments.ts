@@ -1,5 +1,9 @@
 import type { UserProfile } from "./getUserInfo";
-import { addUserToOrganizationGroup, findOrganizationGroupByPath } from "./keycloakAdmin";
+import {
+  addUserToOrganizationGroup,
+  findOrganizationByAlias,
+  findOrganizationGroupByPath,
+} from "./keycloakAdmin";
 import { prisma } from "../db/prisma";
 
 /**
@@ -58,11 +62,11 @@ export async function applyPendingGroupAssignments(
   });
   if (pending.length === 0) return false;
 
-  const org = await findOrganizationGroupByPath(organization, organization);
+  const org = await findOrganizationByAlias(organization);
   const orgId = org?.id;
   if (orgId) {
     for (const assignment of pending) {
-      const group = await findOrganizationGroupByPath(organization, assignment.groupPath);
+      const group = await findOrganizationGroupByPath(orgId, assignment.groupPath);
       if (!group) {
         console.warn(
           `Pending group assignment dropped: group ${assignment.groupPath} no longer exists in ${organization}`,
