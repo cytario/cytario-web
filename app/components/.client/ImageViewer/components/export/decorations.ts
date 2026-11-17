@@ -69,7 +69,9 @@ const floatingBarMetrics = (fontPx: number) => {
   };
 };
 
-/** The viewer's `FloatingBar`: a fully rounded pill, `bg-background/80`, `shadow-md`. */
+/** The viewer's `FloatingBar`: a fully rounded pill, `bg-background/80`, `shadow-md`.
+ *  `roundRect` is feature-tested so an engine without it (Firefox < 112)
+ *  cannot throw inside the compose — the plain rect reads as a square pill. */
 const drawFloatingBar = (
   context: CanvasRenderingContext2D,
   theme: DecorationTheme,
@@ -84,7 +86,11 @@ const drawFloatingBar = (
   context.shadowOffsetY = 4 * scale;
   context.fillStyle = theme.background;
   context.beginPath();
-  context.roundRect(x, y, width, height, radius);
+  if (typeof context.roundRect === "function") {
+    context.roundRect(x, y, width, height, radius);
+  } else {
+    context.rect(x, y, width, height);
+  }
   context.fill();
   context.restore();
 };
@@ -95,7 +101,11 @@ const setLabelFont = (
   fontPx: number,
 ): void => {
   context.font = `${SCALE_BAR_LAYOUT.fontWeight} ${fontPx}px ${theme.fontFamily}`;
-  context.letterSpacing = `${SCALE_BAR_LAYOUT.letterSpacing * fontPx}px`;
+  // letterSpacing is unsupported in Firefox — assigning it is a silent no-op
+  // there, and the check keeps the layout from silently depending on it.
+  if ("letterSpacing" in context) {
+    context.letterSpacing = `${SCALE_BAR_LAYOUT.letterSpacing * fontPx}px`;
+  }
   context.textBaseline = "middle";
 };
 

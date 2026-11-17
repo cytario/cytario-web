@@ -33,7 +33,12 @@ const captureDeckProps: {
   height: number;
   pixelScale?: number;
   viewState: { zoom: number };
+  onSettled: (canvas: HTMLCanvasElement) => void;
 }[] = [];
+const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
+// While set, the deck mock parks each onSettled instead of firing it on
+// mount, so a test can change the store between plan and settle.
+let deferDeckSettle = false;
 const commitExportAnnotationMock = vi.fn();
 
 vi.mock("../composeCapture", async (importOriginal) => {
@@ -47,7 +52,8 @@ vi.mock("../composeCapture", async (importOriginal) => {
 });
 
 vi.mock("../CaptureDeck", () => ({
-  // The deck settles synchronously in tests: on mount it reports its canvas.
+  // The deck defers settling until settleDeck() is called, so a test can
+  // change the store between the capture's plan and its settle.
   CaptureDeck: (props: {
     onSettled: (canvas: HTMLCanvasElement) => void;
     width: number;
@@ -58,11 +64,22 @@ vi.mock("../CaptureDeck", () => ({
     captureDeckProps.push(props);
     const { onSettled } = props;
     React.useEffect(() => {
-      onSettled(document.createElement("canvas"));
+      if (deferDeckSettle) {
+        pendingDeckSettles.push(onSettled);
+      } else {
+        onSettled(document.createElement("canvas"));
+      }
     }, [onSettled]);
     return null;
   },
 }));
+
+/** Fires the parked deck settles, as the real deck would once its layers
+ * load. */
+const settleDeck = () => {
+  const settles = pendingDeckSettles.splice(0);
+  for (const onSettled of settles) onSettled(document.createElement("canvas"));
+};
 
 vi.mock("../commitExportAnnotation", () => ({
   commitExportAnnotation: (...args: unknown[]) => commitExportAnnotationMock(...args),
@@ -217,6 +234,8 @@ describe("Capture and export section", () => {
     vi.clearAllMocks();
     composeCaptureMock.mockResolvedValue(exportResult());
     buildStore();
+    deferDeckSettle = false;
+    pendingDeckSettles.length = 0;
   });
 
   test("renders with spec defaults: Current view, Presentation, decoration states", () => {
@@ -365,6 +384,62 @@ describe("Capture and export section", () => {
       legend: true,
     });
     expect(call.imageBasename).toBe("slide");
+    // The legend is resolved at settle time from the live store — the compose
+    // receives the current visible channels, not a plan-time snapshot (C-728:
+    // a capture planned before channel-state hydration drew no legend).
+    expect(call.legend).toEqual({
+      channels: [
+        { name: "DAPI", color: [0, 255, 0] },
+        { name: "FITC", color: [255, 0, 0] },
+      ],
+      overlays: [],
+    });
+  });
+
+  test("the legend reflects the store at settle time, not plan time", async () => {
+    // Channel state hydrating after the capture was planned (the missing-
+    // legend bug's mechanism): DAPI becomes visible between click and settle.
+    const user = userEvent.setup();
+    deferDeckSettle = true;
+    renderSection();
+
+    currentStore.setState((state) => {
+      state.layersStates[0].channels.DAPI = { isVisible: false, color: [0, 255, 0] };
+      state.layersStates[0].channels.FITC = { isVisible: false, color: [255, 0, 0] };
+    });
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    // Hydration lands before the deck settles: DAPI visible, FITC still not.
+    currentStore.setState((state) => {
+      state.layersStates[0].channels.DAPI = { isVisible: true, color: [0, 255, 0] };
+    });
+    settleDeck();
+
+    await waitFor(() => {
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
+    });
+    const call = composeCaptureMock.mock.calls[0][1];
+    // Only the hydrated channel is listed — FITC stayed invisible.
+    expect(call.legend.channels).toEqual([{ name: "DAPI", color: [0, 255, 0] }]);
+  });
+
+  test("the completion toast says so when the legend is on but nothing is visible", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    currentStore.setState((state) => {
+      state.layersStates[0].channels.DAPI = { isVisible: false, color: [0, 255, 0] };
+      state.layersStates[0].channels.FITC = { isVisible: false, color: [255, 0, 0] };
+    });
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/legend: no visible channels/)).toBeInTheDocument();
+    });
   });
 
   test("Copy runs the capture once", async () => {

@@ -21,7 +21,7 @@ import {
   type ResolutionPreset,
 } from "./composeCapture";
 import { copyExportToClipboard, downloadExport } from "./composeCapture";
-import { planExport, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
+import { planExport, legendForState, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
 import { rectangleRegions } from "./regionSelection";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
@@ -201,6 +201,10 @@ export const CaptureExportSection = () => {
   const deliver = useCallback(
     (run: ActiveRun) =>
       async (canvas: HTMLCanvasElement): Promise<void> => {
+        // The legend is resolved here, at settle time, from the same store the
+        // pixels rendered from — a capture planned before the sidecar's channel
+        // state hydrated would otherwise silently carry no legend (C-728).
+        const legend = legendForState(storeApi);
         let result;
         try {
           result = await composeCapture(canvas, {
@@ -209,7 +213,7 @@ export const CaptureExportSection = () => {
             decorations: run.decorations,
             frame: run.plan.frame,
             metadata: run.plan.metadata,
-            legend: run.plan.legend,
+            legend,
           });
         } catch (error) {
           fail(error instanceof Error ? error.message : "The capture could not be rendered.");
@@ -253,6 +257,15 @@ export const CaptureExportSection = () => {
         }
         if (result.upscaled) {
           notes.push("upscaled beyond native scan resolution");
+        }
+        // Silent absence was the missing-legend bug's camouflage (C-728): say
+        // it when the legend is on but nothing visible was left to list.
+        if (
+          run.decorations.legend &&
+          legend.channels.length === 0 &&
+          legend.overlays.length === 0
+        ) {
+          notes.push("legend: no visible channels");
         }
         toast({
           variant: "success",
