@@ -27,8 +27,6 @@ export interface CapturePlan {
   pixelScale: number;
   /** Acquisition metadata — the pixel-size source. */
   metadata: NonNullable<ViewerStore["metadata"]>;
-  /** Legend entries: visible channels and enabled overlay markers. */
-  legend: Legend;
 }
 
 export interface PlanExportInput {
@@ -45,7 +43,7 @@ export interface PlanExportInput {
  *  lives in the per-preset layersStates merge (the top-level channels entries
  *  carry image data only), so the panel's resolved channelsState is the
  *  source of truth — same as useChannelsLayer. */
-const legendForState = (store: ViewerStoreSource): Legend => {
+export const legendForState = (store: ViewerStoreSource): Legend => {
   const state = store.getState();
   const legend: Legend = { channels: [], overlays: [] };
 
@@ -103,6 +101,5 @@ export const planExport = ({
     viewState: viewStateForFrame(frame, viewStateActive),
     pixelScale: outputPixelsPerViewerPixel(preset.dpi),
     metadata,
-    legend: legendForState(store),
   };
 };

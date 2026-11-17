@@ -52,6 +52,7 @@ describe("composeCapture", () => {
   let drawImage: ReturnType<typeof vi.fn>;
   let getContext: ReturnType<typeof vi.spyOn>;
   let toBlob: ReturnType<typeof vi.spyOn>;
+  let getImageData: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     seedStore();
@@ -72,8 +73,12 @@ describe("composeCapture", () => {
       drawImage: vi.fn(),
       fillText: vi.fn(),
       measureText: vi.fn(() => ({ width: 10 })),
+      getImageData: vi.fn(),
     } as unknown as CanvasRenderingContext2D;
     drawImage = context.drawImage as ReturnType<typeof vi.fn>;
+    getImageData = context.getImageData as ReturnType<typeof vi.fn>;
+    // Varied pixels by default: the frame copy normally renders an image.
+    getImageData.mockReturnValue({ data: variedPixels() });
     getContext = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
   });
 
@@ -107,6 +112,15 @@ describe("composeCapture", () => {
     upscaled: false,
   };
 
+  // Sparse pixel buffers for the uniformity sampler: one uniform, one with
+  // scattered variation the sampler must find.
+  const uniformPixels = () => new Uint8ClampedArray(1920 * 1080 * 4).fill(120);
+  const variedPixels = () => {
+    const data = uniformPixels();
+    data.set([255, 0, 0, 255], 0);
+    return data;
+  };
+
   const renderCanvasOf = (width: number, height: number) => {
     const renderCanvas = document.createElement("canvas");
     renderCanvas.width = width;
@@ -127,7 +141,31 @@ describe("composeCapture", () => {
     });
 
     expect(drawImage).toHaveBeenCalledWith(renderCanvas, 0, 0);
-    expect(result).toMatchObject({ width: 1920, height: 1080, clamped: true, upscaled: false });
+    expect(result).toMatchObject({
+      width: 1920,
+      height: 1080,
+      clamped: true,
+      upscaled: false,
+      uniform: false,
+    });
+
+    getContext.mockRestore();
+    toBlob.mockRestore();
+  });
+
+  test("reports a uniformly flat image area — e.g. an opaque annotation covering the frame", async () => {
+    getImageData.mockReturnValue({ data: uniformPixels() });
+
+    const result = await composeCapture(renderCanvasOf(1920, 1080), {
+      preset: RESOLUTION_PRESETS[1],
+      imageBasename: "slide",
+      decorations: NO_DECORATIONS,
+      frame,
+      metadata,
+      legend: { channels: [], overlays: [] },
+    });
+
+    expect(result.uniform).toBe(true);
 
     getContext.mockRestore();
     toBlob.mockRestore();

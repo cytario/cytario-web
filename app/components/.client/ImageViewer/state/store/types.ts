@@ -8,6 +8,7 @@ import type { CoreSlice } from "./core/core.store";
 import type { ViewSlice } from "./core/viewport.store";
 import type { OverlaysSlice } from "./overlays/overlays.store";
 import type { ViewsSlice } from "./views/views.store";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import type { OverlayConfig } from "~/utils/db/overlayConfig";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
@@ -87,7 +88,7 @@ export const createDefaultLayersStateEntry = (author = ""): LayersStateEntry => 
   channelsOpacity: 1,
   overlaysFillOpacity: DEFAULT_OVERLAYS_FILL_OPACITY,
   showCellOutline: true,
-  annotationsOpacity: 0.5,
+  annotationsOpacity: DEFAULT_ANNOTATIONS_OPACITY,
   showAnnotationOutline: true,
   isChannelsLoading: 0,
   isOverlaysLoading: 0,

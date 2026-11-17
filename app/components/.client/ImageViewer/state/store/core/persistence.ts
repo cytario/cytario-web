@@ -3,6 +3,7 @@ import type { PersistStorage, StorageValue } from "zustand/middleware";
 import type { AnnotationClass } from "../annotations/annotations.store";
 import { LEGACY_CLASSES_KEY } from "../annotations/annotations.store";
 import type { ViewerStore } from "../types";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import { createMigrate } from "~/utils/persistMigration";
 
 /** The subset of viewer state persisted to localStorage — the single source of
@@ -64,7 +65,8 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
       const s = state as Record<string, unknown> & Partial<PersistedViewerState>;
       return {
         ...s,
-        annotationsOpacity: (s.annotationsOpacity as number | undefined) ?? 1,
+        annotationsOpacity:
+          (s.annotationsOpacity as number | undefined) ?? DEFAULT_ANNOTATIONS_OPACITY,
         showAnnotationOutline: (s.showAnnotationOutline as boolean | undefined) ?? true,
       } as PersistedViewerState & {
         annotationsOpacity: number;
@@ -76,7 +78,8 @@ export const viewerStoreMigrate = createMigrate<PersistedViewerState>(
     // into every existing layersStates entry.
     3: (state) => {
       const s = state as Record<string, unknown> & Partial<PersistedViewerState>;
-      const oldOpacity = (s.annotationsOpacity as number | undefined) ?? 1;
+      const oldOpacity =
+        (s.annotationsOpacity as number | undefined) ?? DEFAULT_ANNOTATIONS_OPACITY;
       const oldOutline = (s.showAnnotationOutline as boolean | undefined) ?? true;
       const rest = { ...s };
       delete (rest as Record<string, unknown>).annotationsOpacity;

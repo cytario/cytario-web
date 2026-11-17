@@ -10,6 +10,7 @@ import {
   ViewerStore,
 } from "./types";
 import { DEFAULT_OBJECTIVE_POWER } from "@cytario/plugin-api";
+import { DEFAULT_ANNOTATIONS_OPACITY } from "~/utils/annotationDefaults";
 import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 const EMPTY_OBJECT = Object.freeze({});
@@ -267,7 +268,7 @@ export const select = {
 
   annotationsOpacity: (state: ViewerStore) => {
     const layerState = getLayersState(state);
-    return layerState?.annotationsOpacity ?? 1;
+    return layerState?.annotationsOpacity ?? DEFAULT_ANNOTATIONS_OPACITY;
   },
   setAnnotationsOpacity: (state: ViewerStore) => state.setAnnotationsOpacity,
 

@@ -1303,7 +1303,8 @@ describe("createViewerStore", () => {
       expect(newPreset.channelsOpacity).toBe(1);
       expect(newPreset.showCellOutline).toBe(true);
       expect(newPreset.overlaysFillOpacity).toBe(0.5);
-      expect(newPreset.annotationsOpacity).toBe(0.5);
+      // Annotation fills overlay the image — never default them to opaque.
+      expect(newPreset.annotationsOpacity).toBe(0);
     });
 
     test("adopts a peer shared view on first visit when no own view exists", () => {

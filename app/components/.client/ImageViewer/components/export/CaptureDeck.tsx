@@ -22,6 +22,9 @@ export interface CaptureDeckProps {
   onSettled: (canvas: HTMLCanvasElement) => void;
   /** Whether annotations render read-only (non-pickable, not editable). */
   interactive?: boolean;
+  /** One annotation feature id to leave out — the region being exported must
+   *  not draw its own boundary onto the capture. */
+  excludeAnnotationId?: string | null;
   /** Mount visibly (preview) or hidden (capture run). */
   hidden?: boolean;
   style?: CSSProperties;
@@ -57,18 +60,22 @@ export const CaptureDeck = ({
   pixelScale = 1,
   onSettled,
   interactive = false,
+  excludeAnnotationId = null,
   hidden = false,
   style,
 }: CaptureDeckProps) => {
   const deckRef = useRef<DeckGLRef | null>(null);
   const settledRef = useRef(false);
+  // Every layer can report loaded before the first draw (nothing to load) —
+  // settling then would copy a blank canvas.
+  const frameRenderedRef = useRef(false);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
   const {
     layers: viewerLayers,
     effects,
     layerFilter,
-  } = useViewerLayers(activeImagePanelId, interactive);
+  } = useViewerLayers(activeImagePanelId, interactive, excludeAnnotationId);
   const layers = useMemo(
     () =>
       pixelScale === 1
@@ -84,6 +91,7 @@ export const CaptureDeck = ({
   // the poll closes that gap.
   const trySettle = useCallback(() => {
     if (settledRef.current) return;
+    if (!frameRenderedRef.current) return;
     const deck = deckRef.current?.deck;
     if (!deck?.isInitialized) return;
     if (layers.every((layer) => layer.isLoaded)) {
@@ -92,6 +100,11 @@ export const CaptureDeck = ({
       if (canvas) onSettled(canvas);
     }
   }, [layers, onSettled]);
+
+  const handleAfterRender = useCallback(() => {
+    frameRenderedRef.current = true;
+    trySettle();
+  }, [trySettle]);
 
   useEffect(() => {
     const poll = setInterval(trySettle, 500);
@@ -115,7 +128,7 @@ export const CaptureDeck = ({
         viewState={{ detail: viewState }}
         useDevicePixels={1}
         controller={false}
-        onAfterRender={trySettle}
+        onAfterRender={handleAfterRender}
         getCursor={() => "default"}
       />
     </div>

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { createViewerStore } from "../../../state/store/createViewerStore";
-import { planExport } from "../planExport";
+import { planExport, legendForState } from "../planExport";
 
 const seedStore = () => {
   const store = createViewerStore("conn-1/images/slide.ome.tif", "user-a");
@@ -88,21 +88,13 @@ describe("planExport", () => {
   test("legend items come from the per-preset channel visibility", () => {
     const store = seedStore();
 
-    const plan = planExport({
-      store,
-      preset: {
-        id: "presentation",
-        name: "Presentation (300 DPI)",
-        dpi: 300,
-        displayWidthInches: 6.7,
-        targetWidthPx: 2000,
-      },
+    // The top-level channels carry image data only (no isVisible) — the
+    // legend must resolve visibility through the panel's merged
+    // channelsState, or it is always empty.
+    expect(legendForState(store)).toEqual({
+      channels: [{ name: "DAPI", color: [0, 255, 0] }],
+      overlays: [],
     });
-
-    // The top-level channels carry image data only (no isVisible) — the plan
-    // must resolve visibility through the panel's merged channelsState, or the
-    // legend is always empty.
-    expect(plan.legend).toEqual({ channels: [{ name: "DAPI", color: [0, 255, 0] }], overlays: [] });
   });
 
   test("a current-view plan exports the on-screen rectangle at the preset's width", () => {
@@ -189,18 +181,7 @@ describe("planExport", () => {
       } as never;
     });
 
-    const plan = planExport({
-      store,
-      preset: {
-        id: "quick-share",
-        name: "Quick share",
-        dpi: 180,
-        displayWidthInches: 6.7,
-        targetWidthPx: 1200,
-      },
-    });
-
-    expect(plan.legend).toEqual({
+    expect(legendForState(store)).toEqual({
       channels: [{ name: "DAPI", color: [0, 255, 0] }],
       overlays: [{ name: "Marker A", color: [255, 0, 0] }],
     });

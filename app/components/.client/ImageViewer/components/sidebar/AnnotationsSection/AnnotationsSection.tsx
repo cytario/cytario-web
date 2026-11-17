@@ -22,6 +22,7 @@ import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { AccordionToggle } from "../AccordionToggle";
+import { SECTION_GRID_3COL_WIDTH } from "../SectionRow/SectionGrid";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { SearchInput } from "~/components/SearchInput";
@@ -257,6 +258,7 @@ export const AnnotationsSection = () => {
   return (
     <Section
       {...VIEWER_SECTIONS.Annotations}
+      floatWidth={SECTION_GRID_3COL_WIDTH}
       badge={`${visible}/${total}`}
       header={
         <SearchInput

@@ -1,5 +1,5 @@
 import { ToastProvider } from "@cytario/design";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -33,7 +33,13 @@ const captureDeckProps: {
   height: number;
   pixelScale?: number;
   viewState: { zoom: number };
+  onSettled: (canvas: HTMLCanvasElement) => void;
+  excludeAnnotationId?: string | null;
 }[] = [];
+const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
+// While set, the deck mock parks each onSettled instead of firing it on
+// mount, so a test can change the store between plan and settle.
+let deferDeckSettle = false;
 const commitExportAnnotationMock = vi.fn();
 
 vi.mock("../composeCapture", async (importOriginal) => {
@@ -47,7 +53,8 @@ vi.mock("../composeCapture", async (importOriginal) => {
 });
 
 vi.mock("../CaptureDeck", () => ({
-  // The deck settles synchronously in tests: on mount it reports its canvas.
+  // The deck defers settling until settleDeck() is called, so a test can
+  // change the store between the capture's plan and its settle.
   CaptureDeck: (props: {
     onSettled: (canvas: HTMLCanvasElement) => void;
     width: number;
@@ -58,11 +65,22 @@ vi.mock("../CaptureDeck", () => ({
     captureDeckProps.push(props);
     const { onSettled } = props;
     React.useEffect(() => {
-      onSettled(document.createElement("canvas"));
+      if (deferDeckSettle) {
+        pendingDeckSettles.push(onSettled);
+      } else {
+        onSettled(document.createElement("canvas"));
+      }
     }, [onSettled]);
     return null;
   },
 }));
+
+/** Fires the parked deck settles, as the real deck would once its layers
+ * load. */
+const settleDeck = () => {
+  const settles = pendingDeckSettles.splice(0);
+  for (const onSettled of settles) onSettled(document.createElement("canvas"));
+};
 
 vi.mock("../commitExportAnnotation", () => ({
   commitExportAnnotation: (...args: unknown[]) => commitExportAnnotationMock(...args),
@@ -200,6 +218,7 @@ const exportResult = () =>
     height: 7087,
     clamped: false,
     upscaled: false,
+    uniform: false,
   }) as never;
 
 const within = () => screen.getByRole("region", { name: "Capture and export" });
@@ -217,6 +236,8 @@ describe("Capture and export section", () => {
     vi.clearAllMocks();
     composeCaptureMock.mockResolvedValue(exportResult());
     buildStore();
+    deferDeckSettle = false;
+    pendingDeckSettles.length = 0;
   });
 
   test("renders with spec defaults: Current view, Presentation, decoration states", () => {
@@ -365,6 +386,59 @@ describe("Capture and export section", () => {
       legend: true,
     });
     expect(call.imageBasename).toBe("slide");
+    // The legend resolves at settle time from the live store — compose
+    // receives the visible channels, not a plan-time snapshot.
+    expect(call.legend).toEqual({
+      channels: [
+        { name: "DAPI", color: [0, 255, 0] },
+        { name: "FITC", color: [255, 0, 0] },
+      ],
+      overlays: [],
+    });
+  });
+
+  test("the legend reflects the store at settle time, not plan time", async () => {
+    const user = userEvent.setup();
+    deferDeckSettle = true;
+    renderSection();
+
+    currentStore.setState((state) => {
+      state.layersStates[0].channels.DAPI = { isVisible: false, color: [0, 255, 0] };
+      state.layersStates[0].channels.FITC = { isVisible: false, color: [255, 0, 0] };
+    });
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    // Hydration lands before the deck settles: DAPI visible, FITC still not.
+    currentStore.setState((state) => {
+      state.layersStates[0].channels.DAPI = { isVisible: true, color: [0, 255, 0] };
+    });
+    settleDeck();
+
+    await waitFor(() => {
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
+    });
+    const call = composeCaptureMock.mock.calls[0][1];
+    // Only the hydrated channel is listed — FITC stayed invisible.
+    expect(call.legend.channels).toEqual([{ name: "DAPI", color: [0, 255, 0] }]);
+  });
+
+  test("the completion toast says so when the legend is on but nothing is visible", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    currentStore.setState((state) => {
+      state.layersStates[0].channels.DAPI = { isVisible: false, color: [0, 255, 0] };
+      state.layersStates[0].channels.FITC = { isVisible: false, color: [255, 0, 0] };
+    });
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(composeCaptureMock).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/legend: no visible channels/)).toBeInTheDocument();
+    });
   });
 
   test("Copy runs the capture once", async () => {
@@ -499,6 +573,60 @@ describe("Capture and export section", () => {
       expect(composeCaptureMock).toHaveBeenCalledTimes(1);
     });
     expect(commitExportAnnotationMock).not.toHaveBeenCalled();
+  });
+
+  test("a region capture hides the exported region's own annotation from the deck", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    await openSelect(user, "Region");
+    await user.click(screen.getByRole("option", { name: "Region A" }));
+    captureDeckProps.length = 0;
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(captureDeckProps.length).toBeGreaterThan(0));
+    // rect-1 is Region A's feature id — the deck must drop it so the region's
+    // own boundary never draws onto the export.
+    expect(captureDeckProps[0].excludeAnnotationId).toBe("rect-1");
+  });
+
+  test("a selected rectangle region pre-selects the region source, and deselecting returns to the current view", async () => {
+    currentStore.setState({ annotationSelectedIds: ["rect-1"] });
+    renderSection();
+
+    // A single selected rectangle region drives the source and the picker.
+    await expect(screen.getByRole("radio", { name: /annotation region/i })).toBeChecked();
+    expect(currentStore.getState().annotationSelectedIds).toEqual(["rect-1"]);
+
+    // Deselecting on the canvas returns the capture to the current view.
+    await act(async () => {
+      currentStore.getState().setAnnotationSelectedIds([]);
+    });
+    await expect(screen.getByRole("radio", { name: /current view/i })).toBeChecked();
+  });
+
+  test("several selected annotations leave the source at the current view", () => {
+    currentStore.setState({ annotationSelectedIds: ["rect-1", "rect-2"] });
+    renderSection();
+
+    expect(screen.getByRole("radio", { name: /current view/i })).toBeChecked();
+  });
+
+  test("picking a region in the picker selects its annotation; switching back to Current view deselects", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    await openSelect(user, "Region");
+    await user.click(screen.getByRole("option", { name: "Region B" }));
+
+    // The picker write is the canvas selection.
+    expect(currentStore.getState().annotationSelectedIds).toEqual(["rect-2"]);
+    expect(screen.getByRole("radio", { name: /annotation region/i })).toBeChecked();
+
+    await user.click(screen.getByRole("radio", { name: /current view/i }));
+    expect(currentStore.getState().annotationSelectedIds).toEqual([]);
   });
 
   test("selecting a region frames the active panel on the region's extent", async () => {
