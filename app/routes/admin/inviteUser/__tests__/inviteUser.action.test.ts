@@ -131,7 +131,7 @@ describe("inviteUserAction", () => {
     expect(inviteOrganizationUser).toHaveBeenCalledWith("org-1", "New@Example.com");
     expect(createPendingGroupAssignments).toHaveBeenCalledWith(
       "acme",
-      "New@Example.com",
+      ["New@Example.com"],
       ["customers/vericura"],
       "admin-1",
     );
@@ -173,7 +173,7 @@ describe("inviteUserAction", () => {
 
     expect(createPendingGroupAssignments).toHaveBeenCalledWith(
       "acme",
-      "u@example.com",
+      ["u@example.com"],
       ["customers/vericura"],
       "admin-1",
     );

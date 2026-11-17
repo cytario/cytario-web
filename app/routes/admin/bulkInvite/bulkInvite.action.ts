@@ -61,26 +61,23 @@ export const bulkInviteAction: ActionFunction = async ({ request, context }) => 
 
   // A 409 ("already a member or pending invitation") is a benign no-op; the
   // pending assignment is still recorded for it, same as the single invite.
-  const accepted = results
-    .map((r, index) => ({
-      email: rows[index].email,
-      ok:
+  const acceptedEmails = rows
+    .filter((_row, index) => {
+      const r = results[index];
+      return (
         r.status === "fulfilled" ||
         (r.status === "rejected" &&
           r.reason instanceof KeycloakAdminError &&
-          r.reason.status === 409),
-    }))
-    .filter((r) => r.ok);
+          r.reason.status === 409)
+      );
+    })
+    .map((row) => row.email);
 
-  if (groupPaths.length > 0 && accepted.length > 0) {
-    await Promise.all(
-      accepted.map((r) =>
-        createPendingGroupAssignments(requestOrganization!, r.email, groupPaths, user.sub),
-      ),
-    );
+  if (groupPaths.length > 0 && acceptedEmails.length > 0) {
+    await createPendingGroupAssignments(requestOrganization, acceptedEmails, groupPaths, user.sub);
   }
 
-  const succeeded = accepted.length;
+  const succeeded = acceptedEmails.length;
   const failed = rows.length - succeeded;
 
   const session = await getSession(request);

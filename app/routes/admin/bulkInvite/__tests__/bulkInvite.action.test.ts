@@ -116,10 +116,10 @@ describe("bulkInviteAction", () => {
     } as never);
 
     expect(inviteOrganizationUser).toHaveBeenCalledTimes(2);
-    expect(createPendingGroupAssignments).toHaveBeenCalledTimes(2);
+    expect(createPendingGroupAssignments).toHaveBeenCalledTimes(1);
     expect(createPendingGroupAssignments).toHaveBeenCalledWith(
       "acme",
-      "a@example.com",
+      ["a@example.com", "b@example.com"],
       ["customers/vericura"],
       "admin-1",
     );
@@ -137,10 +137,9 @@ describe("bulkInviteAction", () => {
       params: {},
     } as never);
 
-    expect(createPendingGroupAssignments).toHaveBeenCalledTimes(1);
     expect(createPendingGroupAssignments).toHaveBeenCalledWith(
       "acme",
-      "a@example.com",
+      ["a@example.com"],
       ["customers/vericura"],
       "admin-1",
     );
@@ -159,7 +158,12 @@ describe("bulkInviteAction", () => {
       params: {},
     } as never);
 
-    expect(createPendingGroupAssignments).toHaveBeenCalledTimes(2);
+    expect(createPendingGroupAssignments).toHaveBeenCalledWith(
+      "acme",
+      ["a@example.com", "b@example.com"],
+      ["customers/vericura"],
+      "admin-1",
+    );
   });
 
   test("writes no assignments when no groups selected", async () => {

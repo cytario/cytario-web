@@ -79,7 +79,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
       inviteLanded = true;
     }
     if (inviteLanded && groupPaths.length > 0) {
-      await createPendingGroupAssignments(requestOrganization!, email, groupPaths, user.sub);
+      await createPendingGroupAssignments(requestOrganization, [email], groupPaths, user.sub);
     }
 
     const message = `Invited ${email} to ${requestOrganization}.`;

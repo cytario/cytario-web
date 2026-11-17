@@ -21,21 +21,18 @@ interface PendingGroupAssignmentRow {
 
 export async function createPendingGroupAssignments(
   organization: string,
-  email: string,
+  emails: readonly string[],
   groupPaths: readonly string[],
   invitedBy: string,
 ): Promise<void> {
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmails = [...new Set(emails.map((email) => email.trim().toLowerCase()))];
   const paths = [...new Set(groupPaths)];
-  if (paths.length === 0) return;
+  if (normalizedEmails.length === 0 || paths.length === 0) return;
 
   await prisma.pendingGroupAssignment.createMany({
-    data: paths.map((groupPath) => ({
-      organization,
-      email: normalizedEmail,
-      groupPath,
-      invitedBy,
-    })),
+    data: normalizedEmails.flatMap((email) =>
+      paths.map((groupPath) => ({ organization, email, groupPath, invitedBy })),
+    ),
     // A re-invite of an email that already has a pending assignment (the 409
     // path) hits the unique key; the existing rows already say what to do.
     skipDuplicates: true,

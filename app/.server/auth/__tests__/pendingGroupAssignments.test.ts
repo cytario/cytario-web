@@ -48,14 +48,15 @@ describe("createPendingGroupAssignments", () => {
     vi.clearAllMocks();
   });
 
-  test("lowercases the email and deduplicates paths", async () => {
+  test("lowercases emails and writes one row per email and deduplicated path", async () => {
     await createPendingGroupAssignments(
       "acme",
-      "User@Example.com ",
+      ["User@Example.com ", "user@example.com", "other@example.com"],
       ["vericura", "vericura", "lab"],
       "admin-1",
     );
 
+    expect(prisma.pendingGroupAssignment.createMany).toHaveBeenCalledTimes(1);
     expect(prisma.pendingGroupAssignment.createMany).toHaveBeenCalledWith({
       data: [
         {
@@ -65,13 +66,31 @@ describe("createPendingGroupAssignments", () => {
           invitedBy: "admin-1",
         },
         { organization: "acme", email: "user@example.com", groupPath: "lab", invitedBy: "admin-1" },
+        {
+          organization: "acme",
+          email: "other@example.com",
+          groupPath: "vericura",
+          invitedBy: "admin-1",
+        },
+        {
+          organization: "acme",
+          email: "other@example.com",
+          groupPath: "lab",
+          invitedBy: "admin-1",
+        },
       ],
       skipDuplicates: true,
     });
   });
 
   test("writes nothing for an empty path list", async () => {
-    await createPendingGroupAssignments("acme", "u@example.com", [], "admin-1");
+    await createPendingGroupAssignments("acme", ["u@example.com"], [], "admin-1");
+
+    expect(prisma.pendingGroupAssignment.createMany).not.toHaveBeenCalled();
+  });
+
+  test("writes nothing for an empty email list", async () => {
+    await createPendingGroupAssignments("acme", [], ["lab"], "admin-1");
 
     expect(prisma.pendingGroupAssignment.createMany).not.toHaveBeenCalled();
   });
