@@ -67,9 +67,14 @@ jobs:
           fi
 
           sleep 5
+          # The docs PR's own pull_request e2e run can be created in the same
+          # second as this dispatch (both PRs pushed together, paired branches)
+          # — select the dispatched smoke run, not whichever run is newest.
           RUN_ID=$(gh run list \
             --repo cytario/cytario-docs \
             --workflow e2e.yml \
+            --branch "$DOCS_REF" \
+            --event workflow_dispatch \
             --limit 1 \
             --json databaseId --jq '.[0].databaseId')
           echo "::notice::E2E run: https://github.com/cytario/cytario-docs/actions/runs/$RUN_ID"
