@@ -1303,7 +1303,9 @@ describe("createViewerStore", () => {
       expect(newPreset.channelsOpacity).toBe(1);
       expect(newPreset.showCellOutline).toBe(true);
       expect(newPreset.overlaysFillOpacity).toBe(0.5);
-      expect(newPreset.annotationsOpacity).toBe(0.5);
+      // Annotations default to fully transparent — they read as overlays on
+      // the image, and opaque unclassified fills hid tissue in exports.
+      expect(newPreset.annotationsOpacity).toBe(0);
     });
 
     test("adopts a peer shared view on first visit when no own view exists", () => {

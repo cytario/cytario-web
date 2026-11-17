@@ -13,6 +13,12 @@ import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 
 export type { OverlayConfig };
 
+/** Annotation fills render invisible by default (C-728): a view-state that
+ *  declares no opacity — a fresh sidecar, a peer preset, a legacy localStorage
+ *  entry — falls back to this, never to fully opaque. Outlines are governed
+ *  separately by `showAnnotationOutline` and stay visible. */
+export const DEFAULT_ANNOTATIONS_OPACITY = 0;
+
 export type RGBA = [number, number, number, number];
 export type RGB = [number, number, number];
 export type ByteDomain = [number, number];
@@ -87,7 +93,7 @@ export const createDefaultLayersStateEntry = (author = ""): LayersStateEntry => 
   channelsOpacity: 1,
   overlaysFillOpacity: DEFAULT_OVERLAYS_FILL_OPACITY,
   showCellOutline: true,
-  annotationsOpacity: 0.5,
+  annotationsOpacity: DEFAULT_ANNOTATIONS_OPACITY,
   showAnnotationOutline: true,
   isChannelsLoading: 0,
   isOverlaysLoading: 0,

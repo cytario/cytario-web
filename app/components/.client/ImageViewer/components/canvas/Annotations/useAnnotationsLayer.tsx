@@ -24,7 +24,11 @@ import {
 } from "../../../state/store/annotations/annotations.store";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
-import { type CytarioLayerResult, type LayerTooltipItem } from "../../../state/store/types";
+import {
+  DEFAULT_ANNOTATIONS_OPACITY,
+  type CytarioLayerResult,
+  type LayerTooltipItem,
+} from "../../../state/store/types";
 import { RGB, RGBA } from "../../../state/store/types";
 import { useCanAnnotate } from "../../../utils/useCanAnnotate";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
@@ -125,7 +129,8 @@ export const useAnnotationsLayer = (
   const annotationView = useViewerStore((s) => s.annotationView);
   const layersStates = useViewerStore(select.layersStates);
   const panelLayersStateIndex = useViewerStore((state) => state.imagePanels)[imagePanelId];
-  const annotationsOpacity = layersStates[panelLayersStateIndex]?.annotationsOpacity ?? 1;
+  const annotationsOpacity =
+    layersStates[panelLayersStateIndex]?.annotationsOpacity ?? DEFAULT_ANNOTATIONS_OPACITY;
   const showOutline = layersStates[panelLayersStateIndex]?.showAnnotationOutline ?? true;
   const mode = useViewerStore((s) => s.annotationMode);
   const stampWidthPx = useViewerStore((s) => s.annotationStampSize.widthPx);

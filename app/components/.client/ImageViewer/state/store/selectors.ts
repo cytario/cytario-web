@@ -6,6 +6,7 @@ import {
   ChannelsState,
   ChannelsStateColumns,
   detectBrightfieldGroup,
+  DEFAULT_ANNOTATIONS_OPACITY,
   LayerChannelsState,
   ViewerStore,
 } from "./types";
@@ -267,7 +268,7 @@ export const select = {
 
   annotationsOpacity: (state: ViewerStore) => {
     const layerState = getLayersState(state);
-    return layerState?.annotationsOpacity ?? 1;
+    return layerState?.annotationsOpacity ?? DEFAULT_ANNOTATIONS_OPACITY;
   },
   setAnnotationsOpacity: (state: ViewerStore) => state.setAnnotationsOpacity,
 
