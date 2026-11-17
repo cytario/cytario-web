@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 export const inviteUserSchema = z.object({
-  email: z.string().email("Invalid email").max(254),
+  emails: z
+    .array(z.string().email("Invalid email").max(254))
+    .min(1, "Enter at least one email address")
+    .max(100, "Enter at most 100 email addresses"),
   groupIds: z.array(z.string()).default([]),
 });
 

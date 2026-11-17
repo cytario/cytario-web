@@ -1,7 +1,7 @@
-import { Description, Fieldset, Input, MultiSelectComboBox } from "@cytario/design";
+import { Description, EmailTokenField, Fieldset, MultiSelectComboBox } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useSubmit } from "react-router";
 
 import {
@@ -14,33 +14,43 @@ import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 interface InviteUserFormProps {
   groups: GroupInfo[];
   inviteAnother?: boolean;
-  actionData?: { success?: boolean; message?: string };
+  actionData?: { success?: boolean; message?: string; variant?: string };
+  onEmailCountChange?: (count: number) => void;
 }
 
-export function InviteUserForm({ groups, inviteAnother, actionData }: InviteUserFormProps) {
+export function InviteUserForm({
+  groups,
+  inviteAnother,
+  actionData,
+  onEmailCountChange,
+}: InviteUserFormProps) {
   const submit = useSubmit();
 
   const { control, handleSubmit, reset } = useForm<InviteUserInput, unknown, InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
-      email: "",
+      emails: [],
       groupIds: [],
     },
-    mode: "onBlur",
   });
+
+  const emails = useWatch({ control, name: "emails" });
+
+  useEffect(() => {
+    onEmailCountChange?.(emails?.length ?? 0);
+  }, [emails, onEmailCountChange]);
 
   useEffect(() => {
     if (actionData?.success === true) {
-      reset({
-        email: "",
-        groupIds: [],
-      });
+      reset({ emails: [], groupIds: [] });
     }
   }, [actionData, reset]);
 
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
-    formData.append("email", data.email);
+    for (const email of data.emails) {
+      formData.append("emails", email);
+    }
     for (const groupId of data.groupIds) {
       formData.append("groupIds", groupId);
     }
@@ -57,15 +67,14 @@ export function InviteUserForm({ groups, inviteAnother, actionData }: InviteUser
       <Fieldset>
         <Controller
           control={control}
-          name="email"
+          name="emails"
           render={({ field, fieldState }) => (
-            <Input
+            <EmailTokenField
               label="Email"
-              type="email"
-              size="lg"
-              value={field.value}
+              value={field.value ?? []}
               onChange={field.onChange}
-              onBlur={field.onBlur}
+              placeholder="name@example.com"
+              description="Press comma or Enter after each address. Up to 100 per invite."
               errorMessage={fieldState.error?.message}
             />
           )}

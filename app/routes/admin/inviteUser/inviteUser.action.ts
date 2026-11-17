@@ -12,6 +12,70 @@ import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { createPendingGroupAssignments } from "~/.server/auth/pendingGroupAssignments";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
+import { toToastVariant } from "~/utils/notifications";
+
+interface InviteOutcome {
+  email: string;
+  alreadyInvited: boolean;
+  failed: boolean;
+}
+
+interface InviteSummary {
+  message: string;
+  status: "success" | "warning" | "error";
+}
+
+/**
+ * One email keeps the historical single-invite wording (the e2e asserts it);
+ * several get one summary, where a 409 counts as accepted like it did in the
+ * former bulk flow.
+ */
+function summarize(outcomes: InviteOutcome[], organization: string): InviteSummary {
+  const total = outcomes.length;
+  const failed = outcomes.filter((outcome) => outcome.failed).length;
+  const already = outcomes.filter((outcome) => outcome.alreadyInvited).length;
+  const accepted = total - failed;
+
+  if (total === 1) {
+    const [only] = outcomes;
+    if (only.failed) {
+      return { message: "Failed to invite user. Please try again.", status: "error" };
+    }
+    if (only.alreadyInvited) {
+      return {
+        message: `${only.email} already has a pending invitation or is a member.`,
+        status: "warning",
+      };
+    }
+    return { message: `Invited ${only.email} to ${organization}.`, status: "success" };
+  }
+
+  if (failed === total) {
+    return { message: `Failed to invite ${total} users. Please try again.`, status: "error" };
+  }
+  if (failed === 0 && already === 0) {
+    return { message: `Invited ${total} users to ${organization}.`, status: "success" };
+  }
+  if (failed === 0 && already === total) {
+    return {
+      message: `All ${total} users already have a pending invitation or are members.`,
+      status: "warning",
+    };
+  }
+
+  const parts = [
+    accepted === total
+      ? `Invited ${total} users to ${organization}.`
+      : `Invited ${accepted} of ${total} users to ${organization}.`,
+  ];
+  if (failed > 0) parts.push(`${failed} failed.`);
+  if (already > 0) {
+    parts.push(
+      `${already} already had a pending invitation or ${already === 1 ? "is" : "are"} a member.`,
+    );
+  }
+  return { message: parts.join(" "), status: "warning" };
+}
 
 export const inviteUserAction: ActionFunction = async ({ request, context }) => {
   const { user, requestOrganization, entitlements } = context.get(authContext);
@@ -20,7 +84,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
   const formData = await request.formData();
   const inviteAnother = formData.get("inviteAnother") === "true";
   const rawData = {
-    email: formData.get("email"),
+    emails: formData.getAll("emails"),
     groupIds: formData.getAll("groupIds"),
   };
   const result = inviteUserSchema.safeParse(rawData);
@@ -29,7 +93,7 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
     return { errors: result.error.flatten().fieldErrors };
   }
 
-  const { email, groupIds } = result.data;
+  const { emails, groupIds } = result.data;
 
   // The multi-select submits group ids; map each validated id back to its
   // org-relative path, then assert the acting admin's scope covers it — the
@@ -50,60 +114,66 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
   }
 
   const session = await getSession(request);
+  const identity = toIdentity(user, requestOrganization);
+
+  let summary: InviteSummary;
 
   try {
-    await consultUserMgmtGate(toIdentity(user, requestOrganization), {
-      kind: "invite",
-      inviteCount: 1,
-    });
+    await consultUserMgmtGate(identity, { kind: "invite", inviteCount: emails.length });
     for (const path of groupPaths) {
-      await consultUserMgmtGate(toIdentity(user, requestOrganization), {
+      await consultUserMgmtGate(identity, {
         kind: "addToGroup",
         groupPath: path,
-        addCount: 1,
+        addCount: emails.length,
       });
     }
 
+    const settled = await Promise.allSettled(
+      emails.map((email) => inviteOrganizationUser(org.id, email)),
+    );
+
     // Keycloak returns 409 both for "pending invitation already exists" and
-    // "user is already a member" — indistinguishable, and both leave an
-    // invitee who should claim the groups, so the assignment is recorded for
-    // either outcome. A real error throws and records nothing.
-    let alreadyInvited = false;
-    try {
-      await inviteOrganizationUser(org.id, email);
-    } catch (e) {
-      if (!(e instanceof KeycloakAdminError) || e.status !== 409) throw e;
-      alreadyInvited = true;
-    }
-    if (groupPaths.length > 0) {
-      await createPendingGroupAssignments(requestOrganization, [email], groupPaths, user.sub);
+    // "user is already a member" — indistinguishable, and both leave an invitee
+    // who should claim the groups, so the assignment is recorded for either
+    // outcome. A real error records nothing for that email.
+    const outcomes: InviteOutcome[] = emails.map((email, index) => {
+      const settledResult = settled[index];
+      if (settledResult.status === "fulfilled") {
+        return { email, alreadyInvited: false, failed: false };
+      }
+      const alreadyInvited =
+        settledResult.reason instanceof KeycloakAdminError && settledResult.reason.status === 409;
+      return { email, alreadyInvited, failed: !alreadyInvited };
+    });
+
+    const acceptedEmails = outcomes
+      .filter((outcome) => !outcome.failed)
+      .map((outcome) => outcome.email);
+    if (groupPaths.length > 0 && acceptedEmails.length > 0) {
+      await createPendingGroupAssignments(
+        requestOrganization,
+        acceptedEmails,
+        groupPaths,
+        user.sub,
+      );
     }
 
-    const message = alreadyInvited
-      ? `${email} already has a pending invitation or is a member.`
-      : `Invited ${email} to ${requestOrganization}.`;
-    if (inviteAnother) {
-      return { success: true, message };
-    }
-    session.set("notification", { status: alreadyInvited ? "warning" : "success", message });
+    summary = summarize(outcomes, requestOrganization);
   } catch (e) {
     if (e instanceof Response) throw e;
-    const status = e instanceof KeycloakAdminError ? e.status : undefined;
-    if (status === 409) {
-      const message = `${email} already has a pending invitation or is a member.`;
-      if (inviteAnother) {
-        return { success: true, message };
-      }
-      session.set("notification", { status: "warning", message });
-    } else {
-      console.error("Invite failed:", e);
-      const message = "Failed to invite user. Please try again.";
-      if (inviteAnother) {
-        return { success: false, message };
-      }
-      session.set("notification", { status: "error", message });
-    }
+    console.error("Invite failed:", e);
+    summary = { message: "Failed to invite user. Please try again.", status: "error" };
   }
+
+  if (inviteAnother) {
+    return {
+      success: summary.status !== "error",
+      variant: toToastVariant(summary.status),
+      message: summary.message,
+    };
+  }
+
+  session.set("notification", { status: summary.status, message: summary.message });
 
   return redirect(adminUrl, {
     headers: { "Set-Cookie": await sessionStorage.commitSession(session) },

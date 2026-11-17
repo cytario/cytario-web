@@ -1,5 +1,5 @@
 import { Button, Checkbox, useToast } from "@cytario/design";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
 
 import { InviteUserForm } from "./inviteUser.form";
@@ -18,23 +18,29 @@ export default function InviteModal() {
   const { groups } = useLoaderData<{ groups: GroupInfo[] }>();
 
   const [inviteAnother, setInviteAnother] = useState(false);
+  const [emailCount, setEmailCount] = useState(0);
+  const onEmailCountChange = useCallback((count: number) => setEmailCount(count), []);
 
   const actionData = useActionData<{
     success?: boolean;
     message?: string;
+    variant?: "success" | "error" | "info";
   }>();
 
   useEffect(() => {
-    if (actionData?.success === true) {
-      toast({ variant: "success", message: actionData.message! });
-    } else if (actionData?.success === false) {
-      toast({ variant: "error", message: actionData.message! });
+    if (actionData?.message) {
+      toast({ variant: actionData.variant ?? "success", message: actionData.message });
     }
   }, [actionData, toast]);
 
   return (
     <RouteModal title="Invite User">
-      <InviteUserForm groups={groups} inviteAnother={inviteAnother} actionData={actionData} />
+      <InviteUserForm
+        groups={groups}
+        inviteAnother={inviteAnother}
+        actionData={actionData}
+        onEmailCountChange={onEmailCountChange}
+      />
       <footer className="flex items-center gap-3 mt-6">
         <Checkbox isSelected={inviteAnother} onChange={setInviteAnother} className="mr-auto">
           <span className="text-sm text-muted-foreground">Invite another</span>
@@ -42,7 +48,7 @@ export default function InviteModal() {
         <Button onPress={() => navigate(-1)} variant="secondary">
           Cancel
         </Button>
-        <Button type="submit" form="invite-form" isDisabled={isSubmitting}>
+        <Button type="submit" form="invite-form" isDisabled={isSubmitting || emailCount === 0}>
           {isSubmitting ? "Inviting..." : "Send Invite"}
         </Button>
       </footer>
