@@ -19,8 +19,6 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
 
   const formData = await request.formData();
   const inviteAnother = formData.get("inviteAnother") === "true";
-  // The multi-select submits one comma-joined groupIds field; a client sending
-  // several entries has its extras read here rather than silently dropped.
   const rawData = {
     email: formData.get("email"),
     groupIds: formData.getAll("groupIds"),
