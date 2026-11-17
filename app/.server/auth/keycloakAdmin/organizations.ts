@@ -99,16 +99,9 @@ export async function listOrganizationGroups(
 // KC returns 409 both for "pending invitation already exists" and "user
 // already a member" — both benign; the action layer classifies them as
 // warnings rather than errors.
-export async function inviteOrganizationUser(
-  orgId: string,
-  email: string,
-  firstName?: string,
-  lastName?: string,
-): Promise<Response> {
+export async function inviteOrganizationUser(orgId: string, email: string): Promise<Response> {
   const body = new URLSearchParams();
   body.set("email", email);
-  if (firstName) body.set("firstName", firstName);
-  if (lastName) body.set("lastName", lastName);
   // client_id targets the invitation link at the web client, so KC resolves the
   // post-acceptance redirect from its root/base URL instead of the account console.
   const clientId = encodeURIComponent(cytarioConfig.auth.clientId);

@@ -34,13 +34,9 @@ describe("inviteOrganizationUser", () => {
   test("targets the web client via client_id so the invite link redirects to the app, not the account console", async () => {
     const fetchMock = mockFetchOk();
 
-    await inviteOrganizationUser("org-uuid", "alice@example.com", "Alice", "Doe");
+    await inviteOrganizationUser("org-uuid", "alice@example.com");
 
-    const body = new URLSearchParams({
-      email: "alice@example.com",
-      firstName: "Alice",
-      lastName: "Doe",
-    });
+    const body = new URLSearchParams({ email: "alice@example.com" });
     expect(fetchMock).toHaveBeenCalledWith(
       `${BASE}/organizations/org-uuid/members/invite-user?client_id=cytario-web`,
       expect.objectContaining({
@@ -50,7 +46,7 @@ describe("inviteOrganizationUser", () => {
     );
   });
 
-  test("omits unset firstName/lastName from the form body", async () => {
+  test("sends only the email in the form body", async () => {
     const fetchMock = mockFetchOk();
 
     await inviteOrganizationUser("org-uuid", "bob@example.com");
