@@ -37,11 +37,12 @@ export async function createPendingGroupAssignments(
 }
 
 /**
- * Applies every pending group assignment recorded for the given organization
- * and the user's email, deletes the applied rows, and reports whether
- * anything was applied (so the auth callback can re-establish the session and
- * pick up the new group claims). Failures to add a group are tolerated — the
- * rows still go, because a half-applied batch must not replay on every login.
+ * Applies the user's pending group assignments in the given organization and
+ * reports whether any membership was added (so the auth callback can refresh
+ * the session to pick up the new group claims).
+ * Rows are deleted once applied or once their group no longer exists; rows
+ * hit by a transient identity-service failure stay for the next login and
+ * expire with the TTL.
  */
 export async function applyPendingGroupAssignments(
   user: UserProfile,
@@ -64,36 +65,37 @@ export async function applyPendingGroupAssignments(
   if (pending.length === 0) return false;
 
   const org = await findOrganizationByAlias(organization);
-  const orgId = org?.id;
-  if (orgId) {
-    for (const assignment of pending) {
-      const group = await findOrganizationGroupByPath(orgId, assignment.groupPath);
-      if (!group) {
-        console.warn(
-          `Pending group assignment dropped: group ${assignment.groupPath} no longer exists in ${organization}`,
-        );
-        continue;
-      }
-      try {
-        await addUserToOrganizationGroup(orgId, group.id, user.sub);
-      } catch (error) {
-        console.error(
-          `Pending group assignment add failed for ${assignment.groupPath} in ${organization}:`,
-          error,
-        );
-      }
-    }
-  } else {
-    console.error(
-      `Pending group assignments dropped: organization ${organization} not found in identity service`,
-    );
+  if (!org) {
+    console.error(`Pending group assignments kept: organization ${organization} not found`);
+    return false;
   }
 
-  // Every fetched row goes, whatever happened to its add — a half-applied
-  // batch must not replay on every login.
-  await prisma.pendingGroupAssignment.deleteMany({
-    where: { id: { in: pending.map((p) => p.id) } },
-  });
+  let applied = false;
+  const resolvedIds: string[] = [];
+  for (const row of pending) {
+    const group = await findOrganizationGroupByPath(org.id, row.groupPath);
+    if (!group) {
+      console.warn(
+        `Pending group assignment dropped: group ${row.groupPath} no longer exists in ${organization}`,
+      );
+      resolvedIds.push(row.id);
+      continue;
+    }
+    try {
+      await addUserToOrganizationGroup(org.id, group.id, user.sub);
+      applied = true;
+      resolvedIds.push(row.id);
+    } catch (error) {
+      console.error(
+        `Pending group assignment kept: add failed for ${row.groupPath} in ${organization}:`,
+        error,
+      );
+    }
+  }
 
-  return true;
+  if (resolvedIds.length > 0) {
+    await prisma.pendingGroupAssignment.deleteMany({ where: { id: { in: resolvedIds } } });
+  }
+
+  return applied;
 }

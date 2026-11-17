@@ -126,7 +126,7 @@ describe("applyPendingGroupAssignments", () => {
     });
   });
 
-  test("deletes rows even when the group no longer exists (warn + drop)", async () => {
+  test("drops rows whose group no longer exists", async () => {
     vi.mocked(prisma.pendingGroupAssignment.findMany).mockResolvedValue([
       {
         id: "row-1",
@@ -140,7 +140,7 @@ describe("applyPendingGroupAssignments", () => {
     vi.mocked(findOrganizationGroupByPath).mockResolvedValue(undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    expect(await applyPendingGroupAssignments(user, "acme")).toBe(true);
+    expect(await applyPendingGroupAssignments(user, "acme")).toBe(false);
     expect(addUserToOrganizationGroup).not.toHaveBeenCalled();
     expect(prisma.pendingGroupAssignment.deleteMany).toHaveBeenLastCalledWith({
       where: { id: { in: ["row-1"] } },
@@ -149,7 +149,7 @@ describe("applyPendingGroupAssignments", () => {
     warn.mockRestore();
   });
 
-  test("deletes rows even when the group add fails (tolerated)", async () => {
+  test("keeps a row whose group add fails for the next login", async () => {
     vi.mocked(prisma.pendingGroupAssignment.findMany).mockResolvedValue([
       {
         id: "row-1",
@@ -159,13 +159,21 @@ describe("applyPendingGroupAssignments", () => {
         invitedBy: "admin-1",
         createdAt: new Date(),
       },
+      {
+        id: "row-2",
+        organization: "acme",
+        email: "user@example.com",
+        groupPath: "lab",
+        invitedBy: "admin-1",
+        createdAt: new Date(),
+      },
     ]);
     vi.mocked(addUserToOrganizationGroup).mockRejectedValueOnce(new Error("kc down"));
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(await applyPendingGroupAssignments(user, "acme")).toBe(true);
     expect(prisma.pendingGroupAssignment.deleteMany).toHaveBeenLastCalledWith({
-      where: { id: { in: ["row-1"] } },
+      where: { id: { in: ["row-2"] } },
     });
     error.mockRestore();
   });
@@ -182,7 +190,7 @@ describe("applyPendingGroupAssignments", () => {
     );
   });
 
-  test("still deletes rows when the organization cannot be resolved", async () => {
+  test("keeps rows when the organization cannot be resolved", async () => {
     vi.mocked(prisma.pendingGroupAssignment.findMany).mockResolvedValue([
       {
         id: "row-1",
@@ -196,11 +204,9 @@ describe("applyPendingGroupAssignments", () => {
     vi.mocked(findOrganizationByAlias).mockResolvedValue(undefined);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(await applyPendingGroupAssignments(user, "acme")).toBe(true);
+    expect(await applyPendingGroupAssignments(user, "acme")).toBe(false);
     expect(addUserToOrganizationGroup).not.toHaveBeenCalled();
-    expect(prisma.pendingGroupAssignment.deleteMany).toHaveBeenLastCalledWith({
-      where: { id: { in: ["row-1"] } },
-    });
+    expect(prisma.pendingGroupAssignment.deleteMany).toHaveBeenCalledTimes(1);
     error.mockRestore();
   });
 });
