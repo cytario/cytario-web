@@ -89,7 +89,6 @@ export const CaptureExportSection = () => {
   const canAnnotate = useCanAnnotate();
 
   const [source, setSource] = useState<SourceChoice>("current-view");
-  const [regionFeatureId, setRegionFeatureId] = useState<string | null>(null);
   const [presetId, setPresetId] = useState<ResolutionPreset["id"]>("presentation");
   const [decorations, setDecorations] = useState<ExportDecorations>(DEFAULT_DECORATIONS);
   const [createExportAnnotation, setCreateExportAnnotation] = useState(false);
@@ -109,10 +108,30 @@ export const CaptureExportSection = () => {
   // follows the subscribed array — not a mount-time store snapshot.
   const availableRegions = useMemo(() => rectangleRegions(annotationSets), [annotationSets]);
 
+  // The region picker is the canvas selection, both ways: picking a region
+  // selects its annotation, and a single selected rectangle region drives the
+  // picker. Anything else selected (nothing, several, points) leaves the
+  // source as-is.
+  const annotationSelectedIds = useViewerStore((s) => s.annotationSelectedIds);
+  const setAnnotationSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const selectedRegion = useMemo(
-    () => availableRegions.find((region) => region.id === regionFeatureId) ?? null,
-    [availableRegions, regionFeatureId],
+    () =>
+      annotationSelectedIds.length === 1
+        ? (availableRegions.find((region) => region.id === annotationSelectedIds[0]) ?? null)
+        : null,
+    [availableRegions, annotationSelectedIds],
   );
+
+  // Selection changes move the source with them: a selected rectangle region
+  // makes the capture a region capture, losing it returns to the current view.
+  const prevSelectedRegionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = selectedRegion?.id ?? null;
+    const prevId = prevSelectedRegionIdRef.current;
+    prevSelectedRegionIdRef.current = id;
+    if (prevId === id) return;
+    setSource(id ? "annotation-region" : "current-view");
+  }, [selectedRegion]);
 
   const regionBounds = useMemo(
     () =>
@@ -285,7 +304,7 @@ export const CaptureExportSection = () => {
         const plan = planExport({
           store: storeApi,
           preset,
-          regionFeatureId: source === "annotation-region" ? regionFeatureId : null,
+          regionFeatureId: source === "annotation-region" ? (selectedRegion?.id ?? null) : null,
         });
         setActiveRun({
           plan,
@@ -293,7 +312,7 @@ export const CaptureExportSection = () => {
           preset,
           decorations,
           imageBasename,
-          regionFeatureId: source === "annotation-region" ? regionFeatureId : null,
+          regionFeatureId: source === "annotation-region" ? (selectedRegion?.id ?? null) : null,
         });
         setRunState({
           phase: "rendering",
@@ -306,7 +325,7 @@ export const CaptureExportSection = () => {
         });
       }
     },
-    [storeApi, source, regionFeatureId, preset, decorations, imageBasename],
+    [storeApi, source, selectedRegion, preset, decorations, imageBasename],
   );
 
   return (
@@ -337,7 +356,10 @@ export const CaptureExportSection = () => {
             selectedKeys={new Set([source])}
             onSelectionChange={(keys) => {
               const next = [...keys][0];
-              if (next === "annotation-region" || next === "current-view") setSource(next);
+              if (next !== "current-view" && next !== "annotation-region") return;
+              // Choosing the current view deselects — the picker IS the selection.
+              if (next === "current-view") setAnnotationSelectedIds([]);
+              setSource(next);
             }}
           >
             <SegmentedControlItem id="current-view" className="flex items-center gap-1.5 px-2">
@@ -360,9 +382,9 @@ export const CaptureExportSection = () => {
               placeholder="Select a rectangle region"
               size="sm"
               items={availableRegions.map((region) => ({ id: region.id, name: region.name }))}
-              selectedKey={regionFeatureId}
+              selectedKey={selectedRegion?.id ?? null}
               onSelectionChange={(key) => {
-                if (typeof key === "string") setRegionFeatureId(key);
+                if (typeof key === "string") setAnnotationSelectedIds([key]);
               }}
             />
           )}

@@ -1,5 +1,5 @@
 import { ToastProvider } from "@cytario/design";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -589,6 +589,44 @@ describe("Capture and export section", () => {
     // rect-1 is Region A's feature id — the deck must drop it so the region's
     // own boundary never draws onto the export.
     expect(captureDeckProps[0].excludeAnnotationId).toBe("rect-1");
+  });
+
+  test("a selected rectangle region pre-selects the region source, and deselecting returns to the current view", async () => {
+    currentStore.setState({ annotationSelectedIds: ["rect-1"] });
+    renderSection();
+
+    // A single selected rectangle region drives the source and the picker.
+    await expect(screen.getByRole("radio", { name: /annotation region/i })).toBeChecked();
+    expect(currentStore.getState().annotationSelectedIds).toEqual(["rect-1"]);
+
+    // Deselecting on the canvas returns the capture to the current view.
+    await act(async () => {
+      currentStore.getState().setAnnotationSelectedIds([]);
+    });
+    await expect(screen.getByRole("radio", { name: /current view/i })).toBeChecked();
+  });
+
+  test("several selected annotations leave the source at the current view", () => {
+    currentStore.setState({ annotationSelectedIds: ["rect-1", "rect-2"] });
+    renderSection();
+
+    expect(screen.getByRole("radio", { name: /current view/i })).toBeChecked();
+  });
+
+  test("picking a region in the picker selects its annotation; switching back to Current view deselects", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+    await openSelect(user, "Region");
+    await user.click(screen.getByRole("option", { name: "Region B" }));
+
+    // The picker write is the canvas selection.
+    expect(currentStore.getState().annotationSelectedIds).toEqual(["rect-2"]);
+    expect(screen.getByRole("radio", { name: /annotation region/i })).toBeChecked();
+
+    await user.click(screen.getByRole("radio", { name: /current view/i }));
+    expect(currentStore.getState().annotationSelectedIds).toEqual([]);
   });
 
   test("selecting a region frames the active panel on the region's extent", async () => {
