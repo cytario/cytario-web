@@ -47,7 +47,8 @@ export async function applyPendingGroupAssignments(
   user: UserProfile,
   organization: string,
 ): Promise<boolean> {
-  if (!user.email) return false;
+  // Rows key on email alone, so only a verified address may claim them.
+  if (!user.email || !user.email_verified) return false;
 
   const email = user.email.trim().toLowerCase();
 

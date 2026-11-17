@@ -28,6 +28,7 @@ const { addUserToOrganizationGroup, findOrganizationByAlias, findOrganizationGro
 const user = {
   sub: "user-1",
   email: "User@Example.com",
+  email_verified: true,
   organizations: { acme: { groups: ["vericura"], attributes: {} } },
 } as unknown as Parameters<typeof applyPendingGroupAssignments>[0];
 
@@ -86,6 +87,13 @@ describe("applyPendingGroupAssignments", () => {
 
     expect(await applyPendingGroupAssignments(user, "acme")).toBe(false);
     expect(addUserToOrganizationGroup).not.toHaveBeenCalled();
+  });
+
+  test("ignores an unverified email", async () => {
+    const unverified = { ...user, email_verified: false };
+
+    expect(await applyPendingGroupAssignments(unverified, "acme")).toBe(false);
+    expect(prisma.pendingGroupAssignment.findMany).not.toHaveBeenCalled();
   });
 
   test("adds the user to each group, deletes applied rows by id, returns true", async () => {
