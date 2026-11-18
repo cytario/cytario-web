@@ -77,10 +77,6 @@ const orgAdminRoutes = [
           file: "routes/admin/inviteUser/inviteUser.modal.tsx",
         },
         {
-          path: "bulk-invite",
-          file: "routes/admin/bulkInvite/bulkInvite.modal.tsx",
-        },
-        {
           path: "create-group",
           file: "routes/admin/createGroup/createGroup.modal.tsx",
         },

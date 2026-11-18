@@ -1,102 +1,82 @@
-import { Description, Fieldset, Input } from "@cytario/design";
+import { EmailTokenField, Fieldset, MultiSelectComboBox } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useSubmit } from "react-router";
 
-import { type InviteUserFormData, inviteUserSchema } from "./inviteUser.schema";
+import {
+  type InviteUserFormData,
+  type InviteUserInput,
+  inviteUserSchema,
+} from "./inviteUser.schema";
+import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 
 interface InviteUserFormProps {
-  scope: string;
-  inviteAnother?: boolean;
-  actionData?: { success?: boolean; message?: string };
+  groups: GroupInfo[];
+  onEmailCountChange?: (count: number) => void;
 }
 
-export function InviteUserForm({ scope, inviteAnother, actionData }: InviteUserFormProps) {
+export function InviteUserForm({ groups, onEmailCountChange }: InviteUserFormProps) {
   const submit = useSubmit();
 
-  const { control, handleSubmit, reset } = useForm<InviteUserFormData>({
+  const { control, handleSubmit } = useForm<InviteUserInput, unknown, InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
-      email: "",
-      firstName: "",
-      lastName: "",
+      emails: [],
+      groupIds: [],
     },
-    mode: "onBlur",
   });
 
+  const emails = useWatch({ control, name: "emails" });
+
   useEffect(() => {
-    if (actionData?.success === true) {
-      reset({
-        email: "",
-        firstName: "",
-        lastName: "",
-      });
-    }
-  }, [actionData, reset]);
+    onEmailCountChange?.(emails?.length ?? 0);
+  }, [emails, onEmailCountChange]);
 
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, String(value));
-    });
-    formData.append("scope", scope);
-    if (inviteAnother) {
-      formData.append("inviteAnother", "true");
+    for (const email of data.emails) {
+      formData.append("emails", email);
+    }
+    for (const groupId of data.groupIds) {
+      formData.append("groupIds", groupId);
     }
     submit(formData, { method: "post" });
   };
+
+  const groupItems = groups.map((group) => ({ id: group.id, name: group.path }));
 
   return (
     <form id="invite-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <Fieldset>
         <Controller
           control={control}
-          name="email"
+          name="emails"
           render={({ field, fieldState }) => (
-            <Input
+            <EmailTokenField
               label="Email"
-              type="email"
-              size="lg"
+              value={field.value ?? []}
+              onChange={field.onChange}
+              placeholder="name@example.com"
+              description="Press comma or Enter after each address. Up to 100 per invite."
+              errorMessage={fieldState.error?.message}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="groupIds"
+          render={({ field }) => (
+            <MultiSelectComboBox
+              label="Groups"
+              items={groupItems}
+              placeholder="Search groups…"
               value={field.value}
               onChange={field.onChange}
               onBlur={field.onBlur}
-              errorMessage={fieldState.error?.message}
             />
           )}
         />
-        <Controller
-          control={control}
-          name="firstName"
-          render={({ field, fieldState }) => (
-            <Input
-              label="First name (optional)"
-              size="lg"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              errorMessage={fieldState.error?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="lastName"
-          render={({ field, fieldState }) => (
-            <Input
-              label="Last name (optional)"
-              size="lg"
-              value={field.value ?? ""}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              errorMessage={fieldState.error?.message}
-            />
-          )}
-        />
-        <Description size="sm">
-          Keycloak emails the invite to the address above. Group membership can be assigned after
-          the user accepts.
-        </Description>
       </Fieldset>
     </form>
   );

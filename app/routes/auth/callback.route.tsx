@@ -5,6 +5,7 @@ import { getSession } from "~/.server/auth/getSession";
 import { profileFromAccessToken, resolveActiveOrganization } from "~/.server/auth/getUserInfo";
 import { validateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
 import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
+import { applyPendingGroupAssignments } from "~/.server/auth/pendingGroupAssignments";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { verifyIdToken } from "~/.server/auth/verifyIdToken";
 import { createLabel } from "~/.server/logging";
@@ -132,6 +133,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         ? orgPath(defaultOrganization, "/")
         : validateRedirectTo(stateData.redirectTo);
     console.info(`${label} Authentication successful, redirecting to:`, redirectTo);
+
+    // This login's token predates any membership added here, so a silent
+    // re-auth picks up the new group claims.
+    let appliedGroups = false;
+    try {
+      appliedGroups = await applyPendingGroupAssignments(user, Object.keys(user.organizations));
+    } catch (error) {
+      console.error(`${label} Pending group assignment application failed:`, error);
+    }
+    if (appliedGroups) {
+      console.info(`${label} Pending group assignments applied, refreshing session`);
+      return redirect(`/auth/refresh?return_to=${encodeURIComponent(redirectTo)}`, {
+        headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
+      });
+    }
 
     return redirect(redirectTo, {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },

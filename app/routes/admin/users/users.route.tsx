@@ -247,13 +247,6 @@ export default function AdminUsersRoute() {
         <ButtonLink href={adminPath("/admin/users/invite")} variant="secondary" iconLeft="UserPlus">
           Invite User
         </ButtonLink>
-        <ButtonLink
-          href={adminPath("/admin/users/bulk-invite")}
-          variant="secondary"
-          iconLeft="UsersRound"
-        >
-          Bulk Invite
-        </ButtonLink>
         <Button variant="secondary" iconLeft="Plug" onPress={() => openModal("add-connection")}>
           Add Connection
         </Button>

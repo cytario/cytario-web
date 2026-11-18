@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { describe, expect, test, vi } from "vitest";
 
@@ -9,11 +10,23 @@ vi.mock("react-router", async () => {
   return { ...actual, useSubmit: () => vi.fn() };
 });
 
-function renderForm(scope = "cytario/lab") {
+// happy-dom's InputEvent has no getTargetRanges; react-aria's token field calls
+// it on every edit and throws without it.
+if (!("getTargetRanges" in InputEvent.prototype)) {
+  (InputEvent.prototype as unknown as { getTargetRanges: () => Range[] }).getTargetRanges =
+    () => [];
+}
+
+const groups = [
+  { id: "g1", path: "cytario/lab", name: "lab" },
+  { id: "g2", path: "cytario/lab/team-a", name: "team-a" },
+];
+
+function renderForm() {
   const RemixStub = createRoutesStub([
     {
       path: "/",
-      Component: () => <InviteUserForm scope={scope} />,
+      Component: () => <InviteUserForm groups={groups} />,
     },
   ]);
 
@@ -21,26 +34,64 @@ function renderForm(scope = "cytario/lab") {
 }
 
 describe("InviteUserForm", () => {
-  test("renders email + optional first/last name fields", () => {
+  test("renders the email token field and group multi-select, no name fields", () => {
     renderForm();
 
-    expect(screen.getByText("Email")).toBeInTheDocument();
-    expect(screen.getByText("First name (optional)")).toBeInTheDocument();
-    expect(screen.getByText("Last name (optional)")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
+    expect(screen.getByText("Groups")).toBeInTheDocument();
+    expect(screen.queryByText("First name (optional)")).not.toBeInTheDocument();
+    expect(screen.queryByText("Last name (optional)")).not.toBeInTheDocument();
   });
 
-  test("explains that group membership is assigned after the user accepts", () => {
+  test("keeps only the token field's own hint, not a first-login explainer", () => {
     renderForm();
 
+    expect(screen.getByText(/Press comma or Enter after each address/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Group membership can be assigned after the user accepts/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/joins the selected groups at their first login/i),
+    ).not.toBeInTheDocument();
   });
 
-  test("does not render any group selector (org invite has no group target)", () => {
+  test("commits a typed address as a removable token", async () => {
+    const user = userEvent.setup();
     renderForm();
 
-    expect(screen.queryByText("Group Membership")).not.toBeInTheDocument();
-    expect(screen.queryByText("No groups available in this scope.")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("textbox", { name: "Email" }));
+    await user.keyboard("a@x.com,");
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Remove a@x.com" })).toBeInTheDocument(),
+    );
+  });
+
+  test("turns a delimiter-separated list into one token per address", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("textbox", { name: "Email" }));
+    await user.keyboard("a@x.com b@x.com;c@x.com ");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Remove a@x.com" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Remove b@x.com" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Remove c@x.com" })).toBeInTheDocument();
+    });
+  });
+
+  test("drops a token when its remove button is pressed", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("textbox", { name: "Email" }));
+    await user.keyboard("a@x.com,");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Remove a@x.com" })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove a@x.com" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Remove a@x.com" })).not.toBeInTheDocument(),
+    );
   });
 });

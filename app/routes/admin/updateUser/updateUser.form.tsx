@@ -1,4 +1,4 @@
-import { Checkbox, Description, Fieldset, H3, Input } from "@cytario/design";
+import { Checkbox, Description, Fieldset, Input, MultiSelectComboBox } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -7,7 +7,6 @@ import { useSubmit } from "react-router";
 import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 import { type KeycloakUser } from "~/.server/auth/keycloakAdmin/client";
 import { ConfirmDialog } from "~/components/ConfirmDialog";
-import { ScopePill } from "~/components/Pills/ScopePill";
 import {
   type UpdateUserFormData,
   updateUserSchema,
@@ -128,14 +127,8 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
     setPendingFormData(null);
   };
 
-  const toggleGroup = (groupId: string) => {
-    setMemberGroupIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  };
+  const renderableGroups = groups.filter((group) => group.path !== ORG_ROOT_SCOPE);
+  const groupItems = renderableGroups.map((group) => ({ id: group.id, name: group.path }));
 
   return (
     <>
@@ -200,27 +193,17 @@ export const UpdateUserForm = ({ user, groups, groupPaths }: UpdateUserFormProps
           </div>
         </Fieldset>
 
-        {(() => {
-          const renderable = groups.filter((g) => g.path !== ORG_ROOT_SCOPE);
-          if (renderable.length === 0) return null;
-          return (
-            <Fieldset className="my-8">
-              <H3>Group Membership</H3>
-              {renderable.map((group) => (
-                <label key={group.id} className="flex items-center gap-2 cursor-pointer py-1">
-                  <input
-                    type="checkbox"
-                    aria-label={group.path}
-                    checked={memberGroupIds.has(group.id)}
-                    onChange={() => toggleGroup(group.id)}
-                    className="w-4 h-4 cursor-pointer accent-primary"
-                  />
-                  <ScopePill scope={group.path} />
-                </label>
-              ))}
-            </Fieldset>
-          );
-        })()}
+        {renderableGroups.length > 0 && (
+          <Fieldset className="my-8">
+            <MultiSelectComboBox
+              label="Groups"
+              items={groupItems}
+              placeholder="Search groups…"
+              value={Array.from(memberGroupIds)}
+              onChange={(keys) => setMemberGroupIds(new Set(keys.map(String)))}
+            />
+          </Fieldset>
+        )}
       </form>
 
       <ConfirmDialog

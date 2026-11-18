@@ -179,3 +179,22 @@ model UserPreference {
 
   @@id([userId, key])
 }
+
+/// Group memberships recorded at invite time, applied when the invitee first
+/// logs in. Keycloak's invitation flow creates no user record, so rows key on
+/// the invited email (lowercased to match the identity service's invitation
+/// normalization); (organization, email) scopes the lookup to the tenant.
+/// Applied rows are deleted by id — never by a blanket (organization, email)
+/// match, so an assignment created for the same email between lookup and
+/// delete is not lost.
+model PendingGroupAssignment {
+  id           String   @id @default(uuid())
+  organization String
+  email        String
+  groupPath    String
+  invitedBy    String
+  createdAt    DateTime @default(now())
+
+  @@unique([organization, email, groupPath])
+  @@index([organization, email])
+}
