@@ -8,6 +8,7 @@ export type {
   CompanionDirNaming,
   LoadOptions,
   SignedFetch,
+  LocalFileSource,
 } from "./format";
 export type {
   Image,
