@@ -62,6 +62,7 @@ function renderAt(path: string, connectionCount: number) {
       </aside>
       <nav aria-label="Breadcrumb" />
       <div role="radiogroup" aria-label="View mode" />
+      <button aria-label="Open local file" type="button" />
       <main>
         <section>
           <a href="/connections/conn-1/folder">folder</a>
@@ -253,7 +254,7 @@ describe("TourProvider", () => {
     const clickNext = () =>
       document.querySelector<HTMLButtonElement>('[data-action="primary"]')?.click();
 
-    for (let stepIndex = 0; stepIndex < 9; stepIndex += 1) {
+    for (let stepIndex = 0; stepIndex < 10; stepIndex += 1) {
       await waitFor(() =>
         expect(
           document.querySelector('.react-joyride__tooltip [data-action="primary"]'),
