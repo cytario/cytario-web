@@ -2,7 +2,7 @@ import type { Effect, FilterContext, Layer } from "@deck.gl/core";
 import { useCallback, useMemo } from "react";
 
 import { useAnnotationsLayer } from "./Annotations/useAnnotationsLayer";
-import { useChannelsLayer } from "./Channels/useChannelsLayer";
+import { useChannelsLayer, type TileReadinessObserver } from "./Channels/useChannelsLayer";
 import {
   OVERLAY_COMPOSITE_LAYER_ID,
   OverlayCompositeEffect,
@@ -32,8 +32,9 @@ export const useViewerLayers = (
   imagePanelId: number,
   interactive = true,
   excludeAnnotationId: string | null = null,
+  tileObserver?: TileReadinessObserver,
 ): ViewerLayersResult => {
-  const { layers: channelLayers } = useChannelsLayer(imagePanelId);
+  const { layers: channelLayers } = useChannelsLayer(imagePanelId, tileObserver);
   const { layers: overlayLayers } = useOverlaysLayers(imagePanelId);
   const { layers: annotationLayers } = useAnnotationsLayer(
     imagePanelId,

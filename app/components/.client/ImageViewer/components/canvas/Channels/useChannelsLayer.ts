@@ -37,8 +37,20 @@ export const selectionKey = (selection: unknown): string => {
 
 type MultiscaleImageLayerProps = ConstructorParameters<typeof MultiscaleImageLayer>[0];
 
+/** What a capture deck needs to know that the framed extent actually rendered. */
+export interface TileReadinessObserver {
+  /** Fired when the tile layer's tileset finishes loading a viewport pass.
+   *  `tileCount` is how many tiles that pass selected — zero means nothing was
+   *  drawn, which `isLoaded` alone cannot distinguish from a finished render. */
+  onViewportLoad?: (tileCount: number) => void;
+  /** Fired for a tile that failed after the retry — a capture must not settle
+   *  on a frame with holes. */
+  onTileError?: (error: unknown) => void;
+}
+
 export const useChannelsLayer = (
   imagePanelId: number,
+  observer?: TileReadinessObserver,
 ): CytarioLayerResult<InstanceType<typeof MultiscaleImageLayer> | null> => {
   const dtype = useViewerStore((state) => {
     const type = state.metadata?.Pixels.Type ?? "Uint8";
@@ -106,7 +118,14 @@ export const useChannelsLayer = (
       Object.assign(wrappedLoader, loaderLevel);
 
       wrappedLoader.getTile = async (params: Parameters<typeof originalGetTile>[0]) => {
-        const tileId = `${params.x}-${params.y}-${params.selection?.z || 0}`;
+        // The id must name one fetch, not one tile location: viv requests every
+        // channel of a tile in parallel from this same function, so a key of
+        // x/y alone collapses a 9-channel tile into one entry and the first
+        // channel's finish clears the count while eight fetches are still in
+        // flight. The level belongs in the key too — the live panel and the
+        // capture deck load different levels for the same x/y.
+        const { c, z, t } = params.selection ?? { c: 0, z: 0, t: 0 };
+        const tileId = `${levelIndex}:${params.x}:${params.y}:${c}:${z}:${t}`;
 
         loadTile(tileId);
 
@@ -181,15 +200,24 @@ export const useChannelsLayer = (
       // `best-available` so a partial-resolution image is always shown.
       refinementStrategy: "best-available",
       pickable: true,
+      // deck fires this from the tileset when the current viewport's tiles are
+      // loaded, handing over the selected tiles. It is the only signal that
+      // says "this viewport rendered", and its tile count separates a real
+      // render from an empty selection.
+      onViewportLoad: observer?.onViewportLoad
+        ? (tiles: unknown[]) => observer.onViewportLoad?.(tiles?.length ?? 0)
+        : undefined,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;
         if (error === SIGNAL_ABORTED) return;
         if (error instanceof AggregateError && error.errors.every((e) => e?.name === "AbortError"))
           return;
+        observer?.onTileError?.(error);
         console.error(error);
       },
     } as unknown as MultiscaleImageLayerProps);
   }, [
+    observer,
     loader,
     extensions,
     selections,

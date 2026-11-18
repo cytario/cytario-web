@@ -25,6 +25,7 @@ import { planExport, legendForState, RENDER_TIMEOUT_MS, type CapturePlan } from 
 import { rectangleRegions } from "./regionSelection";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
+import { getMissingChunks, resetMissingChunks } from "../../state/transport/CredentialedHTTPStore";
 import { useCanAnnotate } from "../../utils/useCanAnnotate";
 import { geometriesBounds } from "../annotations/flyToFeature";
 import { calculateViewStateToFitBounds } from "../canvas/Measurements/calculateViewStateToFitBounds";
@@ -238,6 +239,27 @@ export const CaptureExportSection = () => {
           return;
         }
 
+        // A provably empty render is not a deliverable export: the detector
+        // exists to stop exactly this, so fail rather than hand over a flat
+        // image with a note attached.
+        if (result.uniform) {
+          fail(
+            "The capture rendered a single flat colour — no image content reached the export. Try capturing again.",
+          );
+          return;
+        }
+
+        // A chunk the pyramid index promised but the store does not hold is
+        // filled with zeros and renders as black tissue with no error. Better
+        // to say the pyramid is incomplete than to ship an empty region.
+        const missing = getMissingChunks();
+        if (missing.length > 0) {
+          fail(
+            `The image's pyramid is incomplete — ${missing.length} data chunk(s) of the selected area are missing, so it cannot be exported faithfully.`,
+          );
+          return;
+        }
+
         if (run.destination === "clipboard") {
           try {
             await copyExportToClipboard(result.blob);
@@ -276,9 +298,6 @@ export const CaptureExportSection = () => {
         if (result.upscaled) {
           notes.push("upscaled beyond native scan resolution");
         }
-        if (result.uniform) {
-          notes.push("the image area is a single flat color — nothing may have rendered");
-        }
         // An empty legend is invisible in the output — say so instead of
         // shipping it silently.
         if (
@@ -301,6 +320,9 @@ export const CaptureExportSection = () => {
   const runCapture = useCallback(
     (destination: "download" | "clipboard") => {
       try {
+        // Count missing chunks from this run only — the live panel's fetches
+        // must not condemn a capture.
+        resetMissingChunks();
         const plan = planExport({
           store: storeApi,
           preset,
@@ -335,6 +357,9 @@ export const CaptureExportSection = () => {
        * interaction; torn down with the run (or the section) by React. */}
       {activeRun && (
         <CaptureDeck
+          // Remount per framed view state: the deck derives all of its settle
+          // state (viewport, tile readiness) from the frame it mounts for.
+          key={`${activeRun.plan.viewState.target.join(",")}@${activeRun.plan.viewState.zoom}`}
           viewState={activeRun.plan.viewState}
           width={activeRun.plan.frame.width}
           height={activeRun.plan.frame.height}
@@ -344,6 +369,7 @@ export const CaptureExportSection = () => {
           onSettled={(canvas) => {
             void deliver(activeRun)(canvas);
           }}
+          onFailed={fail}
         />
       )}
       <div className="flex flex-col gap-3 p-2 pb-3">
