@@ -5,6 +5,7 @@ import { OverlayItem } from "./OverlayItem";
 import { LoadOverlayModal } from "./OverlayPicker.modal";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { select } from "../../../state/store/selectors";
+import { useIsLocalSource } from "../../../utils/useCanAnnotate";
 import { SECTION_GRID_3COL_WIDTH } from "../SectionRow/SectionGrid";
 import { VIEWER_SECTIONS } from "../sections";
 import { Section } from "~/components/Section/Section";
@@ -22,6 +23,8 @@ export const OverlaysSection = () => {
   // depends on whether the zoom is in point mode, so re-rendering this section
   // on every zoom/pan frame was wasted work. Hide outline in point mode.
   const isInPointMode = useViewerStore((state) => isPointMode(state.viewStateActive?.zoom ?? 0));
+  // A local open has no bucket to load overlay parquets from.
+  const isLocalSource = useIsLocalSource();
 
   const entries = Object.entries(overlaysStates);
 
@@ -50,13 +53,15 @@ export const OverlaysSection = () => {
         badge={badge}
         actions={
           <>
-            <IconButton
-              icon="Plus"
-              label="Add overlay"
-              onPress={() => setIsOpen(true)}
-              variant="ghost"
-              size="xs"
-            />
+            {!isLocalSource && (
+              <IconButton
+                icon="Plus"
+                label="Add overlay"
+                onPress={() => setIsOpen(true)}
+                variant="ghost"
+                size="xs"
+              />
+            )}
             <IconButton
               icon={showCellOutline ? "CircleDot" : "Circle"}
               label={showCellOutline ? "Hide outlines" : "Show outlines"}
@@ -75,11 +80,15 @@ export const OverlaysSection = () => {
       >
         {entries.length === 0 ? (
           <EmptyState
-            title="Add Overlay"
-            description="Add parquet cell detection files"
+            title={isLocalSource ? "Local file" : "Add Overlay"}
+            description={
+              isLocalSource
+                ? "Overlays load from a connected bucket"
+                : "Add parquet cell detection files"
+            }
             icon="Layers2"
             className="py-6"
-            action={addOverlayButton}
+            action={isLocalSource ? undefined : addOverlayButton}
           />
         ) : (
           entries.map(([resourceId, entry]) => (
