@@ -5,13 +5,6 @@ import { describe, expect, test, vi } from "vitest";
 
 import InviteModal from "../inviteUser.modal";
 
-const toast = vi.fn();
-
-vi.mock("@cytario/design", async () => {
-  const actual = await vi.importActual("@cytario/design");
-  return { ...actual, useToast: () => ({ toast, toasts: [], removeToast: vi.fn() }) };
-});
-
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
   return { ...actual, useSubmit: () => vi.fn() };
@@ -39,15 +32,15 @@ function renderModal() {
 }
 
 describe("InviteModal", () => {
-  test("offers the one invite form: token field, groups, invite another, cancel, send", async () => {
+  test("offers the one invite form: token field, groups, cancel, send", async () => {
     renderModal();
 
-    expect(await screen.findByRole("dialog", { name: "Invite User" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Invite Users" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
     expect(screen.getByText("Groups")).toBeInTheDocument();
-    expect(screen.getByText("Invite another")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send Invite" })).toBeInTheDocument();
+    expect(screen.queryByText("Invite another")).not.toBeInTheDocument();
   });
 
   test("keeps the submit button disabled until an email token is committed", async () => {

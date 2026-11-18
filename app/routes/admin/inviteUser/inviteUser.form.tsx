@@ -1,4 +1,4 @@
-import { Description, EmailTokenField, Fieldset, MultiSelectComboBox } from "@cytario/design";
+import { EmailTokenField, Fieldset, MultiSelectComboBox } from "@cytario/design";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -13,20 +13,13 @@ import { type GroupInfo } from "~/.server/auth/keycloakAdmin";
 
 interface InviteUserFormProps {
   groups: GroupInfo[];
-  inviteAnother?: boolean;
-  actionData?: { success?: boolean; message?: string; variant?: string };
   onEmailCountChange?: (count: number) => void;
 }
 
-export function InviteUserForm({
-  groups,
-  inviteAnother,
-  actionData,
-  onEmailCountChange,
-}: InviteUserFormProps) {
+export function InviteUserForm({ groups, onEmailCountChange }: InviteUserFormProps) {
   const submit = useSubmit();
 
-  const { control, handleSubmit, reset } = useForm<InviteUserInput, unknown, InviteUserFormData>({
+  const { control, handleSubmit } = useForm<InviteUserInput, unknown, InviteUserFormData>({
     resolver: zodResolver(inviteUserSchema),
     defaultValues: {
       emails: [],
@@ -40,12 +33,6 @@ export function InviteUserForm({
     onEmailCountChange?.(emails?.length ?? 0);
   }, [emails, onEmailCountChange]);
 
-  useEffect(() => {
-    if (actionData?.success === true) {
-      reset({ emails: [], groupIds: [] });
-    }
-  }, [actionData, reset]);
-
   const onSubmit = (data: InviteUserFormData) => {
     const formData = new FormData();
     for (const email of data.emails) {
@@ -53,9 +40,6 @@ export function InviteUserForm({
     }
     for (const groupId of data.groupIds) {
       formData.append("groupIds", groupId);
-    }
-    if (inviteAnother) {
-      formData.append("inviteAnother", "true");
     }
     submit(formData, { method: "post" });
   };
@@ -93,10 +77,6 @@ export function InviteUserForm({
             />
           )}
         />
-        <Description size="sm">
-          The invited user joins the selected groups at their first login and sees their shared data
-          immediately.
-        </Description>
       </Fieldset>
     </form>
   );

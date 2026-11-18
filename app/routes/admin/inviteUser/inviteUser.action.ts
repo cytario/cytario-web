@@ -12,7 +12,6 @@ import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { createPendingGroupAssignments } from "~/.server/auth/pendingGroupAssignments";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
 import { consultUserMgmtGate } from "~/.server/userManagementGate";
-import { toToastVariant } from "~/utils/notifications";
 
 interface InviteOutcome {
   email: string;
@@ -82,7 +81,6 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
   const { org, adminUrl, scope } = context.get(adminContext);
 
   const formData = await request.formData();
-  const inviteAnother = formData.get("inviteAnother") === "true";
   const rawData = {
     emails: formData.getAll("emails"),
     groupIds: formData.getAll("groupIds"),
@@ -163,14 +161,6 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
     if (e instanceof Response) throw e;
     console.error("Invite failed:", e);
     summary = { message: "Failed to invite user. Please try again.", status: "error" };
-  }
-
-  if (inviteAnother) {
-    return {
-      success: summary.status !== "error",
-      variant: toToastVariant(summary.status),
-      message: summary.message,
-    };
   }
 
   session.set("notification", { status: summary.status, message: summary.message });

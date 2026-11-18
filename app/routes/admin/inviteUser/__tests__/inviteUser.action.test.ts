@@ -4,7 +4,7 @@ import { inviteUserAction } from "../inviteUser.action";
 import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 
-const commitSession = vi.fn().mockResolvedValue("session-cookie");
+const commitSession = vi.fn();
 const sessionSet = vi.fn();
 
 vi.mock("~/.server/auth/getSession", () => ({
@@ -130,18 +130,14 @@ describe("inviteUserAction", () => {
     vi.mocked(assertGrantScope).mockReturnValue(undefined);
   });
 
-  test("invites one email and records the pending group assignment", async () => {
+  test("invites one email, records the group assignment and flashes the summary", async () => {
     vi.mocked(assertGroupsInScope).mockResolvedValue(scopedGroup as never);
 
-    const response = await inviteUserAction({
-      request: formRequest({
-        emails: ["New@Example.com"],
-        groupIds: ["g1"],
-        inviteAnother: "true",
-      }),
+    const response = (await inviteUserAction({
+      request: formRequest({ emails: ["New@Example.com"], groupIds: ["g1"] }),
       context: runContext(),
       params: {},
-    } as never);
+    } as never)) as Response;
 
     expect(inviteOrganizationUser).toHaveBeenCalledWith("org-1", "New@Example.com");
     expect(createPendingGroupAssignments).toHaveBeenCalledWith(
@@ -150,11 +146,14 @@ describe("inviteUserAction", () => {
       ["customers/vericura"],
       "admin-1",
     );
-    expect(response).toEqual({
-      success: true,
-      variant: "success",
+    expect(sessionSet).toHaveBeenCalledWith("notification", {
+      status: "success",
       message: "Invited New@Example.com to acme.",
     });
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/admin/users?scope=customers");
+    expect(commitSession).toHaveBeenCalledTimes(1);
   });
 
   test("consults the gate for invite and addToGroup with the email count", async () => {
@@ -164,7 +163,6 @@ describe("inviteUserAction", () => {
       request: formRequest({
         emails: ["a@example.com", "b@example.com"],
         groupIds: ["g1"],
-        inviteAnother: "true",
       }),
       context: runContext(),
       params: {},
@@ -184,8 +182,8 @@ describe("inviteUserAction", () => {
     vi.mocked(assertGroupsInScope).mockResolvedValue(scopedGroup as never);
     vi.mocked(inviteOrganizationUser).mockRejectedValue(conflict());
 
-    const response = await inviteUserAction({
-      request: formRequest({ emails: ["u@example.com"], groupIds: ["g1"], inviteAnother: "true" }),
+    await inviteUserAction({
+      request: formRequest({ emails: ["u@example.com"], groupIds: ["g1"] }),
       context: runContext(),
       params: {},
     } as never);
@@ -196,9 +194,8 @@ describe("inviteUserAction", () => {
       ["customers/vericura"],
       "admin-1",
     );
-    expect(response).toEqual({
-      success: true,
-      variant: "info",
+    expect(sessionSet).toHaveBeenCalledWith("notification", {
+      status: "warning",
       message: "u@example.com already has a pending invitation or is a member.",
     });
   });
@@ -206,11 +203,10 @@ describe("inviteUserAction", () => {
   test("invites several emails and records them in one batched assignment", async () => {
     vi.mocked(assertGroupsInScope).mockResolvedValue(scopedGroup as never);
 
-    const response = await inviteUserAction({
+    await inviteUserAction({
       request: formRequest({
         emails: ["a@example.com", "b@example.com", "c@example.com"],
         groupIds: ["g1"],
-        inviteAnother: "true",
       }),
       context: runContext(),
       params: {},
@@ -224,9 +220,8 @@ describe("inviteUserAction", () => {
       ["customers/vericura"],
       "admin-1",
     );
-    expect(response).toEqual({
-      success: true,
-      variant: "success",
+    expect(sessionSet).toHaveBeenCalledWith("notification", {
+      status: "success",
       message: "Invited 3 users to acme.",
     });
   });
@@ -238,11 +233,10 @@ describe("inviteUserAction", () => {
       .mockRejectedValueOnce(new Error("kc down"))
       .mockRejectedValueOnce(conflict());
 
-    const response = await inviteUserAction({
+    await inviteUserAction({
       request: formRequest({
         emails: ["a@example.com", "b@example.com", "c@example.com"],
         groupIds: ["g1"],
-        inviteAnother: "true",
       }),
       context: runContext(),
       params: {},
@@ -254,9 +248,8 @@ describe("inviteUserAction", () => {
       ["customers/vericura"],
       "admin-1",
     );
-    expect(response).toEqual({
-      success: true,
-      variant: "info",
+    expect(sessionSet).toHaveBeenCalledWith("notification", {
+      status: "warning",
       message:
         "Invited 2 of 3 users to acme. 1 failed. 1 already had a pending invitation or is a member.",
     });
@@ -265,18 +258,18 @@ describe("inviteUserAction", () => {
   test("reports an error summary when every invite fails", async () => {
     vi.mocked(inviteOrganizationUser).mockRejectedValue(new Error("kc down"));
 
-    const response = await inviteUserAction({
-      request: formRequest({ emails: ["a@example.com", "b@example.com"], inviteAnother: "true" }),
+    const response = (await inviteUserAction({
+      request: formRequest({ emails: ["a@example.com", "b@example.com"] }),
       context: runContext(),
       params: {},
-    } as never);
+    } as never)) as Response;
 
     expect(createPendingGroupAssignments).not.toHaveBeenCalled();
-    expect(response).toEqual({
-      success: false,
-      variant: "error",
+    expect(sessionSet).toHaveBeenCalledWith("notification", {
+      status: "error",
       message: "Failed to invite 2 users. Please try again.",
     });
+    expect(response.status).toBe(302);
   });
 
   test("rejects a group id that does not resolve in the scope tree with 403", async () => {
@@ -284,11 +277,7 @@ describe("inviteUserAction", () => {
 
     await expect(
       inviteUserAction({
-        request: formRequest({
-          emails: ["u@example.com"],
-          groupIds: "forged",
-          inviteAnother: "true",
-        }),
+        request: formRequest({ emails: ["u@example.com"], groupIds: "forged" }),
         context: runContext(),
         params: {},
       } as never),
@@ -307,11 +296,7 @@ describe("inviteUserAction", () => {
 
     await expect(
       inviteUserAction({
-        request: formRequest({
-          emails: ["u@example.com"],
-          groupIds: ["g1"],
-          inviteAnother: "true",
-        }),
+        request: formRequest({ emails: ["u@example.com"], groupIds: ["g1"] }),
         context: runContext(),
         params: {},
       } as never),
@@ -321,7 +306,7 @@ describe("inviteUserAction", () => {
 
   test("rejects an empty email list before any Keycloak call", async () => {
     const response = await inviteUserAction({
-      request: formRequest({ inviteAnother: "true" }),
+      request: formRequest({}),
       context: runContext(),
       params: {},
     } as never);
@@ -334,7 +319,7 @@ describe("inviteUserAction", () => {
 
   test("rejects an invalid email address before any Keycloak call", async () => {
     const response = await inviteUserAction({
-      request: formRequest({ emails: ["not-an-email", "b@example.com"], inviteAnother: "true" }),
+      request: formRequest({ emails: ["not-an-email", "b@example.com"] }),
       context: runContext(),
       params: {},
     } as never);
@@ -347,7 +332,7 @@ describe("inviteUserAction", () => {
     const emails = Array.from({ length: 101 }, (_, i) => `user${i}@example.com`);
 
     const response = await inviteUserAction({
-      request: formRequest({ emails, inviteAnother: "true" }),
+      request: formRequest({ emails }),
       context: runContext(),
       params: {},
     } as never);
@@ -359,33 +344,17 @@ describe("inviteUserAction", () => {
   });
 
   test("invites without groups when none selected (plain invite)", async () => {
-    const response = await inviteUserAction({
-      request: formRequest({ emails: ["u@example.com"], inviteAnother: "true" }),
+    await inviteUserAction({
+      request: formRequest({ emails: ["u@example.com"] }),
       context: runContext(),
       params: {},
     } as never);
 
     expect(inviteOrganizationUser).toHaveBeenCalledWith("org-1", "u@example.com");
     expect(createPendingGroupAssignments).not.toHaveBeenCalled();
-    expect(response).toEqual({
-      success: true,
-      variant: "success",
-      message: "Invited u@example.com to acme.",
-    });
-  });
-
-  test("flashes the summary in the session and redirects unless inviting another", async () => {
-    const response = await inviteUserAction({
-      request: formRequest({ emails: ["a@example.com", "b@example.com"] }),
-      context: runContext(),
-      params: {},
-    } as never);
-
     expect(sessionSet).toHaveBeenCalledWith("notification", {
       status: "success",
-      message: "Invited 2 users to acme.",
+      message: "Invited u@example.com to acme.",
     });
-    expect(response).toBeInstanceOf(Response);
-    expect((response as Response).status).toBe(302);
   });
 });

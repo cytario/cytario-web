@@ -43,10 +43,13 @@ describe("InviteUserForm", () => {
     expect(screen.queryByText("Last name (optional)")).not.toBeInTheDocument();
   });
 
-  test("explains that groups are applied at first login", () => {
+  test("keeps only the token field's own hint, not a first-login explainer", () => {
     renderForm();
 
-    expect(screen.getByText(/joins the selected groups at their first login/i)).toBeInTheDocument();
+    expect(screen.getByText(/Press comma or Enter after each address/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/joins the selected groups at their first login/i),
+    ).not.toBeInTheDocument();
   });
 
   test("commits a typed address as a removable token", async () => {
