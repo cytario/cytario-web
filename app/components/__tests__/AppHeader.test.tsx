@@ -22,6 +22,10 @@ vi.mock("~/components/Sidebar/Explorer/ExplorerSidebarToggle", () => ({
   ExplorerSidebarToggle: () => createElement("button", { "data-testid": "explorer-toggle" }, "Nav"),
 }));
 
+vi.mock("~/components/OpenLocalFile/OpenLocalFileButton", () => ({
+  OpenLocalFileButton: () => createElement("button", { "data-testid": "open-local-file" }, "Open"),
+}));
+
 const rootLoaderData = {
   user: {
     sub: "u1",

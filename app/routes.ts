@@ -60,6 +60,10 @@ const orgAppRoutes = [
     file: "routes/plugin/plugin.$.tsx",
   },
   {
+    path: "/local/*",
+    file: "routes/local/local.route.tsx",
+  },
+  {
     path: "/agent/describe",
     file: "routes/agent/describe.route.tsx",
   },

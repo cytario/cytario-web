@@ -3,6 +3,7 @@ import { useRouteLoaderData } from "react-router";
 import { Breadcrumbs } from "~/components/Breadcrumbs/Breadcrumbs";
 import { useLayoutStore } from "~/components/DirectoryView/useLayoutStore";
 import { HelpMenu } from "~/components/HelpMenu";
+import { OpenLocalFileButton } from "~/components/OpenLocalFile/OpenLocalFileButton";
 import { ExplorerSidebarToggle } from "~/components/Sidebar/Explorer/ExplorerSidebarToggle";
 import { UserMenu } from "~/components/UserMenu";
 import { type RootLoaderResponse } from "~/root";
@@ -29,6 +30,7 @@ export function AppHeader() {
 
       <div className="h-full flex-none flex gap-2 p-2 items-center">
         {headerSlot}
+        <OpenLocalFileButton />
         {data?.accountSettingsUrl && data.user && (
           <UserMenu
             user={data.user}
