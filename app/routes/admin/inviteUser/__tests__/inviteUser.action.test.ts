@@ -148,7 +148,7 @@ describe("inviteUserAction", () => {
     );
     expect(sessionSet).toHaveBeenCalledWith("notification", {
       status: "success",
-      message: "Invited New@Example.com to acme.",
+      message: "Invited 1 of 1 user to acme.",
     });
     expect(response).toBeInstanceOf(Response);
     expect(response.status).toBe(302);
@@ -196,7 +196,7 @@ describe("inviteUserAction", () => {
     );
     expect(sessionSet).toHaveBeenCalledWith("notification", {
       status: "warning",
-      message: "u@example.com already has a pending invitation or is a member.",
+      message: "1 already had a pending invitation or was a member.",
     });
   });
 
@@ -222,7 +222,7 @@ describe("inviteUserAction", () => {
     );
     expect(sessionSet).toHaveBeenCalledWith("notification", {
       status: "success",
-      message: "Invited 3 users to acme.",
+      message: "Invited 3 of 3 users to acme.",
     });
   });
 
@@ -251,7 +251,7 @@ describe("inviteUserAction", () => {
     expect(sessionSet).toHaveBeenCalledWith("notification", {
       status: "warning",
       message:
-        "Invited 2 of 3 users to acme. 1 failed. 1 already had a pending invitation or is a member.",
+        "Invited 1 of 3 users to acme. 1 already had a pending invitation or was a member. 1 failed.",
     });
   });
 
@@ -354,7 +354,7 @@ describe("inviteUserAction", () => {
     expect(createPendingGroupAssignments).not.toHaveBeenCalled();
     expect(sessionSet).toHaveBeenCalledWith("notification", {
       status: "success",
-      message: "Invited u@example.com to acme.",
+      message: "Invited 1 of 1 user to acme.",
     });
   });
 });

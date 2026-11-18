@@ -26,8 +26,13 @@ export default function InviteModal() {
         <Button onPress={() => navigate(-1)} variant="secondary">
           Cancel
         </Button>
-        <Button type="submit" form="invite-form" isDisabled={isSubmitting || emailCount === 0}>
-          {isSubmitting ? "Inviting..." : "Send Invite"}
+        <Button
+          type="submit"
+          form="invite-form"
+          isDisabled={emailCount === 0}
+          isLoading={isSubmitting}
+        >
+          Send Invite
         </Button>
       </footer>
     </RouteModal>

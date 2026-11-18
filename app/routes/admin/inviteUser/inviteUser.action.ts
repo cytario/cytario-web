@@ -25,55 +25,40 @@ interface InviteSummary {
 }
 
 /**
- * One email keeps the historical single-invite wording (the e2e asserts it);
- * several get one summary, where a 409 counts as accepted like it did in the
- * former bulk flow.
+ * One summary for any batch size: how many were invited, failed, or already
+ * had a pending invitation or membership (a 409 counts as accepted, as it did
+ * in the former bulk flow).
  */
 function summarize(outcomes: InviteOutcome[], organization: string): InviteSummary {
   const total = outcomes.length;
   const failed = outcomes.filter((outcome) => outcome.failed).length;
   const already = outcomes.filter((outcome) => outcome.alreadyInvited).length;
-  const accepted = total - failed;
-
-  if (total === 1) {
-    const [only] = outcomes;
-    if (only.failed) {
-      return { message: "Failed to invite user. Please try again.", status: "error" };
-    }
-    if (only.alreadyInvited) {
-      return {
-        message: `${only.email} already has a pending invitation or is a member.`,
-        status: "warning",
-      };
-    }
-    return { message: `Invited ${only.email} to ${organization}.`, status: "success" };
-  }
+  const invited = total - failed - already;
+  const plural = total === 1 ? "" : "s";
 
   if (failed === total) {
-    return { message: `Failed to invite ${total} users. Please try again.`, status: "error" };
-  }
-  if (failed === 0 && already === 0) {
-    return { message: `Invited ${total} users to ${organization}.`, status: "success" };
-  }
-  if (failed === 0 && already === total) {
     return {
-      message: `All ${total} users already have a pending invitation or are members.`,
-      status: "warning",
+      message: `Failed to invite ${total} user${plural}. Please try again.`,
+      status: "error",
     };
   }
 
-  const parts = [
-    accepted === total
-      ? `Invited ${total} users to ${organization}.`
-      : `Invited ${accepted} of ${total} users to ${organization}.`,
-  ];
-  if (failed > 0) parts.push(`${failed} failed.`);
+  const parts: string[] = [];
+  if (invited > 0) {
+    parts.push(`Invited ${invited} of ${total} user${plural} to ${organization}.`);
+  }
   if (already > 0) {
     parts.push(
-      `${already} already had a pending invitation or ${already === 1 ? "is" : "are"} a member.`,
+      `${already} already had a pending invitation or ${already === 1 ? "was" : "were"} a member.`,
     );
   }
-  return { message: parts.join(" "), status: "warning" };
+  if (failed > 0) {
+    parts.push(`${failed} failed.`);
+  }
+  return {
+    message: parts.join(" "),
+    status: failed > 0 || already > 0 ? "warning" : "success",
+  };
 }
 
 export const inviteUserAction: ActionFunction = async ({ request, context }) => {
