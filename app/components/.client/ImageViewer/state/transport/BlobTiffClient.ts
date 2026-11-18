@@ -3,7 +3,9 @@ import type { LocalFileSource } from "@cytario/plugin-api";
 /**
  * A geotiff-compatible client that reads a locally-opened file by slicing it
  * on demand — the BaseClient/BaseResponse contract SigV4TiffClient satisfies
- * for HTTP, answered from `blob.slice` instead of a network request.
+ * for HTTP, answered from `blob.slice` instead of a network request. The
+ * content-range header is synthesized from the slice bounds because geotiff's
+ * RemoteSource derives the file size from it.
  */
 export class BlobTiffClient {
   url: string;
@@ -31,7 +33,8 @@ export class BlobTiffClient {
     return {
       ok: true,
       status: 206,
-      getHeader: () => "",
+      getHeader: (name: string) =>
+        name.toLowerCase() === "content-range" ? `bytes ${start}-${end}/${this.source.size}` : "",
       getData: () => buffer,
     };
   }
