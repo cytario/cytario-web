@@ -5,6 +5,7 @@ import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { holdLocalSource } from "~/components/OpenLocalFile/localSourceHolder";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { useOrgNavigate } from "~/hooks/useOrgPath";
+import { ensureBuiltinFormats } from "~/lib/imageMetadata";
 import { getFileCategory } from "~/utils/fileType";
 
 /**
@@ -23,11 +24,15 @@ export function OpenLocalFileButton() {
 
   const openPicker = () => inputRef.current?.click();
 
-  const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Re-picking the same file must re-fire the change event.
     event.target.value = "";
     if (!file) return;
+
+    // The header renders before any viewer chunk, so the built-in handlers
+    // are not registered yet; the resolution needs them present.
+    await ensureBuiltinFormats();
 
     if (getFileCategory(file.name) === "image" && formatRegistry.resolveLocalSource(file.name)) {
       holdLocalSource(file.name, file);

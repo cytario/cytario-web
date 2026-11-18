@@ -19,6 +19,10 @@ vi.mock("~/hooks/useOrgPath", () => ({
   useOrgNavigate: () => orgNavigate,
 }));
 
+vi.mock("~/lib/imageMetadata", () => ({
+  ensureBuiltinFormats: async () => {},
+}));
+
 import { OpenLocalFileButton } from "../OpenLocalFileButton";
 import type { FormatHandler } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";

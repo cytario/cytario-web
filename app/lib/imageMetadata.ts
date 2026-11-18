@@ -15,7 +15,8 @@ let builtinFormatsModule: Promise<{
   registerBuiltinFormats: () => void;
 }> | null = null;
 
-async function ensureBuiltinFormats(): Promise<void> {
+/** Ensure the built-in format handlers are registered; safe from any client surface. */
+export async function ensureBuiltinFormats(): Promise<void> {
   builtinFormatsModule ??= import("~/components/.client/ImageViewer/state/formats/builtins");
   try {
     const { registerBuiltinFormats } = await builtinFormatsModule;
