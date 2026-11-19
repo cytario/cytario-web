@@ -102,6 +102,27 @@ class FormatRegistryImpl {
     throw new UnknownFormatError(`No format handler registered for URL: ${url}`);
   }
 
+  /**
+   * Resolution for a locally-opened file: matches by the bare file name
+   * against the same key table, but only handlers that declare
+   * `supportsLocalSource` are claimed. Returns undefined instead of throwing
+   * so the caller can fall back to the not-openable notice.
+   */
+  resolveLocalSource(fileName: string): Registration | undefined {
+    const extracted = getExtension(fileName);
+    for (const reg of this.registrations) {
+      if (!reg.handler.supportsLocalSource) continue;
+      for (const key of reg.keys) {
+        if (typeof key === "string") {
+          if (extracted === key) return reg;
+        } else if (key.test(fileName)) {
+          return reg;
+        }
+      }
+    }
+    return undefined;
+  }
+
   list(): readonly Registration[] {
     return this.registrations;
   }

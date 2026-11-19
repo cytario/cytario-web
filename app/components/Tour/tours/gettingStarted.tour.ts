@@ -85,6 +85,14 @@ export const gettingStartedTour: TourDefinition = {
       content: "Switch between grid and list views to browse the way you prefer.",
     },
     {
+      target: 'button[aria-label="Open local file"]',
+      placement: "bottom",
+      title: "Open a local file",
+      content:
+        "Have a slide on this machine? Open it directly in the viewer — without " +
+        "uploading it to a bucket first.",
+    },
+    {
       target: CONTENT_ENTRY_LINK,
       title: "Open an item",
       content:

@@ -25,6 +25,7 @@ export const RESERVED_PATH_ROOTS = [
   "/admin",
   "/plugin",
   "/agent",
+  "/local",
 ] as const;
 
 const RESERVED_ROOT_SET = new Set<string>(RESERVED_PATH_ROOTS);

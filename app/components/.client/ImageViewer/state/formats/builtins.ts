@@ -17,6 +17,7 @@ export function registerBuiltinFormats(): void {
   formatRegistry.add("cytario-web", ["ome.tif", "ome.tiff"], {
     load: (url: string, opts: LoadOptions) => loadOmeTiffWithCredentials(url, opts),
     fileTypeMeta: { label: "OME-TIFF", icon: "Microscope" },
+    supportsLocalSource: true,
   });
 
   formatRegistry.add("cytario-web", ["ome.zarr", "zarr"], {

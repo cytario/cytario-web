@@ -1,6 +1,16 @@
+import { isLocalResourceId } from "../state/store/core/viewerRegistry";
 import { useViewerStore } from "../state/store/core/ViewerStoreContext";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { parseResourceId } from "~/utils/resourceId";
+
+/**
+ * Whether the open image is a locally-opened file — no connection, no sidecar
+ * persistence, no overlays: every bucket-bound affordance stays hidden.
+ */
+export function useIsLocalSource(): boolean {
+  const resourceId = useViewerStore((s) => s.id);
+  return isLocalResourceId(resourceId);
+}
 
 /**
  * Whether the connection's grant is read-only. Reads the connections store

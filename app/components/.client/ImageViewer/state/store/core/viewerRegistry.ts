@@ -6,6 +6,7 @@ import { registerBuiltinFormats } from "../../formats/builtins";
 import { attachAnnotationSync } from "../annotations/annotationSync";
 import { createViewerStore } from "../createViewerStore";
 import { attachViewSync } from "../views/viewSync";
+import type { LocalFileSource } from "@cytario/plugin-api";
 import { formatRegistry } from "~/components/ImageViewer/state/formatRegistry";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
 import type { SignedFetch } from "~/utils/signedFetch";
@@ -22,7 +23,27 @@ interface ViewerRegistryStore {
     userId: string,
     showToast?: (toast: Omit<ToastData, "id">) => void,
   ) => ViewerStoreApi;
+  registerLocalViewer: (
+    fileName: string,
+    source: LocalFileSource,
+    userId: string,
+    showToast?: (toast: Omit<ToastData, "id">) => void,
+  ) => ViewerStoreApi | undefined;
 }
+
+const LOCAL_CONNECTION_ID = "local";
+
+/** Whether the viewer was mounted for a locally-opened file. */
+export function isLocalResourceId(resourceId: string): boolean {
+  return resourceId.startsWith(`${LOCAL_CONNECTION_ID}/`);
+}
+
+/** Fail-loud stand-in for the signed fetch a local open never has. */
+function localSourceStub(url: string): Promise<Response> {
+  return Promise.reject(new Error(`No signed fetch for a local source: ${url}`));
+}
+
+const localSources = new Map<string, LocalFileSource>();
 
 const mountedProviders = new Map<string, number>();
 const loadAborters = new Map<string, AbortController>();
@@ -38,6 +59,18 @@ function startViewerLoad(
   viewerState.setIsViewerLoading(true);
 
   const loadImage = async () => {
+    if (isLocalResourceId(resourceId)) {
+      const source = localSources.get(resourceId);
+      if (!source) throw new Error(`No local source held for: ${resourceId}`);
+      const fileName = resourceId.slice(LOCAL_CONNECTION_ID.length + 1);
+      const registration = formatRegistry.resolveLocalSource(fileName);
+      if (!registration) throw new Error(`Format not openable as a local file: ${fileName}`);
+      return registration.handler.load(fileName, {
+        signedFetch: localSourceStub,
+        source,
+        signal: abortController.signal,
+      });
+    }
     const { httpsUrl } = resolveResourceId(resourceId);
     const { handler } = formatRegistry.resolve(httpsUrl);
     return handler.load(httpsUrl, {
@@ -123,8 +156,15 @@ export const useViewerRegistryStore = create<ViewerRegistryStore>()(
 
         const viewerStore = createViewerStore(resourceId, userId, showToast);
 
-        attachAnnotationSync(viewerStore, showToast);
-        attachViewSync(viewerStore, signedFetch);
+        if (isLocalResourceId(resourceId)) {
+          // Local open: no annotation/view sidecar syncs (there is no S3
+          // prefix to write to) and no shared-preset discovery — mark the
+          // view-sync gate settled so channel initialization proceeds.
+          viewerStore.getState().setSharedViewsLoaded(true);
+        } else {
+          attachAnnotationSync(viewerStore, showToast);
+          attachViewSync(viewerStore, signedFetch);
+        }
 
         startViewerLoad(viewerStore, resourceId, signedFetch);
 
@@ -134,6 +174,34 @@ export const useViewerRegistryStore = create<ViewerRegistryStore>()(
           }),
           false,
           "registerViewer",
+        );
+
+        return viewerStore;
+      },
+      registerLocalViewer: (fileName, source, userId, showToast) => {
+        const registration = formatRegistry.resolveLocalSource(fileName);
+        if (!registration) return undefined;
+        const resourceId = `${LOCAL_CONNECTION_ID}/${fileName}`;
+
+        const existingStore = get().viewers[resourceId];
+        if (existingStore) {
+          localSources.set(resourceId, source);
+          ensureViewerLoaded(resourceId, localSourceStub);
+          return existingStore;
+        }
+
+        localSources.set(resourceId, source);
+        const viewerStore = createViewerStore(resourceId, userId, showToast);
+        viewerStore.getState().setSharedViewsLoaded(true);
+
+        startViewerLoad(viewerStore, resourceId, localSourceStub);
+
+        set(
+          (registryState) => ({
+            viewers: { ...registryState.viewers, [resourceId]: viewerStore },
+          }),
+          false,
+          "registerLocalViewer",
         );
 
         return viewerStore;

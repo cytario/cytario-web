@@ -2,6 +2,7 @@ import { loadOmeTiff } from "@hms-dbmi/viv";
 import { fromCustomClient } from "geotiff";
 
 import type { Image, Loader } from "../store/core/ome.tif.types";
+import { BlobTiffClient } from "../transport/BlobTiffClient";
 import { SigV4TiffClient } from "../transport/SigV4TiffClient";
 import { normalizePixelType } from "@cytario/plugin-api";
 import type { LoadOptions } from "@cytario/plugin-api";
@@ -214,23 +215,28 @@ export function isPhantomInterleavedDim(pixels: {
     channels.every((channel) => (channel.SamplesPerPixel ?? 1) === 1)
   );
 }
-
-/** Load an OME-TIFF via SigV4-signed S3 requests; delegates to viv. */
+/** Load an OME-TIFF via SigV4-signed S3 requests or a local file source; delegates to viv. */
 export async function loadOmeTiffWithCredentials(
   s3Url: string,
   opts: LoadOptions,
 ): Promise<{ data: Loader; metadata: Image }> {
-  const { signedFetch, signal, headers } = opts;
+  const { signal, headers } = opts;
 
-  // Sidecar is optional — fetch only if caller did not pre-supply offsets.
-  // Caller-supplied headers must reach EVERY network request the handler issues,
-  // including the sidecar fetch.
   let offsets: number[] | undefined = opts.offsets;
-  if (offsets === undefined) {
+
+  let client: SigV4TiffClient | BlobTiffClient;
+  if (opts.source) {
+    // Local open: the name is the dispatch key, the File is the byte source;
+    // no sidecar fetch and no signed fetch happen.
+    client = new BlobTiffClient(s3Url, opts.source);
+  } else {
+    // Sidecar is optional — fetch only if caller did not pre-supply offsets.
+    // Caller-supplied headers must reach EVERY network request the handler issues,
+    // including the sidecar fetch.
     const offsetsUrl = getOffsetsUrl(s3Url);
     if (offsetsUrl) {
       try {
-        const res = await signedFetch(offsetsUrl, { signal, headers });
+        const res = await opts.signedFetch(offsetsUrl, { signal, headers });
         if (res.ok) {
           const json: unknown = await res.json();
           if (Array.isArray(json) && json.every((v) => typeof v === "number")) {
@@ -241,12 +247,12 @@ export async function loadOmeTiffWithCredentials(
         // Sidecar is optional.
       }
     }
+    client = new SigV4TiffClient(s3Url, opts.signedFetch, headers);
   }
 
   // cacheSize must match viv's internal Infinity to avoid block eviction during IFD
   // parsing of large pyramidal TIFFs. Caller-supplied headers flow into the transport
   // so geotiff's per-tile fetches inherit them.
-  const client = new SigV4TiffClient(s3Url, signedFetch, headers);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const source = await fromCustomClient(client as any, {
     cacheSize: Number.POSITIVE_INFINITY,

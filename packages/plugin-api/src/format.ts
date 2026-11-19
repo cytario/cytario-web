@@ -2,11 +2,22 @@ import type { Image, Loader } from "./image";
 
 export type SignedFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
+/** A locally-opened file handed to a handler in place of the URL source. */
+export type LocalFileSource = File | Blob;
+
 export interface LoadOptions {
   signedFetch: SignedFetch;
   signal?: AbortSignal;
   headers?: Record<string, string>;
   offsets?: number[];
+  /**
+   * Local file source for a browser-opened file. When present, the handler
+   * reads the image from this File/Blob (slicing on demand) instead of the
+   * URL and must not issue network requests for the source; `signedFetch` is
+   * a host-supplied stub that throws if called. Handlers that cannot read
+   * from a Blob source declare that by omitting `supportsLocalSource`.
+   */
+  source?: LocalFileSource;
 }
 
 export interface FileTypeMeta {
@@ -47,6 +58,12 @@ export type FormatExtension = string | string[] | RegExp;
 export interface FormatHandler {
   load(url: string, opts: LoadOptions): Promise<{ data: Loader; metadata: Image }>;
   fileTypeMeta?: FileTypeMeta;
+  /**
+   * Whether `load` can read from `LoadOptions.source` (a local File/Blob).
+   * Absent means the handler only reads the URL source; the host does not
+   * claim such handlers for local opens.
+   */
+  supportsLocalSource?: boolean;
 }
 
 export interface FormatRegistry {
