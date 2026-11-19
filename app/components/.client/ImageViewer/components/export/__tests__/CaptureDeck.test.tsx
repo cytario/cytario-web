@@ -86,7 +86,25 @@ vi.mock("../../../state/store/core/ViewerStoreContext", () => ({
 const fakeDeck = () => ({
   isInitialized: true,
   getCanvas: () => document.createElement("canvas"),
+  layerManager: { getLayers: () => tiledLayers },
 });
+
+/** The tiled layer deck holds, as the deck reports it. `layers` per tile are the
+ *  tile sublayers that actually draw the pixels. */
+let tiledLayers: { state: { tileset: unknown } }[] = [];
+
+const tilesetWith = (tileCount: number, builtPerTile = 1, loaded = true) => [
+  {
+    state: {
+      tileset: {
+        isLoaded: loaded,
+        selectedTiles: Array.from({ length: tileCount }, () => ({
+          layers: Array.from({ length: builtPerTile }, () => ({})),
+        })),
+      },
+    },
+  },
+];
 
 type DeckProps = { layers: unknown[] };
 
@@ -124,6 +142,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   observer = undefined;
   layerInstances.length = 0;
+  tiledLayers = [];
 });
 
 describe("CaptureDeck readiness", () => {
@@ -140,6 +159,7 @@ describe("CaptureDeck readiness", () => {
   test("does not read the canvas on the load callback — deck has not drawn yet", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
+    tiledLayers = tilesetWith(6);
 
     // onViewportLoad fires from the layer update, which deck runs *before* the
     // draw pass: the canvas still holds the previous frame at this point.
@@ -151,6 +171,7 @@ describe("CaptureDeck readiness", () => {
   test("delivers the canvas on the render that follows the load", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
+    tiledLayers = tilesetWith(6);
 
     act(() => observer?.onViewportLoad?.(6));
     drawFrame();
@@ -160,29 +181,68 @@ describe("CaptureDeck readiness", () => {
     expect(onFailed).not.toHaveBeenCalled();
   });
 
-  test("does not deliver from a render that precedes the load", async () => {
+  test("delivers without the load callback when a warm cache never transitions", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
+
+    // The reported bug: a second export reuses cached tiles, the tileset is
+    // loaded on the first frame, so deck never fires onViewportLoad. Waiting
+    // for it hung the capture until the render timeout.
+    tiledLayers = tilesetWith(9);
+    drawFrame();
+
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  test("does not settle while the tiles have no sublayers yet", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+
+    // Tiles loaded but nothing built to draw them: settling here is the blank
+    // export — the canvas holds no tissue.
+    tiledLayers = tilesetWith(9, 0);
+    drawFrame();
+
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  test("does not deliver from a render that precedes any selected tiles", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
 
     drawFrame();
     expect(onSettled).not.toHaveBeenCalled();
 
-    act(() => observer?.onViewportLoad?.(6));
+    tiledLayers = tilesetWith(6);
     drawFrame();
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
 
-  test("fails instead of settling when the viewport selected no tiles", async () => {
+  test("fails instead of settling when the tileset selected no tiles", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
 
-    // An empty selection shares `isLoaded === true` with a finished render:
-    // the tile count is the only thing that separates them.
-    act(() => observer?.onViewportLoad?.(0));
+    // A loaded tileset with an empty selection shares `isLoaded === true` with a
+    // finished render: the selected count is the only thing that separates them.
+    tiledLayers = tilesetWith(0);
     drawFrame();
 
     expect(onFailed).toHaveBeenCalledTimes(1);
     expect(onFailed.mock.calls[0][0]).toMatch(/no image data/i);
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  test("does not fail while the selected tiles are still loading", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
+
+    // Selected but not loaded yet: pending, not empty. Treating this as
+    // "nothing here" failed real captures on their first frame.
+    tiledLayers = tilesetWith(9, 0, false);
+    drawFrame();
+
+    expect(onFailed).not.toHaveBeenCalled();
     expect(onSettled).not.toHaveBeenCalled();
   });
 
@@ -197,9 +257,10 @@ describe("CaptureDeck readiness", () => {
     expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("settles once even if the tile layer reports further viewport loads", async () => {
+  test("settles once even if further viewport loads arrive", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
+    tiledLayers = tilesetWith(6);
 
     act(() => observer?.onViewportLoad?.(6));
     drawFrame();
@@ -212,6 +273,7 @@ describe("CaptureDeck readiness", () => {
   test("a tile error after the settle does not fail a delivered capture", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
+    tiledLayers = tilesetWith(6);
 
     act(() => observer?.onViewportLoad?.(6));
     drawFrame();

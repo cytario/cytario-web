@@ -42,9 +42,35 @@ const HIDDEN_STYLE: CSSProperties = {
   zIndex: -1,
 };
 
+/** The tileset plus deck's built tile sublayers. `isLoaded` alone is not
+ *  enough: a warm tile cache makes the tileset report loaded on the very first
+ *  frame, before any tile sublayer exists, and settling there copies a canvas
+ *  nothing was drawn into. `tile.layers` are those sublayers. */
+interface TileTileset {
+  isLoaded?: boolean;
+  selectedTiles?: { layers?: unknown[] | null }[];
+}
+
+/** Whether every selected tile of the framed extent has been built and loaded. */
+const tilesRendered = (tileset: TileTileset | undefined): number => {
+  const tiles = tileset?.selectedTiles ?? [];
+  if (!tileset?.isLoaded || tiles.length === 0) return 0;
+  const built = tiles.filter((t) => Array.isArray(t.layers) && t.layers.length > 0).length;
+  return built === tiles.length ? tiles.length : 0;
+};
+
+/** The tileset finished and selected nothing: the framed extent holds no image.
+ *  Distinct from "selected, still loading" — conflating the two failed a capture
+ *  on its very first frame. */
+const selectedNothing = (tileset: TileTileset | undefined): boolean =>
+  Boolean(tileset?.isLoaded) && (tileset?.selectedTiles?.length ?? 0) === 0;
+
+type DeckLayer = { state?: { tileset?: TileTileset } };
+
 type DeckLike = {
   isInitialized?: boolean;
   getCanvas?: () => HTMLCanvasElement | null;
+  layerManager?: { getLayers?: () => DeckLayer[] };
 };
 
 /**
@@ -83,9 +109,6 @@ export const CaptureDeck = ({
   const deckRef = useRef<DeckGLRef | null>(null);
   const settledRef = useRef(false);
   const failedRef = useRef(false);
-  // Set when the tile layer reports the framed extent loaded; the canvas is
-  // read in the frame that follows, once the draw pass has run.
-  const tilesReadyRef = useRef(false);
   const [failedTile, setFailedTile] = useState<string | null>(null);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
@@ -94,30 +117,13 @@ export const CaptureDeck = ({
   // per render would rebuild the layer and re-trigger its tile requests.
   const observer = useMemo(
     () => ({
-      onViewportLoad: (tileCount: number) => {
-        if (settledRef.current || failedRef.current || tilesReadyRef.current) return;
-        if (tileCount === 0) {
-          // Nothing was selected for the framed extent: the canvas holds no
-          // image content. Reporting loaded here is exactly the blank-export
-          // path, so fail instead of delivering it.
-          failedRef.current = true;
-          onFailed(
-            "The selected area contains no image data — it lies outside the scanned region.",
-          );
-          return;
-        }
-        // Only flag: deck runs layer updates *before* the draw pass of the same
-        // frame, so the canvas still holds the previous frame here. Reading it
-        // would export a cleared or coarser buffer — the blank-export bug.
-        tilesReadyRef.current = true;
-      },
       onTileError: () => {
         if (settledRef.current || failedRef.current) return;
         failedRef.current = true;
         setFailedTile("A tile of the selected area could not be loaded.");
       },
     }),
-    [onFailed],
+    [],
   );
 
   const {
@@ -154,8 +160,27 @@ export const CaptureDeck = ({
   // loading. `onViewportLoad` cannot be the read point: it fires from the layer
   // update, which runs before the draw of the same frame.
   const handleAfterRender = useCallback(() => {
-    if (!tilesReadyRef.current || settledRef.current || failedRef.current) return;
-    const canvas = (deckRef.current?.deck as DeckLike | null)?.getCanvas?.();
+    if (settledRef.current || failedRef.current) return;
+
+    const deck = (deckRef.current?.deck ?? null) as DeckLike | null;
+    const tiled = deck?.layerManager?.getLayers?.().find((layer) => layer.state?.tileset);
+    const tileset = tiled?.state?.tileset;
+    const tileCount = tilesRendered(tileset);
+
+    // Settle on the tiles being built and loaded rather than on the load
+    // callback alone: deck fires `onViewportLoad` only on a load-state
+    // *transition*, so a warm tileset that is already loaded can never fire it
+    // and the capture would wait out its whole timeout.
+    if (tileCount === 0) {
+      if (selectedNothing(tileset)) {
+        failedRef.current = true;
+        onFailed("The selected area contains no image data — it lies outside the scanned region.");
+      }
+      // Otherwise the tiles are still loading: keep the frames coming.
+      return;
+    }
+
+    const canvas = deck?.getCanvas?.();
     if (!canvas) {
       failedRef.current = true;
       onFailed("The capture surface did not produce a canvas.");
