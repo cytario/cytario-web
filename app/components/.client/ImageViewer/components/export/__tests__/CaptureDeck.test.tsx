@@ -20,13 +20,23 @@ const viewState = {
 } as unknown as ViewState;
 
 const deckRender = vi.fn();
+const afterRender = vi.fn();
 
 vi.mock("@deck.gl/react", async () => {
   const React = await import("react");
   // React 19 passes `ref` as a regular prop to function components.
-  function MockDeckGL({ ref, ...deckProps }: { ref?: React.Ref<unknown>; [key: string]: unknown }) {
+  function MockDeckGL({
+    onAfterRender,
+    ref,
+    ...deckProps
+  }: {
+    onAfterRender?: () => void;
+    ref?: React.Ref<unknown>;
+    [key: string]: unknown;
+  }) {
     React.useImperativeHandle(ref, () => ({ deck: fakeDeck() }));
     deckRender(deckProps);
+    afterRender(onAfterRender);
     return React.createElement("div", { "data-testid": "deckgl" });
   }
   return { default: MockDeckGL };
@@ -104,6 +114,12 @@ const mountLayers = async () => {
   });
 };
 
+/** Runs deck's draw-pass callback, the way its render loop does each frame. */
+const drawFrame = () => {
+  const callback = afterRender.mock.calls.at(-1)?.[0] as (() => void) | undefined;
+  act(() => callback?.());
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   observer = undefined;
@@ -121,15 +137,39 @@ describe("CaptureDeck readiness", () => {
     expect(lastDeckProps().layers).toEqual(layerInstances);
   });
 
-  test("settles with the canvas once the tile layer reports its viewport loaded", async () => {
+  test("does not read the canvas on the load callback — deck has not drawn yet", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+
+    // onViewportLoad fires from the layer update, which deck runs *before* the
+    // draw pass: the canvas still holds the previous frame at this point.
+    act(() => observer?.onViewportLoad?.(6));
+
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  test("delivers the canvas on the render that follows the load", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
 
     act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
 
     expect(onSettled).toHaveBeenCalledTimes(1);
     expect(onSettled.mock.calls[0][0]).toBeInstanceOf(HTMLCanvasElement);
     expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  test("does not deliver from a render that precedes the load", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+
+    drawFrame();
+    expect(onSettled).not.toHaveBeenCalled();
+
+    act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
+    expect(onSettled).toHaveBeenCalledTimes(1);
   });
 
   test("fails instead of settling when the viewport selected no tiles", async () => {
@@ -139,6 +179,7 @@ describe("CaptureDeck readiness", () => {
     // An empty selection shares `isLoaded === true` with a finished render:
     // the tile count is the only thing that separates them.
     act(() => observer?.onViewportLoad?.(0));
+    drawFrame();
 
     expect(onFailed).toHaveBeenCalledTimes(1);
     expect(onFailed.mock.calls[0][0]).toMatch(/no image data/i);
@@ -161,7 +202,9 @@ describe("CaptureDeck readiness", () => {
     await mountLayers();
 
     act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
     act(() => observer?.onViewportLoad?.(9));
+    drawFrame();
 
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
@@ -171,6 +214,7 @@ describe("CaptureDeck readiness", () => {
     await mountLayers();
 
     act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
     act(() => observer?.onTileError?.(new Error("late")));
 
     expect(onSettled).toHaveBeenCalledTimes(1);

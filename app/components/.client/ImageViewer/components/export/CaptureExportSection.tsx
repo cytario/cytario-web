@@ -317,6 +317,16 @@ export const CaptureExportSection = () => {
     [fail, toast, storeApi, createExportAnnotation, canAnnotate],
   );
 
+  // Stable per run: the deck's observer is memoised on this callback, and a new
+  // identity per render would rebuild the layer's props mid-capture.
+  const handleSettled = useCallback(
+    (canvas: HTMLCanvasElement) => {
+      if (!activeRun) return;
+      void deliver(activeRun)(canvas);
+    },
+    [activeRun, deliver],
+  );
+
   const runCapture = useCallback(
     (destination: "download" | "clipboard") => {
       try {
@@ -366,9 +376,7 @@ export const CaptureExportSection = () => {
           pixelScale={activeRun.plan.pixelScale}
           excludeAnnotationId={activeRun.regionFeatureId}
           hidden
-          onSettled={(canvas) => {
-            void deliver(activeRun)(canvas);
-          }}
+          onSettled={handleSettled}
           onFailed={fail}
         />
       )}

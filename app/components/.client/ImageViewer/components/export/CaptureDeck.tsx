@@ -83,6 +83,9 @@ export const CaptureDeck = ({
   const deckRef = useRef<DeckGLRef | null>(null);
   const settledRef = useRef(false);
   const failedRef = useRef(false);
+  // Set when the tile layer reports the framed extent loaded; the canvas is
+  // read in the frame that follows, once the draw pass has run.
+  const tilesReadyRef = useRef(false);
   const [failedTile, setFailedTile] = useState<string | null>(null);
 
   const activeImagePanelId = useViewerStore(select.activeImagePanelId);
@@ -92,7 +95,7 @@ export const CaptureDeck = ({
   const observer = useMemo(
     () => ({
       onViewportLoad: (tileCount: number) => {
-        if (settledRef.current || failedRef.current) return;
+        if (settledRef.current || failedRef.current || tilesReadyRef.current) return;
         if (tileCount === 0) {
           // Nothing was selected for the framed extent: the canvas holds no
           // image content. Reporting loaded here is exactly the blank-export
@@ -103,14 +106,10 @@ export const CaptureDeck = ({
           );
           return;
         }
-        settledRef.current = true;
-        const canvas = (deckRef.current?.deck as DeckLike | null)?.getCanvas?.();
-        if (canvas) onSettled(canvas);
-        else {
-          settledRef.current = false;
-          failedRef.current = true;
-          onFailed("The capture surface did not produce a canvas.");
-        }
+        // Only flag: deck runs layer updates *before* the draw pass of the same
+        // frame, so the canvas still holds the previous frame here. Reading it
+        // would export a cleared or coarser buffer — the blank-export bug.
+        tilesReadyRef.current = true;
       },
       onTileError: () => {
         if (settledRef.current || failedRef.current) return;
@@ -118,7 +117,7 @@ export const CaptureDeck = ({
         setFailedTile("A tile of the selected area could not be loaded.");
       },
     }),
-    [onFailed, onSettled],
+    [onFailed],
   );
 
   const {
@@ -150,7 +149,21 @@ export const CaptureDeck = ({
     return () => cancelAnimationFrame(handle);
   }, []);
 
-  const handleAfterRender = useCallback(() => {}, []);
+  // deck calls this from inside its draw pass, after the layers were rendered
+  // for this frame — so a canvas read here holds the tiles that just finished
+  // loading. `onViewportLoad` cannot be the read point: it fires from the layer
+  // update, which runs before the draw of the same frame.
+  const handleAfterRender = useCallback(() => {
+    if (!tilesReadyRef.current || settledRef.current || failedRef.current) return;
+    const canvas = (deckRef.current?.deck as DeckLike | null)?.getCanvas?.();
+    if (!canvas) {
+      failedRef.current = true;
+      onFailed("The capture surface did not produce a canvas.");
+      return;
+    }
+    settledRef.current = true;
+    onSettled(canvas);
+  }, [onFailed, onSettled]);
 
   return (
     <div style={hidden ? { ...HIDDEN_STYLE, ...style } : style} aria-hidden={hidden || undefined}>

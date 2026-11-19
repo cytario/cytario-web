@@ -20,6 +20,26 @@ const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
 const isAbortError = (error: unknown): boolean =>
   (error instanceof DOMException || error instanceof Error) && error.name === "AbortError";
 
+/** Whether the loader's own `onTileError` would swallow this error.
+ *
+ * `BoundsCheckError` is viv-internal and unexported, so it can only be matched
+ * by name. A layer-level handler replaces the pixel source's, so without this
+ * the out-of-image tiles of a region spilling past the slide edge would fail a
+ * capture instead of rendering nothing, which is what viv does by default. */
+const isExpectedTileError = (
+  loaderLevel: { onTileError?: (error: Error) => void } | undefined,
+  error: unknown,
+): boolean => {
+  if (!loaderLevel?.onTileError) return error instanceof Error && error.name === "BoundsCheckError";
+  if (!(error instanceof Error)) return false;
+  try {
+    loaderLevel.onTileError(error);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // `getTile` runs once per tile per channel per load — and again for each
 // channel of a `best-available` refinement — so serializing `params.selection`
 // inline re-stringified the same array on every fetch. The selection array is
@@ -201,9 +221,10 @@ export const useChannelsLayer = (
       refinementStrategy: "best-available",
       pickable: true,
       // deck fires this from the tileset when the current viewport's tiles are
-      // loaded, handing over the selected tiles. It is the only signal that
-      // says "this viewport rendered", and its tile count separates a real
-      // render from an empty selection.
+      // loaded, handing over the selected tiles. Its tile count separates a
+      // real render from an empty selection, which `isLoaded` cannot. It says
+      // nothing about the frame having been drawn — deck runs layer updates
+      // before the draw pass — so an observer must not read the canvas here.
       onViewportLoad: observer?.onViewportLoad
         ? (tiles: unknown[]) => observer.onViewportLoad?.(tiles?.length ?? 0)
         : undefined,
@@ -212,6 +233,10 @@ export const useChannelsLayer = (
         if (error === SIGNAL_ABORTED) return;
         if (error instanceof AggregateError && error.errors.every((e) => e?.name === "AbortError"))
           return;
+        // Supplying a handler replaces viv's own (`onTileError || loader[0].onTileError`),
+        // so reproduce its filter or a region spilling past the slide edge
+        // would fail instead of rendering the empty edge tile as before.
+        if (isExpectedTileError(rawLoader?.[0], error)) return;
         observer?.onTileError?.(error);
         console.error(error);
       },
@@ -219,6 +244,7 @@ export const useChannelsLayer = (
   }, [
     observer,
     loader,
+    rawLoader,
     extensions,
     selections,
     contrastLimits,
