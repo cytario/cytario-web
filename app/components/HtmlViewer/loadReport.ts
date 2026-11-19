@@ -1,3 +1,4 @@
+import { buildItablesPreshim, classicModuleScript, detectItablesInit } from "./itablesSupport";
 import { katexStylesheet, renderMathSpans } from "./renderMath";
 import { buildReportShim } from "./reportShim";
 import { resolveResourceId } from "~/utils/connectionsStore/selectors";
@@ -318,6 +319,28 @@ export async function loadReportDocument(
     }
     inline.text = body;
     script.replaceWith(inline);
+  }
+
+  // ITables offline init (C-731): the init cell dynamic-imports its decoded
+  // bundle from a blob: URL, which the sandboxed frame can never load. Where
+  // that pattern is present, pre-resolve the version promise with a
+  // classic-script eval of the same bundle so the init script's guard skips
+  // the broken import path and the tables initialize.
+  for (const script of [...doc.querySelectorAll("script")]) {
+    if (script.getAttribute("type") === "module") continue;
+    const init = detectItablesInit(script.textContent ?? "");
+    if (init === null) continue;
+    let bundleSource: string;
+    try {
+      bundleSource = atob(init.bundleBase64);
+    } catch {
+      continue;
+    }
+    const classic = classicModuleScript(bundleSource);
+    if (classic === null) continue;
+    const preshim = doc.createElement("script");
+    preshim.textContent = buildItablesPreshim(classic, init.version);
+    script.parentNode?.insertBefore(preshim, script);
   }
 
   // Images, media, tracks, sources: rewrite src to data URIs.
