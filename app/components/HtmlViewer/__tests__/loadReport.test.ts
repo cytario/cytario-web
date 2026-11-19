@@ -340,4 +340,52 @@ describe("loadInteractiveReport", () => {
     expect(await fetchAsset("https://cdn.example.com/lib.js")).toBeNull();
     expect(await fetchAsset("report_files/missing.json")).toBeNull();
   });
+
+  test("pre-resolves the itables offline init ahead of its init cell", async () => {
+    // A miniature itables 2.x offline init: the bundle is a base64 module
+    // whose only module syntax is the trailing export statement, exactly
+    // the shape init_notebook_mode(connected=False) delivers.
+    const bundle = "var vb = 41;\nexport{vb as default};";
+    const b64 = btoa(bundle);
+    const html = `<html><head></head><body>
+<script>
+function injectModule(base64JS) {
+    const jsText = atob(base64JS);
+    const blob = new Blob([jsText], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    const module = await import(url);
+    URL.revokeObjectURL(url);
+    return module;
+}
+if (!window._itables_2_9_1) {
+    window._itables_2_9_1 = injectModule("${b64}");
+    window._itables_2_9_1.then(() => {
+        window.dispatchEvent(new Event("itables-2.9.1-ready"));
+    });
+}
+</script>
+</body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+    ]);
+
+    const { documentHtml } = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    const doc = new DOMParser().parseFromString(documentHtml, "text/html");
+    const scripts = [...doc.querySelectorAll("script")];
+    // The injected pre-resolve script runs BEFORE the report's init cell so
+    // the guard skips the blob-import path, and carries the bundle body, the
+    // resolved version promise, and the ready event.
+    const preshimIndex = scripts.findIndex((s) =>
+      (s.textContent ?? "").includes("window._itables_2_9_1 = Promise.resolve"),
+    );
+    const initIndex = scripts.findIndex((s) => (s.textContent ?? "").includes("injectModule"));
+    expect(preshimIndex).toBeGreaterThan(-1);
+    expect(initIndex).toBeGreaterThan(-1);
+    expect(preshimIndex).toBeLessThan(initIndex);
+    expect(scripts[preshimIndex]!.textContent).toContain(
+      "window.__itables_module = {default: vb};",
+    );
+    expect(scripts[preshimIndex]!.textContent).toContain('new Event("itables-2.9.1-ready")');
+  });
 });
