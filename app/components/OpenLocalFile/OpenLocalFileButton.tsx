@@ -39,10 +39,20 @@ const makePickDispatcher = (dispatch: PickDispatch) => async (file: File | undef
     return;
   }
 
+  // Two different cases, two different messages: a type the platform can open
+  // from a bucket (but not locally) versus a type it cannot open at all.
+  if (getFileCategory(file.name) === "none") {
+    dispatch.toast({
+      variant: "info",
+      message: `"${file.name}" is not a file type cytario can open. ` + "Nothing was uploaded.",
+    });
+    return;
+  }
+
   dispatch.toast({
     variant: "info",
     message:
-      `"${file.name}" opens from a connected bucket — local viewing is ` +
+      `"${file.name}" opens from a connected bucket. Local viewing is ` +
       "available for whole-slide image files only. Nothing was uploaded.",
   });
 };

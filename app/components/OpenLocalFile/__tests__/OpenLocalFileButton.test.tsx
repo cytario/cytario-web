@@ -72,7 +72,7 @@ describe("OpenLocalFileButton dispatch", () => {
     expect(toast).not.toHaveBeenCalled();
   });
 
-  test("surfaces the notice for a non-image name and opens nothing", async () => {
+  test("surfaces the bucket notice for a bucket-dispatchable non-image name", async () => {
     render(<OpenLocalFileButton />);
 
     pick("results.csv");
@@ -81,7 +81,25 @@ describe("OpenLocalFileButton dispatch", () => {
       expect(toast).toHaveBeenCalledWith(
         expect.objectContaining({
           variant: "info",
-          message: expect.stringContaining("results.csv"),
+          message:
+            '"results.csv" opens from a connected bucket. Local viewing is ' +
+            "available for whole-slide image files only. Nothing was uploaded.",
+        }),
+      ),
+    );
+    expect(orgNavigate).not.toHaveBeenCalled();
+  });
+
+  test("surfaces the not-openable notice for a type no viewer can open", async () => {
+    render(<OpenLocalFileButton />);
+
+    pick("CMU-1.tiff");
+
+    await waitFor(() =>
+      expect(toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: "info",
+          message: '"CMU-1.tiff" is not a file type cytario can open. ' + "Nothing was uploaded.",
         }),
       ),
     );

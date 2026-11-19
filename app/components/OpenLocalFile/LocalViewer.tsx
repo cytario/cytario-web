@@ -24,7 +24,7 @@ export function LocalViewer({ fileName }: { fileName: string }) {
         data-theme="dark"
         className="h-full flex items-center justify-center bg-background text-muted-foreground"
       >
-        No local file to display — pick a file with the Open local file action.
+        No local file to display. Pick a file with the Open local file action.
       </div>
     );
   }
