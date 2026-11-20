@@ -21,7 +21,6 @@ export {
   addUserToOrganizationGroup,
   createOrganizationSubgroup,
   deleteOrganizationGroup,
-  ensureOrganizationRedirectUrl,
   findOrganizationByAlias,
   findOrganizationGroupByPath,
   getOrganizationGroupMembers,

@@ -6,7 +6,6 @@ import {
   type KeycloakGroup,
   type KeycloakUser,
 } from "./client";
-import { cytarioConfig } from "~/config";
 
 export interface KeycloakOrganization {
   id: string;
@@ -107,25 +106,8 @@ export async function inviteOrganizationUser(orgId: string, email: string): Prom
   // which the authorization endpoint then rejects for any client with more
   // than one valid redirect URI (dev's localhost dev URL) — "Invalid
   // parameter: redirect_uri". account-console carries a single URI, so KC's
-  // single-URI fallback resolves; the post-acceptance landing comes from the
-  // organization's redirectUrl converged below instead.
+  // single-URI fallback resolves. The post-acceptance landing stays where it
+  // was before 26.8: the organization's redirectUrl, which onboarding
+  // converges on the app origin (admin portal's ensureRedirectUrl).
   return adminFormMutate("POST", `/organizations/${orgId}/members/invite-user`, body);
-}
-
-/** Converge an organization's redirectUrl on the app origin. For the
- *  account-console invitation link, Keycloak resolves the post-acceptance
- *  redirect from the organization's redirectUrl — without it the invitee
- *  lands on their account settings instead of the app. Onboarding orgs get
- *  this set by the admin portal; orgs that predate that (or were created
- *  outside it) don't. Converged at invite time, not onboarding time, so
- *  every invitation works regardless of how the org was created. */
-export async function ensureOrganizationRedirectUrl(orgId: string): Promise<void> {
-  const org = await adminFetch<KeycloakOrganization & { redirectUrl?: string }>(
-    `/organizations/${orgId}`,
-  );
-  if (org.redirectUrl === cytarioConfig.endpoints.webapp) return;
-  await adminMutate("PUT", `/organizations/${orgId}`, {
-    ...org,
-    redirectUrl: cytarioConfig.endpoints.webapp,
-  });
 }
