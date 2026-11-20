@@ -173,8 +173,12 @@ export const CaptureDeck = ({
     // and the capture would wait out its whole timeout.
     if (tileCount === 0) {
       if (selectedNothing(tileset)) {
+        // No tile exists at all for the framed extent — the region lies off the
+        // scanned slide. That is a machinery fact.
         failedRef.current = true;
-        onFailed("The selected area contains no image data — it lies outside the scanned region.");
+        onFailed(
+          "The selected area lies outside the scanned region, so there is nothing to export.",
+        );
       }
       // Otherwise the tiles are still loading: keep the frames coming.
       return;

@@ -1,5 +1,5 @@
 import { ToastProvider } from "@cytario/design";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within as withinElement } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -9,6 +9,7 @@ import { createViewerStore } from "../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../state/store/types";
 import { CaptureExportSection } from "../CaptureExportSection";
 import { commitExportAnnotation as commitExportAnnotationActual } from "../commitExportAnnotation";
+import { downloadExport } from "../composeCapture";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -368,6 +369,52 @@ describe("Capture and export section", () => {
 
     expect(screen.getByText("Output: 1600 × 1200 px · PNG")).toBeInTheDocument();
     expect(screen.queryByText(/Scale bar:/)).toBeNull();
+  });
+
+  test("shows a preview and saves only once the user confirms", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    // Nothing is delivered yet: the user has not looked at the result.
+    const preview = await screen.findByTestId("export-preview");
+    expect(downloadExport).not.toHaveBeenCalled();
+    expect(withinElement(preview).getByRole("img")).toHaveAttribute("alt", "Preview of the export");
+
+    await user.click(withinElement(preview).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+  });
+
+  test("discarding the preview delivers nothing", async () => {
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+    const preview = await screen.findByTestId("export-preview");
+
+    await user.click(withinElement(preview).getByRole("button", { name: "Discard" }));
+    expect(screen.queryByTestId("export-preview")).toBeNull();
+    expect(downloadExport).not.toHaveBeenCalled();
+  });
+
+  test("a flat render is a warning on the preview, not a refusal", async () => {
+    // An empty corner of a slide renders flat and is a legitimate export — the
+    // software cannot tell it apart from a failure, so only the user judges it.
+    composeCaptureMock.mockResolvedValue(
+      Object.assign({}, exportResult(), { uniform: true }) as never,
+    );
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+    const preview = await screen.findByTestId("export-preview");
+
+    expect(preview).toHaveTextContent(/single flat colour/i);
+    expect(screen.queryByTestId("export-error")).toBeNull();
+
+    await user.click(withinElement(preview).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
   });
 
   test("Download runs the capture with the chosen options", async () => {

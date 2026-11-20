@@ -171,6 +171,37 @@ describe("composeCapture", () => {
     toBlob.mockRestore();
   });
 
+  test("paints every legend chip in its own channel colour", async () => {
+    const renderCanvas = renderCanvasOf(1920, 1080);
+    const drawLegend = vi.spyOn(decorations, "drawLegendDecoration").mockImplementation(() => {});
+    const legend = {
+      channels: [
+        { name: "DAPI", color: [0, 0, 255] as [number, number, number] },
+        { name: "CD8", color: [255, 0, 0] as [number, number, number] },
+      ],
+      overlays: [],
+    };
+
+    await composeCapture(renderCanvas, {
+      preset: RESOLUTION_PRESETS[1],
+      imageBasename: "slide",
+      decorations: { ...NO_DECORATIONS, legend: true },
+      frame,
+      metadata,
+      legend,
+    });
+
+    // The legend is what the user reads the colours from, so the channels the
+    // capture resolved must reach it — an empty or dropped legend exports an
+    // image nobody can interpret.
+    expect(drawLegend).toHaveBeenCalledTimes(1);
+    expect(drawLegend.mock.calls[0][1]).toEqual(legend);
+
+    drawLegend.mockRestore();
+    getContext.mockRestore();
+    toBlob.mockRestore();
+  });
+
   test("draws no scale bar for an image without a physical pixel size", async () => {
     const renderCanvas = renderCanvasOf(1920, 1080);
     const drawScaleBar = vi.spyOn(decorations, "drawScaleBarDecoration");

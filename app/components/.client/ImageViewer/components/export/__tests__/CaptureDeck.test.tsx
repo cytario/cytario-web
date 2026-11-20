@@ -219,17 +219,18 @@ describe("CaptureDeck readiness", () => {
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
 
-  test("fails instead of settling when the tileset selected no tiles", async () => {
+  test("fails instead of settling when no tile exists for the framed extent", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
 
-    // A loaded tileset with an empty selection shares `isLoaded === true` with a
-    // finished render: the selected count is the only thing that separates them.
+    // An empty selection means the region lies off the slide — a machinery
+    // fact. Tiles that exist but hold zeros are NOT this case: that is what an
+    // empty corner of a slide looks like, and only the user can judge it.
     tiledLayers = tilesetWith(0);
     drawFrame();
 
     expect(onFailed).toHaveBeenCalledTimes(1);
-    expect(onFailed.mock.calls[0][0]).toMatch(/no image data/i);
+    expect(onFailed.mock.calls[0][0]).toMatch(/outside the scanned region/i);
     expect(onSettled).not.toHaveBeenCalled();
   });
 
