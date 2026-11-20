@@ -20,6 +20,26 @@ const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
 const isAbortError = (error: unknown): boolean =>
   (error instanceof DOMException || error instanceof Error) && error.name === "AbortError";
 
+/** Whether the loader's own `onTileError` would swallow this error.
+ *
+ * `BoundsCheckError` is viv-internal and unexported, so it can only be matched
+ * by name. A layer-level handler replaces the pixel source's, so without this
+ * the out-of-image tiles of a region spilling past the slide edge would fail a
+ * capture instead of rendering nothing, which is what viv does by default. */
+const isExpectedTileError = (
+  loaderLevel: { onTileError?: (error: Error) => void } | undefined,
+  error: unknown,
+): boolean => {
+  if (!loaderLevel?.onTileError) return error instanceof Error && error.name === "BoundsCheckError";
+  if (!(error instanceof Error)) return false;
+  try {
+    loaderLevel.onTileError(error);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // `getTile` runs once per tile per channel per load — and again for each
 // channel of a `best-available` refinement — so serializing `params.selection`
 // inline re-stringified the same array on every fetch. The selection array is
@@ -37,8 +57,20 @@ export const selectionKey = (selection: unknown): string => {
 
 type MultiscaleImageLayerProps = ConstructorParameters<typeof MultiscaleImageLayer>[0];
 
+/** What a capture deck needs to know that the framed extent actually rendered. */
+export interface TileReadinessObserver {
+  /** Fired when the tile layer's tileset finishes loading a viewport pass.
+   *  `tileCount` is how many tiles that pass selected — zero means nothing was
+   *  drawn, which `isLoaded` alone cannot distinguish from a finished render. */
+  onViewportLoad?: (tileCount: number) => void;
+  /** Fired for a tile that failed after the retry — a capture must not settle
+   *  on a frame with holes. */
+  onTileError?: (error: unknown) => void;
+}
+
 export const useChannelsLayer = (
   imagePanelId: number,
+  observer?: TileReadinessObserver,
 ): CytarioLayerResult<InstanceType<typeof MultiscaleImageLayer> | null> => {
   const dtype = useViewerStore((state) => {
     const type = state.metadata?.Pixels.Type ?? "Uint8";
@@ -106,7 +138,14 @@ export const useChannelsLayer = (
       Object.assign(wrappedLoader, loaderLevel);
 
       wrappedLoader.getTile = async (params: Parameters<typeof originalGetTile>[0]) => {
-        const tileId = `${params.x}-${params.y}-${params.selection?.z || 0}`;
+        // The id must name one fetch, not one tile location: viv requests every
+        // channel of a tile in parallel from this same function, so a key of
+        // x/y alone collapses a 9-channel tile into one entry and the first
+        // channel's finish clears the count while eight fetches are still in
+        // flight. The level belongs in the key too — the live panel and the
+        // capture deck load different levels for the same x/y.
+        const { c, z, t } = params.selection ?? { c: 0, z: 0, t: 0 };
+        const tileId = `${levelIndex}:${params.x}:${params.y}:${c}:${z}:${t}`;
 
         loadTile(tileId);
 
@@ -181,16 +220,31 @@ export const useChannelsLayer = (
       // `best-available` so a partial-resolution image is always shown.
       refinementStrategy: "best-available",
       pickable: true,
+      // deck fires this from the tileset when the current viewport's tiles are
+      // loaded, handing over the selected tiles. Its tile count separates a
+      // real render from an empty selection, which `isLoaded` cannot. It says
+      // nothing about the frame having been drawn — deck runs layer updates
+      // before the draw pass — so an observer must not read the canvas here.
+      onViewportLoad: observer?.onViewportLoad
+        ? (tiles: unknown[]) => observer.onViewportLoad?.(tiles?.length ?? 0)
+        : undefined,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;
         if (error === SIGNAL_ABORTED) return;
         if (error instanceof AggregateError && error.errors.every((e) => e?.name === "AbortError"))
           return;
+        // Supplying a handler replaces viv's own (`onTileError || loader[0].onTileError`),
+        // so reproduce its filter or a region spilling past the slide edge
+        // would fail instead of rendering the empty edge tile as before.
+        if (isExpectedTileError(rawLoader?.[0], error)) return;
+        observer?.onTileError?.(error);
         console.error(error);
       },
     } as unknown as MultiscaleImageLayerProps);
   }, [
+    observer,
     loader,
+    rawLoader,
     extensions,
     selections,
     contrastLimits,

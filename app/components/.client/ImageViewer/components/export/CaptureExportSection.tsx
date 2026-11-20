@@ -25,6 +25,7 @@ import { planExport, legendForState, RENDER_TIMEOUT_MS, type CapturePlan } from 
 import { rectangleRegions } from "./regionSelection";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
+import { getMissingChunks, resetMissingChunks } from "../../state/transport/CredentialedHTTPStore";
 import { useCanAnnotate } from "../../utils/useCanAnnotate";
 import { geometriesBounds } from "../annotations/flyToFeature";
 import { calculateViewStateToFitBounds } from "../canvas/Measurements/calculateViewStateToFitBounds";
@@ -36,6 +37,17 @@ type SourceChoice = "current-view" | "annotation-region";
 type RunState =
   | { phase: "idle" }
   | { phase: "rendering"; destination: "download" | "clipboard" }
+  | {
+      /** Rendered, waiting for the user to look before it is delivered. The only
+       *  honest check on image content: a person knows whether this region should
+       *  hold tissue, and whether the legend belongs in it. */
+      phase: "preview";
+      destination: "download" | "clipboard";
+      previewUrl: string;
+      filename: string;
+      notes: string[];
+      blob: Blob;
+    }
   | { phase: "error"; message: string };
 
 /** An in-flight capture: the resolved plan plus everything the compose and
@@ -238,15 +250,14 @@ export const CaptureExportSection = () => {
           return;
         }
 
-        if (run.destination === "clipboard") {
-          try {
-            await copyExportToClipboard(result.blob);
-          } catch {
-            downloadExport(result.blob, result.filename);
-            toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
-          }
-        } else {
-          downloadExport(result.blob, result.filename);
+        // A chunk the pyramid index promised but the store does not hold is a
+        // machinery failure: the tiles it should have covered were never read.
+        const missing = getMissingChunks();
+        if (missing.length > 0) {
+          fail(
+            `The image's pyramid is incomplete — ${missing.length} data chunk(s) of the selected area are missing, so it cannot be exported faithfully.`,
+          );
+          return;
         }
 
         // The provenance region records the exported extent on the current-view
@@ -267,7 +278,15 @@ export const CaptureExportSection = () => {
           }
         }
 
+        // Image content is the user's call, not ours. These are shown beside the
+        // preview so a person can judge them — a flat frame is also exactly what
+        // an empty corner of a slide looks like.
         const notes: string[] = [];
+        if (result.uniform) {
+          notes.push(
+            "the image area is a single flat colour — check that this region holds tissue",
+          );
+        }
         if (result.clamped) {
           notes.push(
             `exported at ${result.width} × ${result.height} px (clipped from the requested size)`,
@@ -276,11 +295,6 @@ export const CaptureExportSection = () => {
         if (result.upscaled) {
           notes.push("upscaled beyond native scan resolution");
         }
-        if (result.uniform) {
-          notes.push("the image area is a single flat color — nothing may have rendered");
-        }
-        // An empty legend is invisible in the output — say so instead of
-        // shipping it silently.
         if (
           run.decorations.legend &&
           legend.channels.length === 0 &&
@@ -288,19 +302,58 @@ export const CaptureExportSection = () => {
         ) {
           notes.push("legend: no visible channels");
         }
-        toast({
-          variant: "success",
-          message: [`Captured ${result.filename}`, ...notes].join(" — "),
+
+        setRunState({
+          phase: "preview",
+          destination: run.destination,
+          previewUrl: URL.createObjectURL(result.blob),
+          filename: result.filename,
+          notes,
+          blob: result.blob,
         });
-        setActiveRun(null);
-        setRunState({ phase: "idle" });
       },
     [fail, toast, storeApi, createExportAnnotation, canAnnotate],
+  );
+
+  /** Hands the reviewed export over and returns the section to rest. */
+  const confirmDelivery = useCallback(async () => {
+    if (runState.phase !== "preview") return;
+    const { blob, filename, destination, previewUrl } = runState;
+    try {
+      if (destination === "clipboard") {
+        try {
+          await copyExportToClipboard(blob);
+        } catch {
+          downloadExport(blob, filename);
+          toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
+        }
+      } else {
+        downloadExport(blob, filename);
+      }
+      toast({ variant: "success", message: `Captured ${filename}` });
+    } finally {
+      URL.revokeObjectURL(previewUrl);
+      setActiveRun(null);
+      setRunState({ phase: "idle" });
+    }
+  }, [runState, toast]);
+
+  // Stable per run: the deck's observer is memoised on this callback, and a new
+  // identity per render would rebuild the layer's props mid-capture.
+  const handleSettled = useCallback(
+    (canvas: HTMLCanvasElement) => {
+      if (!activeRun) return;
+      void deliver(activeRun)(canvas);
+    },
+    [activeRun, deliver],
   );
 
   const runCapture = useCallback(
     (destination: "download" | "clipboard") => {
       try {
+        // Count missing chunks from this run only — the live panel's fetches
+        // must not condemn a capture.
+        resetMissingChunks();
         const plan = planExport({
           store: storeApi,
           preset,
@@ -335,15 +388,17 @@ export const CaptureExportSection = () => {
        * interaction; torn down with the run (or the section) by React. */}
       {activeRun && (
         <CaptureDeck
+          // Remount per framed view state: the deck derives all of its settle
+          // state (viewport, tile readiness) from the frame it mounts for.
+          key={`${activeRun.plan.viewState.target.join(",")}@${activeRun.plan.viewState.zoom}`}
           viewState={activeRun.plan.viewState}
           width={activeRun.plan.frame.width}
           height={activeRun.plan.frame.height}
           pixelScale={activeRun.plan.pixelScale}
           excludeAnnotationId={activeRun.regionFeatureId}
           hidden
-          onSettled={(canvas) => {
-            void deliver(activeRun)(canvas);
-          }}
+          onSettled={handleSettled}
+          onFailed={fail}
         />
       )}
       <div className="flex flex-col gap-3 p-2 pb-3">
@@ -427,6 +482,42 @@ export const CaptureExportSection = () => {
         </div>
 
         {summaryLine && <p className="text-xs text-muted-foreground">{summaryLine}</p>}
+
+        {runState.phase === "preview" && (
+          <div
+            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
+            data-testid="export-preview"
+          >
+            {/* Scaled to the panel, never full size: the file itself is
+                thousands of pixels wide and would never fit on screen. */}
+            <img
+              src={runState.previewUrl}
+              alt="Preview of the export"
+              className="max-h-56 w-full rounded-md border border-border object-contain"
+            />
+            <span className="text-xs text-muted-foreground">
+              {runState.notes.length > 0
+                ? runState.notes.join(" — ")
+                : "Check the preview before saving."}
+            </span>
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  URL.revokeObjectURL(runState.previewUrl);
+                  setActiveRun(null);
+                  setRunState({ phase: "idle" });
+                }}
+              >
+                Discard
+              </Button>
+              <Button variant="primary" size="sm" onPress={() => void confirmDelivery()}>
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
 
         {runState.phase === "error" && (
           <div

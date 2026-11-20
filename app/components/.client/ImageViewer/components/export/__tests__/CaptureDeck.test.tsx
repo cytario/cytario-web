@@ -1,7 +1,8 @@
-import { render } from "@testing-library/react";
-import { describe, expect, test, vi } from "vitest";
+import { act, render } from "@testing-library/react";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { ViewState } from "../../../state/store/types";
+import type { TileReadinessObserver } from "../../canvas/Channels/useChannelsLayer";
 import { CaptureDeck } from "../CaptureDeck";
 
 const viewState = {
@@ -19,7 +20,7 @@ const viewState = {
 } as unknown as ViewState;
 
 const deckRender = vi.fn();
-let afterRenderCallback: (() => void) | null = null;
+const afterRender = vi.fn();
 
 vi.mock("@deck.gl/react", async () => {
   const React = await import("react");
@@ -35,7 +36,7 @@ vi.mock("@deck.gl/react", async () => {
   }) {
     React.useImperativeHandle(ref, () => ({ deck: fakeDeck() }));
     deckRender(deckProps);
-    afterRenderCallback = onAfterRender ?? null;
+    afterRender(onAfterRender);
     return React.createElement("div", { "data-testid": "deckgl" });
   }
   return { default: MockDeckGL };
@@ -43,12 +44,24 @@ vi.mock("@deck.gl/react", async () => {
 
 const layerInstances: { isLoaded: boolean }[] = [];
 
+// The observer the deck hands to the layer composition is how readiness now
+// reaches the component: these tests drive it the way deck does.
+let observer: TileReadinessObserver | undefined;
+
 vi.mock("../../canvas/useViewerLayers", () => ({
-  useViewerLayers: () => ({
-    layers: layerInstances,
-    effects: [],
-    layerFilter: () => true,
-  }),
+  useViewerLayers: (
+    _panelId: number,
+    _interactive?: boolean,
+    _exclude?: string | null,
+    tileObserver?: TileReadinessObserver,
+  ) => {
+    if (tileObserver) observer = tileObserver;
+    return {
+      layers: layerInstances,
+      effects: [],
+      layerFilter: () => true,
+    };
+  },
 }));
 
 vi.mock("../scalePixelSizes", () => ({
@@ -59,111 +72,221 @@ vi.mock("../../canvas/useView", () => ({
   useView: () => ({ id: "detail" }),
 }));
 
+const storeState = () => ({
+  imagePanelIndex: 0,
+  activeImagePanelId: 0,
+  imagePanels: [0],
+  layersStates: [{ isChannelsLoading: 0, isOverlaysLoading: 0 }],
+});
+
 vi.mock("../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: (selector: (state: { activeImagePanelId: number }) => number) =>
-    selector({ activeImagePanelId: 0 }),
+  useViewerStore: (selector: (state: unknown) => unknown) => selector(storeState()),
 }));
 
 const fakeDeck = () => ({
   isInitialized: true,
   getCanvas: () => document.createElement("canvas"),
+  layerManager: { getLayers: () => tiledLayers },
 });
 
-describe("CaptureDeck", () => {
-  test("renders a DeckGL sized to the frame at one device pixel per CSS pixel", () => {
-    layerInstances.length = 0;
-    layerInstances.push({ isLoaded: true });
-    deckRender.mockClear();
+/** The tiled layer deck holds, as the deck reports it. `layers` per tile are the
+ *  tile sublayers that actually draw the pixels. */
+let tiledLayers: { state: { tileset: unknown } }[] = [];
 
-    render(<CaptureDeck viewState={viewState} width={320} height={240} onSettled={() => {}} />);
+const tilesetWith = (tileCount: number, builtPerTile = 1, loaded = true) => [
+  {
+    state: {
+      tileset: {
+        isLoaded: loaded,
+        selectedTiles: Array.from({ length: tileCount }, () => ({
+          layers: Array.from({ length: builtPerTile }, () => ({})),
+        })),
+      },
+    },
+  },
+];
 
-    expect(deckRender).toHaveBeenCalledTimes(1);
-    const props = deckRender.mock.calls[0][0] as Record<string, unknown>;
-    expect(props.width).toBe(320);
-    expect(props.height).toBe(240);
-    // One device pixel per CSS pixel: the CSS size is the output size.
-    expect(props.useDevicePixels).toBe(1);
-    expect(props.controller).toBe(false);
-    expect(props.viewState).toEqual({ detail: viewState });
-    expect(props.layers).toBe(layerInstances);
+type DeckProps = { layers: unknown[] };
+
+const lastDeckProps = (): DeckProps => deckRender.mock.calls.at(-1)?.[0] as DeckProps;
+
+const renderDeck = () => {
+  const onSettled = vi.fn();
+  const onFailed = vi.fn();
+  const view = render(
+    <CaptureDeck
+      viewState={viewState}
+      width={320}
+      height={240}
+      onSettled={onSettled}
+      onFailed={onFailed}
+    />,
+  );
+  return { view, onSettled, onFailed };
+};
+
+/** The layer joins one frame after the deck, so the viewport is measured. */
+const mountLayers = async () => {
+  await act(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+};
+
+/** Runs deck's draw-pass callback, the way its render loop does each frame. */
+const drawFrame = () => {
+  const callback = afterRender.mock.calls.at(-1)?.[0] as (() => void) | undefined;
+  act(() => callback?.());
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  observer = undefined;
+  layerInstances.length = 0;
+  tiledLayers = [];
+});
+
+describe("CaptureDeck readiness", () => {
+  test("does not mount the layers in the deck's first commit", async () => {
+    renderDeck();
+    // A layer created in the same commit as the deck can select tiles against
+    // a viewport the canvas has not been measured for yet.
+    expect(lastDeckProps().layers).toEqual([]);
+
+    await mountLayers();
+    expect(lastDeckProps().layers).toEqual(layerInstances);
   });
 
-  test("settles once every layer reports loaded, delivering the deck canvas", () => {
-    layerInstances.length = 0;
-    layerInstances.push({ isLoaded: true }, { isLoaded: false });
-    deckRender.mockClear();
+  test("does not read the canvas on the load callback — deck has not drawn yet", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+    tiledLayers = tilesetWith(6);
 
-    const onSettled = vi.fn();
-    render(<CaptureDeck viewState={viewState} width={320} height={240} onSettled={onSettled} />);
+    // onViewportLoad fires from the layer update, which deck runs *before* the
+    // draw pass: the canvas still holds the previous frame at this point.
+    act(() => observer?.onViewportLoad?.(6));
 
-    // The afterRender callback is wired through to the deck.
-    expect(typeof afterRenderCallback).toBe("function");
+    expect(onSettled).not.toHaveBeenCalled();
+  });
 
-    // While a layer is loading, the settle never fires.
-    afterRenderCallback?.();
+  test("delivers the canvas on the render that follows the load", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
+    tiledLayers = tilesetWith(6);
+
+    act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
+
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(onSettled.mock.calls[0][0]).toBeInstanceOf(HTMLCanvasElement);
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  test("delivers without the load callback when a warm cache never transitions", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
+
+    // The reported bug: a second export reuses cached tiles, the tileset is
+    // loaded on the first frame, so deck never fires onViewportLoad. Waiting
+    // for it hung the capture until the render timeout.
+    tiledLayers = tilesetWith(9);
+    drawFrame();
+
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  test("does not settle while the tiles have no sublayers yet", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+
+    // Tiles loaded but nothing built to draw them: settling here is the blank
+    // export — the canvas holds no tissue.
+    tiledLayers = tilesetWith(9, 0);
+    drawFrame();
+
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  test("does not deliver from a render that precedes any selected tiles", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+
+    drawFrame();
     expect(onSettled).not.toHaveBeenCalled();
 
-    // Once every layer is loaded, the settle fires exactly once — repeated
-    // afterRender callbacks never re-settle.
-    layerInstances[1].isLoaded = true;
-    afterRenderCallback?.();
-    afterRenderCallback?.();
+    tiledLayers = tilesetWith(6);
+    drawFrame();
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
 
-  test("never settles before the deck has rendered its first frame", () => {
-    vi.useFakeTimers();
-    try {
-      layerInstances.length = 0;
-      layerInstances.push({ isLoaded: true });
+  test("fails instead of settling when no tile exists for the framed extent", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
 
-      const onSettled = vi.fn();
-      render(<CaptureDeck viewState={viewState} width={320} height={240} onSettled={onSettled} />);
+    // An empty selection means the region lies off the slide — a machinery
+    // fact. Tiles that exist but hold zeros are NOT this case: that is what an
+    // empty corner of a slide looks like, and only the user can judge it.
+    tiledLayers = tilesetWith(0);
+    drawFrame();
 
-      // The 500ms settle poll can fire while layers are loaded but the deck has
-      // not drawn yet — it must not settle before the first onAfterRender.
-      vi.advanceTimersByTime(1000);
-      expect(onSettled).not.toHaveBeenCalled();
-
-      // The first rendered frame opens the gate; the settle then fires.
-      afterRenderCallback?.();
-      expect(onSettled).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(onFailed.mock.calls[0][0]).toMatch(/outside the scanned region/i);
+    expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("hands the layers to deck.gl with their pixel sizes scaled", () => {
-    layerInstances.length = 0;
-    layerInstances.push({ isLoaded: true });
-    deckRender.mockClear();
+  test("does not fail while the selected tiles are still loading", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
 
-    render(
-      <CaptureDeck
-        viewState={viewState}
-        width={320}
-        height={240}
-        pixelScale={2.5}
-        onSettled={() => {}}
-      />,
-    );
+    // Selected but not loaded yet: pending, not empty. Treating this as
+    // "nothing here" failed real captures on their first frame.
+    tiledLayers = tilesetWith(9, 0, false);
+    drawFrame();
 
-    const props = deckRender.mock.calls[0][0] as { layers: { scaledBy?: number }[] };
-    expect(props.layers).toEqual([{ isLoaded: true, scaledBy: 2.5 }]);
+    expect(onFailed).not.toHaveBeenCalled();
+    expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("hidden mounting keeps the deck out of interaction", () => {
-    layerInstances.length = 0;
-    layerInstances.push({ isLoaded: true });
-    deckRender.mockClear();
+  test("fails instead of settling when a tile could not be loaded", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
 
-    const { container } = render(
-      <CaptureDeck viewState={viewState} width={320} height={240} onSettled={() => {}} hidden />,
-    );
+    act(() => observer?.onTileError?.(new Error("HTTP 500")));
 
-    const host = container.firstElementChild as HTMLElement;
-    expect(host.getAttribute("aria-hidden")).toBe("true");
-    expect(host.style.position).toBe("fixed");
-    expect(host.style.pointerEvents).toBe("none");
+    expect(onFailed).toHaveBeenCalledTimes(1);
+    expect(onFailed.mock.calls[0][0]).toMatch(/could not be loaded/i);
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  test("settles once even if further viewport loads arrive", async () => {
+    const { onSettled } = renderDeck();
+    await mountLayers();
+    tiledLayers = tilesetWith(6);
+
+    act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
+    act(() => observer?.onViewportLoad?.(9));
+    drawFrame();
+
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  test("a tile error after the settle does not fail a delivered capture", async () => {
+    const { onSettled, onFailed } = renderDeck();
+    await mountLayers();
+    tiledLayers = tilesetWith(6);
+
+    act(() => observer?.onViewportLoad?.(6));
+    drawFrame();
+    act(() => observer?.onTileError?.(new Error("late")));
+
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(onFailed).not.toHaveBeenCalled();
+  });
+
+  test("hands every deck the framed view state, not the viewer's", async () => {
+    renderDeck();
+    const props = lastDeckProps() as unknown as { viewState: { detail: ViewState } };
+    expect(props.viewState.detail).toBe(viewState);
   });
 });

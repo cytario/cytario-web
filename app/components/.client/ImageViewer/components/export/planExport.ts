@@ -77,6 +77,25 @@ const selectedRegionBounds = (state: ViewerStore, regionFeatureId?: string | nul
   return bounds;
 };
 
+/** Fails when the region lies entirely outside the scanned extent: rendering it
+ *  would select no tiles, and the export would be a blank image with working
+ *  decorations — indistinguishable from a render failure. A partially
+ *  overlapping region is allowed; the tiles it does cover are the capture. */
+const assertRegionOverlapsImage = (
+  bounds: [number, number, number, number],
+  metadata: NonNullable<ViewerStore["metadata"]>,
+): void => {
+  const { SizeX, SizeY } = metadata.Pixels;
+  if (!SizeX || !SizeY) return;
+  const [minX, minY, maxX, maxY] = bounds;
+  const intersects = maxX > 0 && maxY > 0 && minX < SizeX && minY < SizeY;
+  if (!intersects) {
+    throw new Error(
+      "The selected region lies outside the scanned image, so there is nothing to export.",
+    );
+  }
+};
+
 /** Resolves the capture from the store: the exported rectangle (the current
  *  view, or the selected region plus margin), its output size for the preset,
  *  and the view state that renders exactly that rectangle. */
@@ -93,7 +112,10 @@ export const planExport = ({
     throw new Error("No image view is active to capture.");
   }
 
-  const bounds = captureBounds(viewStateActive, selectedRegionBounds(state, regionFeatureId));
+  const regionBounds = selectedRegionBounds(state, regionFeatureId);
+  if (regionBounds) assertRegionOverlapsImage(regionBounds, metadata);
+
+  const bounds = captureBounds(viewStateActive, regionBounds);
   const frame = frameCapture(bounds, preset.targetWidthPx, limits);
 
   return {
