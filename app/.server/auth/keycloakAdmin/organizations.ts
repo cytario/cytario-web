@@ -6,7 +6,6 @@ import {
   type KeycloakGroup,
   type KeycloakUser,
 } from "./client";
-import { cytarioConfig } from "~/config";
 
 export interface KeycloakOrganization {
   id: string;
@@ -102,12 +101,13 @@ export async function listOrganizationGroups(
 export async function inviteOrganizationUser(orgId: string, email: string): Promise<Response> {
   const body = new URLSearchParams();
   body.set("email", email);
-  // client_id targets the invitation link at the web client, so KC resolves the
-  // post-acceptance redirect from its root/base URL instead of the account console.
-  const clientId = encodeURIComponent(cytarioConfig.auth.clientId);
-  return adminFormMutate(
-    "POST",
-    `/organizations/${orgId}/members/invite-user?client_id=${clientId}`,
-    body,
-  );
+  // The invitation link targets the account-console client. Sending
+  // client_id=cytario-web made KC 26.8 build the link without redirect_uri,
+  // which the authorization endpoint then rejects for any client with more
+  // than one valid redirect URI (dev's localhost dev URL) — "Invalid
+  // parameter: redirect_uri". account-console carries a single URI, so KC's
+  // single-URI fallback resolves. The post-acceptance landing stays where it
+  // was before 26.8: the organization's redirectUrl, which onboarding
+  // converges on the app origin (admin portal's ensureRedirectUrl).
+  return adminFormMutate("POST", `/organizations/${orgId}/members/invite-user`, body);
 }

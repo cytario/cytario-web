@@ -31,14 +31,19 @@ describe("inviteOrganizationUser", () => {
     vi.restoreAllMocks();
   });
 
-  test("targets the web client via client_id so the invite link redirects to the app, not the account console", async () => {
+  // The invitation link must target account-console: KC 26.8 builds a
+  // client-targeted link without redirect_uri, which the authorization
+  // endpoint rejects whenever the client has more than one valid redirect
+  // URI — dev's cytario-web does, so the link died with
+  // "Invalid parameter: redirect_uri".
+  test("sends no client_id, so the link targets account-console", async () => {
     const fetchMock = mockFetchOk();
 
     await inviteOrganizationUser("org-uuid", "alice@example.com");
 
     const body = new URLSearchParams({ email: "alice@example.com" });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/organizations/org-uuid/members/invite-user?client_id=cytario-web`,
+      `${BASE}/organizations/org-uuid/members/invite-user`,
       expect.objectContaining({
         method: "POST",
         body: body.toString(),
@@ -53,31 +58,8 @@ describe("inviteOrganizationUser", () => {
 
     const body = new URLSearchParams({ email: "bob@example.com" });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/organizations/org-uuid/members/invite-user?client_id=cytario-web`,
+      `${BASE}/organizations/org-uuid/members/invite-user`,
       expect.objectContaining({ body: body.toString() }),
-    );
-  });
-
-  test("URL-encodes the client id", async () => {
-    const { cytarioConfig } = await import("~/config");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 }));
-
-    const weirdClient = "my client/with-specials";
-    Object.defineProperty(cytarioConfig.auth, "clientId", {
-      value: weirdClient,
-      configurable: true,
-    });
-
-    const fetchMock = vi.mocked(fetch);
-    await inviteOrganizationUser("org-uuid", "carol@example.com");
-    Object.defineProperty(cytarioConfig.auth, "clientId", {
-      value: "cytario-web",
-      configurable: true,
-    });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/organizations/org-uuid/members/invite-user?client_id=${encodeURIComponent(weirdClient)}`,
-      expect.objectContaining({ method: "POST" }),
     );
   });
 });
