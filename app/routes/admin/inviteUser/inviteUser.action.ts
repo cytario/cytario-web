@@ -7,7 +7,11 @@ import { adminContext } from "~/.server/auth/adminMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
 import { getSession } from "~/.server/auth/getSession";
 import { toIdentity } from "~/.server/auth/getUserInfo";
-import { findGroupPathInTree, inviteOrganizationUser } from "~/.server/auth/keycloakAdmin";
+import {
+  ensureOrganizationRedirectUrl,
+  findGroupPathInTree,
+  inviteOrganizationUser,
+} from "~/.server/auth/keycloakAdmin";
 import { KeycloakAdminError } from "~/.server/auth/keycloakAdmin/client";
 import { createPendingGroupAssignments } from "~/.server/auth/pendingGroupAssignments";
 import { sessionStorage } from "~/.server/auth/sessionStorage";
@@ -110,6 +114,11 @@ export const inviteUserAction: ActionFunction = async ({ request, context }) => 
         addCount: emails.length,
       });
     }
+
+    // The invitation link lands the invitee on the organization's redirectUrl
+    // — converge it on the app origin before sending (see
+    // ensureOrganizationRedirectUrl; a no-op once set).
+    await ensureOrganizationRedirectUrl(org.id);
 
     const settled = await Promise.allSettled(
       emails.map((email) => inviteOrganizationUser(org.id, email)),

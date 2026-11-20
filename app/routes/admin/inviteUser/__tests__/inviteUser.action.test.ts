@@ -23,6 +23,7 @@ vi.mock("~/.server/auth/getUserInfo", () => ({
 }));
 
 vi.mock("~/.server/auth/keycloakAdmin", () => ({
+  ensureOrganizationRedirectUrl: vi.fn().mockResolvedValue(undefined),
   inviteOrganizationUser: vi.fn().mockResolvedValue(new Response(null, { status: 204 })),
   findGroupPathInTree: vi.fn(),
 }));

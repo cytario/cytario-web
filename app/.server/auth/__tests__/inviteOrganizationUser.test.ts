@@ -1,10 +1,13 @@
-import { inviteOrganizationUser } from "../keycloakAdmin";
+import { ensureOrganizationRedirectUrl, inviteOrganizationUser } from "../keycloakAdmin";
 
 vi.mock("~/config", () => ({
   cytarioConfig: {
     auth: {
       baseUrl: "http://localhost:8080/realms/master",
       clientId: "cytario-web",
+    },
+    endpoints: {
+      webapp: "https://app.cytar.io",
     },
   },
 }));
@@ -31,14 +34,19 @@ describe("inviteOrganizationUser", () => {
     vi.restoreAllMocks();
   });
 
-  test("targets the web client via client_id so the invite link redirects to the app, not the account console", async () => {
+  // The invitation link must target account-console: KC 26.8 builds a
+  // client-targeted link without redirect_uri, which the authorization
+  // endpoint rejects whenever the client has more than one valid redirect
+  // URI — dev's cytario-web does, so the link died with
+  // "Invalid parameter: redirect_uri".
+  test("sends no client_id, so the link targets account-console", async () => {
     const fetchMock = mockFetchOk();
 
     await inviteOrganizationUser("org-uuid", "alice@example.com");
 
     const body = new URLSearchParams({ email: "alice@example.com" });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/organizations/org-uuid/members/invite-user?client_id=cytario-web`,
+      `${BASE}/organizations/org-uuid/members/invite-user`,
       expect.objectContaining({
         method: "POST",
         body: body.toString(),
@@ -53,31 +61,51 @@ describe("inviteOrganizationUser", () => {
 
     const body = new URLSearchParams({ email: "bob@example.com" });
     expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/organizations/org-uuid/members/invite-user?client_id=cytario-web`,
+      `${BASE}/organizations/org-uuid/members/invite-user`,
       expect.objectContaining({ body: body.toString() }),
     );
   });
+});
 
-  test("URL-encodes the client id", async () => {
-    const { cytarioConfig } = await import("~/config");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 }));
+describe("ensureOrganizationRedirectUrl", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
 
-    const weirdClient = "my client/with-specials";
-    Object.defineProperty(cytarioConfig.auth, "clientId", {
-      value: weirdClient,
-      configurable: true,
+  const org = (redirectUrl: string | undefined) => ({
+    id: "org-uuid",
+    name: "E2E",
+    alias: "e2e",
+    redirectUrl,
+  });
+
+  test("is a no-op when the redirectUrl already is the app origin", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(org("https://app.cytar.io")),
     });
+    vi.stubGlobal("fetch", fetchMock);
 
-    const fetchMock = vi.mocked(fetch);
-    await inviteOrganizationUser("org-uuid", "carol@example.com");
-    Object.defineProperty(cytarioConfig.auth, "clientId", {
-      value: "cytario-web",
-      configurable: true,
+    await ensureOrganizationRedirectUrl("org-uuid");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("PUTs the app origin when the org carries a different or missing redirectUrl", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(org(undefined)),
     });
+    vi.stubGlobal("fetch", fetchMock);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${BASE}/organizations/org-uuid/members/invite-user?client_id=${encodeURIComponent(weirdClient)}`,
-      expect.objectContaining({ method: "POST" }),
-    );
+    await ensureOrganizationRedirectUrl("org-uuid");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(url).toBe(`${BASE}/organizations/org-uuid`);
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body).redirectUrl).toBe("https://app.cytar.io");
   });
 });

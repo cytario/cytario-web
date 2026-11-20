@@ -102,12 +102,30 @@ export async function listOrganizationGroups(
 export async function inviteOrganizationUser(orgId: string, email: string): Promise<Response> {
   const body = new URLSearchParams();
   body.set("email", email);
-  // client_id targets the invitation link at the web client, so KC resolves the
-  // post-acceptance redirect from its root/base URL instead of the account console.
-  const clientId = encodeURIComponent(cytarioConfig.auth.clientId);
-  return adminFormMutate(
-    "POST",
-    `/organizations/${orgId}/members/invite-user?client_id=${clientId}`,
-    body,
+  // The invitation link targets the account-console client. Sending
+  // client_id=cytario-web made KC 26.8 build the link without redirect_uri,
+  // which the authorization endpoint then rejects for any client with more
+  // than one valid redirect URI (dev's localhost dev URL) — "Invalid
+  // parameter: redirect_uri". account-console carries a single URI, so KC's
+  // single-URI fallback resolves; the post-acceptance landing comes from the
+  // organization's redirectUrl converged below instead.
+  return adminFormMutate("POST", `/organizations/${orgId}/members/invite-user`, body);
+}
+
+/** Converge an organization's redirectUrl on the app origin. For the
+ *  account-console invitation link, Keycloak resolves the post-acceptance
+ *  redirect from the organization's redirectUrl — without it the invitee
+ *  lands on their account settings instead of the app. Onboarding orgs get
+ *  this set by the admin portal; orgs that predate that (or were created
+ *  outside it) don't. Converged at invite time, not onboarding time, so
+ *  every invitation works regardless of how the org was created. */
+export async function ensureOrganizationRedirectUrl(orgId: string): Promise<void> {
+  const org = await adminFetch<KeycloakOrganization & { redirectUrl?: string }>(
+    `/organizations/${orgId}`,
   );
+  if (org.redirectUrl === cytarioConfig.endpoints.webapp) return;
+  await adminMutate("PUT", `/organizations/${orgId}`, {
+    ...org,
+    redirectUrl: cytarioConfig.endpoints.webapp,
+  });
 }
