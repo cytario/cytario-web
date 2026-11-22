@@ -83,7 +83,10 @@ describe("loadReportDocument", () => {
       { pattern: /app\.js$/, body: () => "console.log('ok');", contentType: "text/javascript" },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toContain('<style>body { background: url("data:image/png');
     expect(result).toContain('src="data:image/png');
@@ -114,7 +117,10 @@ describe("loadReportDocument", () => {
       },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toContain('url("data:font/woff2;base64');
   });
@@ -130,7 +136,10 @@ describe("loadReportDocument", () => {
       { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toContain(`<style>body { color: #333; }</style>`);
     expect(result).toContain("console.log('embedded');");
@@ -144,7 +153,10 @@ describe("loadReportDocument", () => {
       { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toContain('src="report_files/missing.png"');
     expect(result).not.toContain("missing.js");
@@ -220,7 +232,10 @@ describe("loadReportDocument", () => {
       { pattern: /b\.png$/, body: () => "BBB", contentType: "image/png" },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toMatch(/data:image\/png;base64,.* 1x, data:image\/png;base64,.* 2x/);
   });
@@ -232,7 +247,10 @@ describe("loadReportDocument", () => {
       { pattern: /bg\.png$/, body: () => "BG", contentType: "image/png" },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toContain("url(&quot;data:image/png"); // attribute-encoded
   });
@@ -243,8 +261,131 @@ describe("loadReportDocument", () => {
       { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
     ]);
 
-    const result = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+    const { documentHtml: result } = await loadReportDocument(
+      "c1/reports/analysis/report.html",
+      fetchImpl,
+    );
 
     expect(result).toContain("https://cdn.example.com/lib.js");
+  });
+});
+
+describe("loadInteractiveReport", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test("injects the frame shim as the first head script", async () => {
+    const html = `<html><head><script src="report_files/app.js"></script></head><body></body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+      { pattern: /app\.js$/, body: () => "console.log('ok');", contentType: "text/javascript" },
+    ]);
+
+    const { documentHtml } = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    const doc = new DOMParser().parseFromString(documentHtml, "text/html");
+    const firstScript = doc.querySelector("head script");
+    expect(firstScript?.textContent).toContain("cytario-report-bridge");
+    expect(firstScript?.textContent).not.toBeNull();
+    // The shim precedes the inlined report script.
+    const scripts = [...doc.querySelectorAll("head script")];
+    expect(scripts[0]?.textContent).toContain("postMessage");
+    expect(scripts[1]?.textContent).toContain("console.log('ok');");
+  });
+
+  test("pre-renders math spans to KaTeX markup and inlines the stylesheet", async () => {
+    const html = `<html><head></head><body><p><span class="math inline">\\(x^2\\)</span></p><p><span class="math display">\\[y = mx + b\\]</span></p><p><span class="math inline">\\(\\unknown{cmd}\\)</span></p></body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+      {
+        pattern: /katex\.min\.css$/,
+        body: () => ".katex{font-family:KaTeX_Main}.x{url(fonts/KaTeX_Main-Regular.woff2)}",
+        contentType: "text/css",
+      },
+      {
+        pattern: /KaTeX_Main-Regular\.woff2$/,
+        body: () => "FONT",
+        contentType: "font/woff2",
+      },
+    ]);
+
+    const { documentHtml } = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    expect(documentHtml).toContain("katex");
+    // Rendered math becomes KaTeX spans; the unparseable TeX stays as-is.
+    expect(documentHtml).toContain('class="katex');
+    expect(documentHtml).toContain("unknown{cmd}");
+    // The KaTeX stylesheet is inlined with its fonts as data URIs.
+    expect(documentHtml).toContain("data:font/woff2;base64");
+  });
+
+  test("exposes a fetcher that serves bridge refs through the signed-read path", async () => {
+    const html = `<html><body><h1>Report</h1></body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+      {
+        pattern: /data\.json$/,
+        body: () => '{"rows":42}',
+        contentType: "application/json",
+      },
+    ]);
+
+    const { fetchAsset } = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    const asset = await fetchAsset("report_files/data.json");
+    expect(asset).not.toBeNull();
+    expect(new TextDecoder().decode(asset!.bytes)).toBe('{"rows":42}');
+    // Not a relative ref: never fetched.
+    expect(await fetchAsset("https://cdn.example.com/lib.js")).toBeNull();
+    expect(await fetchAsset("report_files/missing.json")).toBeNull();
+  });
+
+  test("pre-resolves the itables offline init ahead of its init cell", async () => {
+    // A miniature itables 2.x offline init: the bundle is a base64 module
+    // whose only module syntax is the trailing export statement, exactly
+    // the shape init_notebook_mode(connected=False) delivers.
+    const bundle = "var vb = 41;\nexport{vb as default};";
+    const b64 = btoa(bundle);
+    const html = `<html><head></head><body>
+<script>
+function injectModule(base64JS) {
+    const jsText = atob(base64JS);
+    const blob = new Blob([jsText], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    const module = await import(url);
+    URL.revokeObjectURL(url);
+    return module;
+}
+if (!window._itables_2_9_1) {
+    window._itables_2_9_1 = injectModule("${b64}");
+    window._itables_2_9_1.then(() => {
+        window.dispatchEvent(new Event("itables-2.9.1-ready"));
+    });
+}
+</script>
+</body></html>`;
+    const fetchImpl = makeSignedFetch([
+      { pattern: /report\.html$/, body: () => html, contentType: "text/html" },
+    ]);
+
+    const { documentHtml } = await loadReportDocument("c1/reports/analysis/report.html", fetchImpl);
+
+    const doc = new DOMParser().parseFromString(documentHtml, "text/html");
+    const scripts = [...doc.querySelectorAll("script")];
+    // The injected pre-resolve script runs BEFORE the report's init cell so
+    // the guard skips the blob-import path, and carries the bundle body, the
+    // resolved version promise, and the ready event.
+    const preshimIndex = scripts.findIndex((s) =>
+      (s.textContent ?? "").includes("window._itables_2_9_1 = Promise.resolve"),
+    );
+    const initIndex = scripts.findIndex((s) => (s.textContent ?? "").includes("injectModule"));
+    expect(preshimIndex).toBeGreaterThan(-1);
+    expect(initIndex).toBeGreaterThan(-1);
+    expect(preshimIndex).toBeLessThan(initIndex);
+    expect(scripts[preshimIndex]!.textContent).toContain(
+      "window.__itables_module = {default: vb};",
+    );
+    expect(scripts[preshimIndex]!.textContent).toContain('new Event("itables-2.9.1-ready")');
   });
 });

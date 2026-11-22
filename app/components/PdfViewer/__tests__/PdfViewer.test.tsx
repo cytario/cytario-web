@@ -161,4 +161,52 @@ describe("PdfViewer", () => {
     expect(screen.getByText("Page 1 of 3")).toBeVisible();
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
   });
+
+  test("the page selector jumps to a typed page on Enter", async () => {
+    renderViewer();
+    const selector = await waitFor(() => {
+      const input = screen.getByRole("spinbutton");
+      expect(input).toBeVisible();
+      return input;
+    });
+
+    await userEvent.clear(selector);
+    await userEvent.type(selector, "3");
+    await userEvent.keyboard("{Enter}");
+
+    await waitFor(() => {
+      expect(screen.getByText("Page 3 of 3")).toBeVisible();
+    });
+    expect((screen.getByRole("spinbutton") as HTMLInputElement).value).toBe("3");
+  });
+
+  test("the page selector clamps out-of-range and rejects non-numeric input", async () => {
+    renderViewer();
+    const selector = await waitFor(() => {
+      const input = screen.getByRole("spinbutton");
+      expect(input).toBeVisible();
+      return input;
+    });
+
+    await userEvent.clear(selector);
+    await userEvent.type(selector, "99");
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(screen.getByText("Page 3 of 3")).toBeVisible(); // clamped to the last page
+    });
+
+    await userEvent.clear(selector);
+    await userEvent.type(selector, "0");
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(screen.getByText("Page 1 of 3")).toBeVisible(); // clamped to the first page
+    });
+
+    await userEvent.clear(selector);
+    await userEvent.type(selector, "abc");
+    await userEvent.keyboard("{Enter}");
+    await waitFor(() => {
+      expect(screen.getByText("Page 1 of 3")).toBeVisible(); // non-numeric ignored
+    });
+  });
 });
