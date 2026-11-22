@@ -10,8 +10,6 @@ import type { ViewerStore } from "../../../state/store/types";
 import { CaptureExportSection } from "../CaptureExportSection";
 import { commitExportAnnotation as commitExportAnnotationActual } from "../commitExportAnnotation";
 import { downloadExport } from "../composeCapture";
-import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
-import { SidebarContext } from "~/components/Sidebar/SidebarContext";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -203,28 +201,11 @@ const buildStore = () => {
   });
 };
 
-const renderSection = (canAnnotate = true, { open = true }: { open?: boolean } = {}) => {
+const renderSection = (canAnnotate = true) => {
   seedViewerConnection("test-conn", canAnnotate ? "annotate" : "read-only");
-  // The section reads its sidebar handle to know whether it is on screen — the
-  // real sidebar drives the viewport from that, so the tests must too.
-  const store = createSidebarStore({ name: `test-${Math.random()}` });
-  // An unseeded section is open by default, so seed the closed case instead.
-  if (!open) store.getState().toggleSection("capture");
-  const context = {
-    store,
-    floatable: true,
-    bounds: { top: 0, left: 0, right: 800, bottom: 600, width: 800, height: 600 },
-    canFloat: true,
-    dropTargetId: null,
-    setDropTargetId: () => {},
-    announce: () => {},
-    canvasGestureActive: false,
-  };
   return render(
     <ToastProvider>
-      <SidebarContext.Provider value={context}>
-        <CaptureExportSection />
-      </SidebarContext.Provider>
+      <CaptureExportSection />
     </ToastProvider>,
   );
 };
@@ -681,25 +662,31 @@ describe("Capture and export section", () => {
     });
   });
 
-  test("drawing a region does not move the view while this section is closed", async () => {
-    // Every section renders whether or not it is open, and drawing a rectangle
-    // selects it. Following that selection off-screen reset the viewport under
-    // the user mid-drawing.
-    renderSection(true, { open: false });
-    const before = currentStore.getState().viewStateActive?.target;
+  test("a canvas selection of a rectangle region does not move the view", async () => {
+    // Drawing or stamping a rectangle selects it — the capture source follows,
+    // the viewport must not.
+    renderSection();
+    const before = currentStore.getState().viewStateActive;
 
-    // rect-1 is "Region A": a rectangle, so selecting it is what a finished
-    // draw produces.
     act(() => {
       currentStore.getState().setAnnotationSelectedIds(["rect-1"]);
     });
 
-    await waitFor(() => expect(currentStore.getState().annotationSelectedIds).toEqual(["rect-1"]));
-    // Give the viewport effect its chance to run; it must not.
+    await expect(screen.getByRole("radio", { name: /annotation region/i })).toBeChecked();
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
-    expect(currentStore.getState().viewStateActive?.target).toEqual(before);
+    expect(currentStore.getState().viewStateActive).toEqual(before);
+  });
+
+  test("switching to the region source does not move the view until a region is picked", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    const before = currentStore.getState().viewStateActive;
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+
+    expect(currentStore.getState().viewStateActive).toEqual(before);
   });
 });
 

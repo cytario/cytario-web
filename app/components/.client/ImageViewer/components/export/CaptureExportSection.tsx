@@ -31,7 +31,6 @@ import { geometriesBounds } from "../annotations/flyToFeature";
 import { calculateViewStateToFitBounds } from "../canvas/Measurements/calculateViewStateToFitBounds";
 import { physicalPixelSize } from "../canvas/Measurements/utils";
 import { Section } from "~/components/Section/Section";
-import { useSectionHandle } from "~/components/Sidebar/SidebarContext";
 import { parseResourceId } from "~/utils/resourceId";
 
 type SourceChoice = "current-view" | "annotation-region";
@@ -77,9 +76,8 @@ const regionViewState = (
 /**
  * Capture and export section: configures and runs a capture of the active
  * panel's current view — source selection, region picker, resolution presets,
- * decorations, provenance annotation, summary, and the run actions. While the
- * section is active the main canvas previews the source: selecting a
- * region pans and zooms the active panel to it.
+ * decorations, provenance annotation, summary, and the run actions. Picking a
+ * region in the picker pans and zooms the active panel to it.
  */
 export const CaptureExportSection = () => {
   const { toast } = useToast();
@@ -115,14 +113,6 @@ export const CaptureExportSection = () => {
   // picker. Anything else selected (nothing, several, points) leaves the
   // source as-is.
   const annotationSelectedIds = useViewerStore((s) => s.annotationSelectedIds);
-  // Selecting a region pans and zooms the active panel to show it — the main
-  // canvas is the preview. That is only wanted while this section is actually
-  // on screen: drawing a rectangle selects it, so an always-on effect would
-  // reset the viewport under the user mid-drawing. `isOpen` is the docked
-  // accordion state; a floated panel is always expanded.
-  const section = useSectionHandle("capture");
-  const sectionVisible = Boolean(section?.isFloating) || (section?.isOpen ?? false);
-
   const setAnnotationSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const selectedRegion = useMemo(
     () =>
@@ -134,17 +124,15 @@ export const CaptureExportSection = () => {
 
   // Selection changes move the source with them: a selected rectangle region
   // makes the capture a region capture, losing it returns to the current view.
-  // Only while this section is on screen — drawing a rectangle selects it, and
-  // an off-screen section must not follow the user's drawing.
+  // The viewport stays put — drawing or stamping a rectangle selects it too.
   const prevSelectedRegionIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!sectionVisible) return;
     const id = selectedRegion?.id ?? null;
     const prevId = prevSelectedRegionIdRef.current;
     prevSelectedRegionIdRef.current = id;
     if (prevId === id) return;
     setSource(id ? "annotation-region" : "current-view");
-  }, [sectionVisible, selectedRegion]);
+  }, [selectedRegion]);
 
   const regionBounds = useMemo(
     () =>
@@ -156,20 +144,17 @@ export const CaptureExportSection = () => {
 
   const preset = RESOLUTION_PRESETS.find((item) => item.id === presetId) ?? RESOLUTION_PRESETS[1];
 
-  const regionBoundsKey = regionBounds?.join(",") ?? null;
-  const setViewStateActiveRef = useRef(setViewStateActive);
-  useEffect(() => {
-    setViewStateActiveRef.current = setViewStateActive;
-  }, [setViewStateActive]);
-  useEffect(() => {
-    if (!sectionVisible) return;
-    if (source !== "annotation-region" || !regionBoundsKey || !viewStateActive) return;
-    const bounds = regionBoundsKey.split(",").map(Number) as [number, number, number, number];
-    setViewStateActiveRef.current(
-      regionViewState(bounds, viewStateActive.width, viewStateActive.height, viewStateActive),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionVisible, source, regionBoundsKey]);
+  // Only an explicit pick moves the viewport; a canvas selection never does.
+  const showRegion = useCallback(
+    (regionId: string) => {
+      const geometry = availableRegions.find((region) => region.id === regionId)?.feature.geometry;
+      const bounds = geometry ? geometriesBounds([geometry]) : null;
+      const viewState = storeApi.getState().viewStateActive;
+      if (!bounds || !viewState) return;
+      setViewStateActive(regionViewState(bounds, viewState.width, viewState.height, viewState));
+    },
+    [availableRegions, storeApi, setViewStateActive],
+  );
 
   // The same derivation the run's plan uses, so the summary names exactly
   // what the capture will export.
@@ -423,7 +408,9 @@ export const CaptureExportSection = () => {
               items={availableRegions.map((region) => ({ id: region.id, name: region.name }))}
               selectedKey={selectedRegion?.id ?? null}
               onSelectionChange={(key) => {
-                if (typeof key === "string") setAnnotationSelectedIds([key]);
+                if (typeof key !== "string") return;
+                setAnnotationSelectedIds([key]);
+                showRegion(key);
               }}
             />
           )}
