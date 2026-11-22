@@ -9,7 +9,7 @@ import { createViewerStore } from "../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../state/store/types";
 import { CaptureExportSection } from "../CaptureExportSection";
 import { commitExportAnnotation as commitExportAnnotationActual } from "../commitExportAnnotation";
-import { downloadExport } from "../composeCapture";
+import { copyExportToClipboard, downloadExport } from "../composeCapture";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -579,6 +579,18 @@ describe("Capture and export section", () => {
     expect(
       screen.getByRole("button", { name: /download/i }).querySelector(".animate-spin"),
     ).toBeNull();
+  });
+
+  test("Retry repeats a failed Copy as a copy, not a download", async () => {
+    composeCaptureMock.mockRejectedValueOnce(new Error("boom"));
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+    await user.click(await screen.findByRole("button", { name: /retry/i }));
+
+    await waitFor(() => expect(copyExportToClipboard).toHaveBeenCalledTimes(1));
+    expect(downloadExport).not.toHaveBeenCalled();
   });
 
   test("a current-view capture with the checkbox commits the exported extent", async () => {

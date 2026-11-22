@@ -94,6 +94,7 @@ export const CaptureExportSection = () => {
   const [createExportAnnotation, setCreateExportAnnotation] = useState(false);
   const [runState, setRunState] = useState<RunState>({ phase: "idle" });
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
+  const lastDestinationRef = useRef<ActiveRun["destination"]>("download");
 
   const imageBasename = useMemo(() => {
     try {
@@ -318,6 +319,7 @@ export const CaptureExportSection = () => {
 
   const runCapture = useCallback(
     (destination: "download" | "clipboard") => {
+      lastDestinationRef.current = destination;
       try {
         resetMissingChunks();
         const plan = planExport({
@@ -464,7 +466,7 @@ export const CaptureExportSection = () => {
               className="self-start"
               onPress={() => {
                 setRunState({ phase: "idle" });
-                void runCapture("download");
+                runCapture(lastDestinationRef.current);
               }}
             >
               Retry
