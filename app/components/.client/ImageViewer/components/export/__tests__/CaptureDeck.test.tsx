@@ -153,24 +153,19 @@ describe("CaptureDeck readiness", () => {
     expect(lastDeckProps().layers).toEqual(layerInstances);
   });
 
-  test("does not read the canvas on the load callback — deck has not drawn yet", async () => {
+  test("does not read the canvas before a frame is drawn", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    // onViewportLoad fires from the layer update, which deck runs *before* the
-    // draw pass: the canvas still holds the previous frame at this point.
-    act(() => observer?.onViewportLoad?.(6));
-
     expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("delivers the canvas on the render that follows the load", async () => {
+  test("delivers the canvas on the first frame drawn with every tile built", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    act(() => observer?.onViewportLoad?.(6));
     drawFrame();
 
     expect(onSettled).toHaveBeenCalledTimes(1);
@@ -178,13 +173,10 @@ describe("CaptureDeck readiness", () => {
     expect(onFailed).not.toHaveBeenCalled();
   });
 
-  test("delivers without the load callback when a warm cache never transitions", async () => {
+  test("delivers from a warm cache whose tileset is loaded on the first frame", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
 
-    // The reported bug: a second export reuses cached tiles, the tileset is
-    // loaded on the first frame, so deck never fires onViewportLoad. Waiting
-    // for it hung the capture until the render timeout.
     tiledLayers = tilesetWith(9);
     drawFrame();
 
@@ -255,14 +247,13 @@ describe("CaptureDeck readiness", () => {
     expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("settles once even if further viewport loads arrive", async () => {
+  test("settles once even if further frames are drawn", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    act(() => observer?.onViewportLoad?.(6));
     drawFrame();
-    act(() => observer?.onViewportLoad?.(9));
+    tiledLayers = tilesetWith(9);
     drawFrame();
 
     expect(onSettled).toHaveBeenCalledTimes(1);
@@ -273,7 +264,6 @@ describe("CaptureDeck readiness", () => {
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    act(() => observer?.onViewportLoad?.(6));
     drawFrame();
     act(() => observer?.onTileError?.(new Error("late")));
 

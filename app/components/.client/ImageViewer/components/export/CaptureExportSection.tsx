@@ -17,6 +17,7 @@ import { commitExportAnnotation } from "./commitExportAnnotation";
 import {
   composeCapture,
   RESOLUTION_PRESETS,
+  RESOLUTION_PRESETS_BY_ID,
   type ExportDecorations,
   type ExportDestination,
   type ResolutionPreset,
@@ -145,7 +146,7 @@ export const CaptureExportSection = () => {
     [source, selectedRegion],
   );
 
-  const preset = RESOLUTION_PRESETS.find((item) => item.id === presetId) ?? RESOLUTION_PRESETS[1];
+  const preset = RESOLUTION_PRESETS_BY_ID[presetId];
 
   // Only an explicit pick moves the viewport; a canvas selection never does.
   const showRegion = useCallback(

@@ -28,8 +28,8 @@ const isRectanglePolygon = (feature: AnnotationFeature): boolean => {
  */
 export const rectangleRegions = (
   annotationSets: AnnotationSet[],
-): { id: string; name: string; feature: AnnotationFeature; setId: string }[] => {
-  const regions: { id: string; name: string; feature: AnnotationFeature; setId: string }[] = [];
+): { id: string; name: string; feature: AnnotationFeature }[] => {
+  const regions: { id: string; name: string; feature: AnnotationFeature }[] = [];
   for (const set of annotationSets) {
     for (const feature of set.features) {
       if (!isRectanglePolygon(feature)) continue;
@@ -37,7 +37,6 @@ export const rectangleRegions = (
         id: feature.id,
         name: feature.properties?.name ?? feature.id,
         feature,
-        setId: set.id,
       });
     }
   }

@@ -38,25 +38,30 @@ export interface ResolutionPreset {
   targetWidthPx: number;
 }
 
-export const RESOLUTION_PRESETS: ResolutionPreset[] = [
-  {
+export const RESOLUTION_PRESETS_BY_ID: {
+  [Id in ResolutionPreset["id"]]: ResolutionPreset & { id: Id };
+} = {
+  "quick-share": {
     id: "quick-share",
     name: "Quick share",
     dpi: 180,
     displayWidthInches: 6.7,
     targetWidthPx: 1200,
   },
-  {
+  presentation: {
     id: "presentation",
     name: "Presentation",
     dpi: 300,
     displayWidthInches: 6.7,
     targetWidthPx: 2000,
   },
-  { id: "print", name: "Print", dpi: 600, displayWidthInches: 5.8, targetWidthPx: 3500 },
-];
+  print: { id: "print", name: "Print", dpi: 600, displayWidthInches: 5.8, targetWidthPx: 3500 },
+};
 
-export interface ExportViewResult {
+/** The presets in ladder order, smallest first. */
+export const RESOLUTION_PRESETS: ResolutionPreset[] = Object.values(RESOLUTION_PRESETS_BY_ID);
+
+export interface CaptureResult {
   blob: Blob;
   filename: string;
   /** When the capture was taken (`YYYY-MM-DD-HHmmss`) — the filename's suffix. */
@@ -139,7 +144,7 @@ const isUniformImage = (
 export const composeCapture = async (
   canvas: HTMLCanvasElement,
   input: ComposeCaptureInput,
-): Promise<ExportViewResult> => {
+): Promise<CaptureResult> => {
   const { frame } = input;
   if (canvas.width !== frame.width || canvas.height !== frame.height) {
     throw new ExportRenderError(

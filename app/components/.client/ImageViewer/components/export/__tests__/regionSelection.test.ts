@@ -92,9 +92,6 @@ describe("rectangleRegions", () => {
     expect(regions[0].name).toBe("Region A");
     // A feature with no name falls back to its id.
     expect(regions[1].name).toBe("own-rect-2");
-    // Peer and unowned sets carry their own setId.
-    expect(regions[2].setId).toBe("peer-set");
-    expect(regions[3].setId).toBe("unowned-set");
   });
 
   test("excludes non-rectangular polygons", () => {

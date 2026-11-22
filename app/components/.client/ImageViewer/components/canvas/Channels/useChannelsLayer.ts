@@ -59,10 +59,6 @@ type MultiscaleImageLayerProps = ConstructorParameters<typeof MultiscaleImageLay
 
 /** What a capture deck needs to know that the framed extent actually rendered. */
 export interface TileReadinessObserver {
-  /** Fired when the tile layer's tileset finishes loading a viewport pass.
-   *  `tileCount` is how many tiles that pass selected — zero means nothing was
-   *  drawn, which `isLoaded` alone cannot distinguish from a finished render. */
-  onViewportLoad?: (tileCount: number) => void;
   /** Fired for a tile that failed after the retry — a capture must not settle
    *  on a frame with holes. */
   onTileError?: (error: unknown) => void;
@@ -220,14 +216,6 @@ export const useChannelsLayer = (
       // `best-available` so a partial-resolution image is always shown.
       refinementStrategy: "best-available",
       pickable: true,
-      // deck fires this from the tileset when the current viewport's tiles are
-      // loaded, handing over the selected tiles. Its tile count separates a
-      // real render from an empty selection, which `isLoaded` cannot. It says
-      // nothing about the frame having been drawn — deck runs layer updates
-      // before the draw pass — so an observer must not read the canvas here.
-      onViewportLoad: observer?.onViewportLoad
-        ? (tiles: unknown[]) => observer.onViewportLoad?.(tiles?.length ?? 0)
-        : undefined,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;
         if (error === SIGNAL_ABORTED) return;

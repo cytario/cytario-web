@@ -76,13 +76,12 @@ type DeckLike = {
  * without the view state accounting for it. luma sizes the buffer from the
  * DOM, so the container is always CSS-sized — never detached.
  *
- * Ready means the tile layer said so. deck's `onViewportLoad` fires from the
- * tileset when the current viewport's tiles are loaded, and hands over the
- * selected tiles — so it also distinguishes a finished render from an empty
- * selection, which `isLoaded` cannot: a fresh CompositeLayer has no sublayers
- * yet, `[].every(...)` is true, and a tileset whose selection is empty reports
- * loaded too. Either way a settle on `isLoaded` alone can copy a canvas that
- * was never drawn into.
+ * Ready means a frame was drawn with every selected tile of the framed extent
+ * loaded and built: the check runs in `onAfterRender`, so the canvas it hands
+ * over holds those tiles. `isLoaded` alone is not enough — a fresh tileset with
+ * no built sublayers, or one whose selection is empty, reports loaded too, and
+ * settling there copies a canvas that was never drawn into. An empty selection
+ * fails the capture instead.
  *
  * The capture never reads the viewer's loading counters: they are a cosmetic
  * indicator (see `useTilesLoading`), they are written by both this deck and
@@ -148,8 +147,8 @@ export const CaptureDeck = ({
 
   // deck calls this from inside its draw pass, after the layers were rendered
   // for this frame — so a canvas read here holds the tiles that just finished
-  // loading. `onViewportLoad` cannot be the read point: it fires from the layer
-  // update, which runs before the draw of the same frame.
+  // loading. deck's `onViewportLoad` is no substitute: it fires before the draw,
+  // and only on a load-state transition, so a warm cache never fires it.
   const handleAfterRender = useCallback(() => {
     if (settledRef.current || failedRef.current) return;
 
@@ -158,10 +157,6 @@ export const CaptureDeck = ({
     const tileset = tiled?.state?.tileset;
     const tileCount = tilesRendered(tileset);
 
-    // Settle on the tiles being built and loaded rather than on the load
-    // callback alone: deck fires `onViewportLoad` only on a load-state
-    // *transition*, so a warm tileset that is already loaded can never fire it
-    // and the capture would wait out its whole timeout.
     if (tileCount === 0) {
       if (selectedNothing(tileset)) {
         // No tile exists at all for the framed extent — the region lies off the
