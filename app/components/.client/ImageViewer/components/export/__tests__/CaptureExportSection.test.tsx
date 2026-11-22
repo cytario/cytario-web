@@ -36,6 +36,7 @@ const captureDeckProps: {
   viewState: { zoom: number };
   onSettled: (canvas: HTMLCanvasElement) => void;
   excludeAnnotationId?: string | null;
+  imagePanelId: number;
 }[] = [];
 const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
 // While set, the deck mock parks each onSettled instead of firing it on
@@ -62,6 +63,7 @@ vi.mock("../CaptureDeck", () => ({
     height: number;
     pixelScale?: number;
     viewState: { zoom: number; target: [number, number] };
+    imagePanelId: number;
   }) => {
     captureDeckProps.push(props);
     const { onSettled } = props;
@@ -439,6 +441,33 @@ describe("Capture and export section", () => {
     const call = composeCaptureMock.mock.calls[0][1];
     // Only the hydrated channel is listed — FITC stayed invisible.
     expect(call.legend.channels).toEqual([{ name: "DAPI", color: [0, 255, 0] }]);
+  });
+
+  test("the legend and the deck describe the active panel's view, wherever it sits in the list", async () => {
+    const user = userEvent.setup();
+    // The active panel shows the second view, whose only visible channel is FITC.
+    currentStore.setState((state) => {
+      state.layersStates.push({
+        ...state.layersStates[0],
+        id: "view-2",
+        channels: {
+          DAPI: { isVisible: false, contrastLimits: [0, 255], color: [0, 255, 0] },
+          FITC: { isVisible: true, contrastLimits: [0, 255], color: [255, 0, 255] },
+        },
+      });
+      state.imagePanels = [1];
+      state.imagePanelIndex = 0;
+    });
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(composeCaptureMock).toHaveBeenCalledTimes(1));
+    expect(captureDeckProps.at(-1)?.imagePanelId).toBe(0);
+    expect(composeCaptureMock.mock.calls[0][1].legend).toEqual({
+      channels: [{ name: "FITC", color: [255, 0, 255] }],
+      overlays: [],
+    });
   });
 
   test("the completion toast says so when the legend is on but nothing is visible", async () => {

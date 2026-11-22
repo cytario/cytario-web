@@ -72,15 +72,21 @@ const getLayersState = (state: ViewerStore) => {
   return state.layersStates[channelsStateIndex];
 };
 
+/** Factory: resolve the layersState (view preset) shown in a specific image
+ *  panel. `panelId` indexes `imagePanels`, never `layersStates`. */
+export const layersStateForPanel = (panelId: number) => (state: ViewerStore) =>
+  state.layersStates[state.imagePanels[panelId]];
+
 /** Factory: resolve the merged channelsState for a specific image panel.
  *  Returns a selector suitable for `useViewerStore(...)`. */
 export const channelsStateForPanel =
   (panelId: number) =>
-  (state: ViewerStore): ChannelsState | undefined => {
-    const channelsStateIndex = state.imagePanels[panelId];
-    const layerState = state.layersStates[channelsStateIndex];
-    return resolveChannelsState(state.channels, layerState?.channels, state.channelIds);
-  };
+  (state: ViewerStore): ChannelsState | undefined =>
+    resolveChannelsState(
+      state.channels,
+      layersStateForPanel(panelId)(state)?.channels,
+      state.channelIds,
+    );
 
 /** Factory: resolve the merged channelsState for a specific preset (index
  *  into `layersStates`).  Returns a selector suitable for `useViewerStore(...)`. */

@@ -3,7 +3,7 @@ import { fallbackRenderLimits, type ExportRenderLimits } from "./clamp";
 import type { ResolutionPreset, ViewerStoreSource } from "./composeCapture";
 import { outputPixelsPerViewerPixel, type Legend } from "./decorations";
 import { rectangleRegions } from "./regionSelection";
-import { channelsStateForPanel } from "../../state/store/selectors";
+import { channelsStateForPanel, layersStateForPanel } from "../../state/store/selectors";
 import type { ViewerStore, ViewState } from "../../state/store/types";
 import { geometriesBounds } from "../annotations/flyToFeature";
 
@@ -27,6 +27,8 @@ export interface CapturePlan {
   pixelScale: number;
   /** Acquisition metadata — the pixel-size source. */
   metadata: NonNullable<ViewerStore["metadata"]>;
+  /** The image panel captured — the deck renders it and the legend describes it. */
+  imagePanelId: number;
 }
 
 export interface PlanExportInput {
@@ -38,25 +40,21 @@ export interface PlanExportInput {
   limits?: ExportRenderLimits;
 }
 
-/** Builds the legend — visible channels and enabled overlay markers, in their
- *  assigned colors, exactly as the viewer renders them. Visibility
- *  lives in the per-preset layersStates merge (the top-level channels entries
- *  carry image data only), so the panel's resolved channelsState is the
- *  source of truth — same as useChannelsLayer. */
-export const legendForState = (store: ViewerStoreSource): Legend => {
-  const state = store.getState();
+/** Builds the legend for one image panel — visible channels and enabled
+ *  overlay markers, in their assigned colors. It reads the same per-panel
+ *  selectors the channel and overlay layers render from, so it lists exactly
+ *  what that panel draws. */
+export const legendForPanel = (state: ViewerStore, imagePanelId: number): Legend => {
   const legend: Legend = { channels: [], overlays: [] };
 
-  const panelId = state.imagePanels[state.imagePanelIndex];
-  const channelsState = channelsStateForPanel(panelId)(state);
+  const channelsState = channelsStateForPanel(imagePanelId)(state);
   for (const id of state.channelIds) {
     const channel = channelsState?.[id];
     if (!channel?.isVisible) continue;
     legend.channels.push({ name: id, color: channel.color ?? [255, 255, 255] });
   }
 
-  const layerState = state.layersStates[panelId];
-  const overlays = layerState?.overlays ?? {};
+  const overlays = layersStateForPanel(imagePanelId)(state)?.overlays ?? {};
   for (const entry of Object.values(overlays)) {
     for (const [markerKey, marker] of Object.entries(entry.markers)) {
       if (!marker.isVisible) continue;
@@ -123,5 +121,6 @@ export const planExport = ({
     viewState: viewStateForFrame(frame, viewStateActive),
     pixelScale: outputPixelsPerViewerPixel(preset.dpi),
     metadata,
+    imagePanelId: state.imagePanelIndex,
   };
 };

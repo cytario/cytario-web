@@ -21,7 +21,7 @@ import {
   type ResolutionPreset,
 } from "./composeCapture";
 import { copyExportToClipboard, downloadExport } from "./composeCapture";
-import { planExport, legendForState, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
+import { planExport, legendForPanel, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
 import { rectangleRegions } from "./regionSelection";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
@@ -215,9 +215,9 @@ export const CaptureExportSection = () => {
   const deliver = useCallback(
     (run: ActiveRun) =>
       async (canvas: HTMLCanvasElement): Promise<void> => {
-        // The legend must reflect the store the pixels rendered from —
-        // resolve it at settle time, not from the plan-time snapshot.
-        const legend = legendForState(storeApi);
+        // Settle time, not plan time: the legend must match the store the
+        // pixels rendered from, for the panel the deck rendered.
+        const legend = legendForPanel(storeApi.getState(), run.plan.imagePanelId);
         let result;
         try {
           result = await composeCapture(canvas, {
@@ -360,6 +360,7 @@ export const CaptureExportSection = () => {
           // Remount per framed view state: the deck derives all of its settle
           // state (viewport, tile readiness) from the frame it mounts for.
           key={`${activeRun.plan.viewState.target.join(",")}@${activeRun.plan.viewState.zoom}`}
+          imagePanelId={activeRun.plan.imagePanelId}
           viewState={activeRun.plan.viewState}
           width={activeRun.plan.frame.width}
           height={activeRun.plan.frame.height}

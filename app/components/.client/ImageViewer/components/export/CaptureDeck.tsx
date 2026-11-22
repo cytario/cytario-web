@@ -2,13 +2,13 @@ import DeckGL, { type DeckGLRef } from "@deck.gl/react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import { scalePixelSizes } from "./scalePixelSizes";
-import { useViewerStore } from "../../state/store/core/ViewerStoreContext";
-import { select } from "../../state/store/selectors";
 import type { ViewState } from "../../state/store/types";
 import { useView } from "../canvas/useView";
 import { useViewerLayers } from "../canvas/useViewerLayers";
 
 export interface CaptureDeckProps {
+  /** The image panel whose layers the deck renders. */
+  imagePanelId: number;
   /** Framing the deck renders — width/height must equal the CSS size below. */
   viewState: ViewState;
   /** CSS size of the deck — also its drawing-buffer size, since the deck
@@ -95,6 +95,7 @@ type DeckLike = {
  * to this deck's own layers.
  */
 export const CaptureDeck = ({
+  imagePanelId,
   viewState,
   width,
   height,
@@ -110,8 +111,6 @@ export const CaptureDeck = ({
   const settledRef = useRef(false);
   const failedRef = useRef(false);
   const [failedTile, setFailedTile] = useState<string | null>(null);
-
-  const activeImagePanelId = useViewerStore(select.activeImagePanelId);
 
   // Stable identity: the observer reaches the layer's props, and a new object
   // per render would rebuild the layer and re-trigger its tile requests.
@@ -130,7 +129,7 @@ export const CaptureDeck = ({
     layers: viewerLayers,
     effects,
     layerFilter,
-  } = useViewerLayers(activeImagePanelId, interactive, excludeAnnotationId, observer);
+  } = useViewerLayers(imagePanelId, interactive, excludeAnnotationId, observer);
   const layers = useMemo(
     () =>
       pixelScale === 1

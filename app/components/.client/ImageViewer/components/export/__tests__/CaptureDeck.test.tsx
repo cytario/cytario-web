@@ -47,14 +47,16 @@ const layerInstances: { isLoaded: boolean }[] = [];
 // The observer the deck hands to the layer composition is how readiness now
 // reaches the component: these tests drive it the way deck does.
 let observer: TileReadinessObserver | undefined;
+let renderedPanelId: number | undefined;
 
 vi.mock("../../canvas/useViewerLayers", () => ({
   useViewerLayers: (
-    _panelId: number,
+    panelId: number,
     _interactive?: boolean,
     _exclude?: string | null,
     tileObserver?: TileReadinessObserver,
   ) => {
+    renderedPanelId = panelId;
     if (tileObserver) observer = tileObserver;
     return {
       layers: layerInstances,
@@ -70,17 +72,6 @@ vi.mock("../scalePixelSizes", () => ({
 
 vi.mock("../../canvas/useView", () => ({
   useView: () => ({ id: "detail" }),
-}));
-
-const storeState = () => ({
-  imagePanelIndex: 0,
-  activeImagePanelId: 0,
-  imagePanels: [0],
-  layersStates: [{ isChannelsLoading: 0, isOverlaysLoading: 0 }],
-});
-
-vi.mock("../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: (selector: (state: unknown) => unknown) => selector(storeState()),
 }));
 
 const fakeDeck = () => ({
@@ -110,11 +101,12 @@ type DeckProps = { layers: unknown[] };
 
 const lastDeckProps = (): DeckProps => deckRender.mock.calls.at(-1)?.[0] as DeckProps;
 
-const renderDeck = () => {
+const renderDeck = (imagePanelId = 0) => {
   const onSettled = vi.fn();
   const onFailed = vi.fn();
   const view = render(
     <CaptureDeck
+      imagePanelId={imagePanelId}
       viewState={viewState}
       width={320}
       height={240}
@@ -146,6 +138,11 @@ beforeEach(() => {
 });
 
 describe("CaptureDeck readiness", () => {
+  test("renders the layers of the panel it is given, not the live active panel", () => {
+    renderDeck(1);
+    expect(renderedPanelId).toBe(1);
+  });
+
   test("does not mount the layers in the deck's first commit", async () => {
     renderDeck();
     // A layer created in the same commit as the deck can select tiles against
