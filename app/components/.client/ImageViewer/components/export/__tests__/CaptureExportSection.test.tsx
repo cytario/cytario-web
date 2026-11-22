@@ -228,6 +228,7 @@ const exportResult = () =>
     clamped: false,
     upscaled: false,
     uniform: false,
+    legendOmitted: 0,
   }) as never;
 
 const within = () => screen.getByRole("region", { name: "Capture and export" });
@@ -510,6 +511,18 @@ describe("Capture and export section", () => {
       expect(
         screen.getByText(/2 image data chunk\(s\) were not found and render as empty/),
       ).toBeInTheDocument();
+    });
+  });
+
+  test("legend entries that did not fit are reported on the toast", async () => {
+    const user = userEvent.setup();
+    composeCaptureMock.mockResolvedValue({ ...(exportResult() as object), legendOmitted: 7 });
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/legend: 7 entries did not fit the image/)).toBeInTheDocument();
     });
   });
 

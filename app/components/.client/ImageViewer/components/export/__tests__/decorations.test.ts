@@ -8,6 +8,7 @@ import {
   drawLegendDecoration,
   drawScaleBarDecoration,
   exportScaleBar,
+  layoutLegend,
   resolveDecorationTheme,
   type DecorationTheme,
 } from "../decorations";
@@ -176,7 +177,7 @@ describe("drawLegendDecoration", () => {
 
   test("stacks the entries vertically in the bottom-right corner", () => {
     const ctx = context();
-    drawLegendDecoration(ctx, legend, 12, THEME);
+    drawLegendDecoration(ctx, legend, { fontPx: 12, theme: THEME });
 
     // 12 px font: the bar padding, 12 px rows, 8 px gaps, 1 px divider, 12 px inset.
     const { barPadding } = SCALE_BAR_LAYOUT;
@@ -197,7 +198,7 @@ describe("drawLegendDecoration", () => {
 
   test("a larger legend font keeps the other decorations' inset", () => {
     const ctx = context();
-    drawLegendDecoration(ctx, legend, 18, THEME, 12);
+    drawLegendDecoration(ctx, legend, { fontPx: 18, theme: THEME, inset: 12 });
     const [boxX, boxY, boxWidth, boxHeight] = (ctx.roundRect as ReturnType<typeof vi.fn>).mock
       .calls[0] as number[];
     expect(boxX + boxWidth).toBe(1920 - 12);
@@ -206,7 +207,7 @@ describe("drawLegendDecoration", () => {
 
   test("draws a divider between channels and overlays", () => {
     const ctx = context();
-    drawLegendDecoration(ctx, legend, 12, THEME);
+    drawLegendDecoration(ctx, legend, { fontPx: 12, theme: THEME });
     const rects = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls as number[][];
     // Two channel chips, the 1 px divider, one overlay chip.
     expect(rects).toHaveLength(4);
@@ -218,16 +219,137 @@ describe("drawLegendDecoration", () => {
 
   test("no divider when only one group has entries", () => {
     const ctx = context();
-    drawLegendDecoration(ctx, { channels: legend.channels, overlays: [] }, 12, THEME);
+    drawLegendDecoration(
+      ctx,
+      { channels: legend.channels, overlays: [] },
+      { fontPx: 12, theme: THEME },
+    );
     expect(ctx.fillRect).toHaveBeenCalledTimes(2);
   });
 
   test("draws nothing with no items", () => {
     const ctx = context();
-    drawLegendDecoration(ctx, { channels: [], overlays: [] }, 12, THEME);
+    drawLegendDecoration(ctx, { channels: [], overlays: [] }, { fontPx: 12, theme: THEME });
     expect(ctx.roundRect).not.toHaveBeenCalled();
     expect(ctx.fillRect).not.toHaveBeenCalled();
     expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+});
+
+describe("layoutLegend", () => {
+  // Every glyph is 0.6 em wide.
+  const measure = (text: string, fontPx: number) => text.length * fontPx * 0.6;
+  const channels = (count: number, name = "CD") =>
+    Array.from({ length: count }, (_, index) => ({
+      name: `${name}${index}`,
+      color: [255, 255, 255] as [number, number, number],
+    }));
+  // One 12 px row is 12 px tall with an 8 px gap, inside 8 px padding.
+  const heightFor = (rows: number) => rows * 12 + (rows - 1) * 8 + 16;
+
+  test("a legend that fits keeps the full font in one column", () => {
+    const layout = layoutLegend({ channels: channels(3), overlays: [] }, 12, 1000, 1000, measure);
+    expect(layout).toMatchObject({ fontPx: 12, columnCount: 1, omitted: 0 });
+  });
+
+  test("a legend taller than the image wraps into columns before it shrinks", () => {
+    const layout = layoutLegend(
+      { channels: channels(40), overlays: [] },
+      12,
+      1000,
+      heightFor(10),
+      measure,
+    );
+    expect(layout).toMatchObject({ fontPx: 12, columnCount: 4, omitted: 0 });
+    expect(layout!.rows.filter((row) => row.kind === "item")).toHaveLength(40);
+  });
+
+  test("with no room for more columns it shrinks the font", () => {
+    const layout = layoutLegend(
+      { channels: channels(12), overlays: [] },
+      12,
+      80,
+      heightFor(10),
+      measure,
+    );
+    expect(layout!.fontPx).toBeLessThan(12);
+    expect(layout!.omitted).toBe(0);
+  });
+
+  test("what does not fit at the smallest size is counted in a +N more row", () => {
+    const layout = layoutLegend(
+      { channels: channels(40), overlays: [] },
+      12,
+      80,
+      heightFor(4),
+      measure,
+    );
+    expect(layout!.fontPx).toBeCloseTo((12 * 5) / 9);
+    const shown = layout!.rows.filter((row) => row.kind === "item").length;
+    const more = layout!.rows.at(-1);
+    expect(more).toMatchObject({ kind: "more", text: `+${40 - shown} more` });
+    expect(layout!.omitted).toBe(40 - shown);
+  });
+
+  test("a name wider than the space is ellipsized", () => {
+    const layout = layoutLegend(
+      { channels: [{ name: "A".repeat(200), color: [0, 0, 0] }], overlays: [] },
+      12,
+      200,
+      1000,
+      measure,
+    );
+    const row = layout!.rows[0];
+    expect(row.kind === "item" && row.text.endsWith("…")).toBe(true);
+    expect(row.kind === "item" && measure(row.text, layout!.fontPx)).toBeLessThanOrEqual(
+      layout!.columnWidth,
+    );
+  });
+
+  test("no divider opens a column", () => {
+    const layout = layoutLegend(
+      { channels: channels(4), overlays: channels(4, "M") },
+      12,
+      1000,
+      heightFor(4),
+      measure,
+    );
+    const firstPerColumn = new Map<number, string>();
+    for (const row of layout!.rows) {
+      if (!firstPerColumn.has(row.column)) firstPerColumn.set(row.column, row.kind);
+    }
+    expect([...firstPerColumn.values()].every((kind) => kind === "item")).toBe(true);
+  });
+});
+
+describe("drawLegendDecoration fitting", () => {
+  test("never reaches left of the scale bar", () => {
+    const ctx = context();
+    (ctx.measureText as ReturnType<typeof vi.fn>).mockImplementation(() => ({ width: 5000 }));
+    drawLegendDecoration(
+      ctx,
+      { channels: [{ name: "long", color: [0, 0, 0] }], overlays: [] },
+      { fontPx: 12, theme: THEME, inset: 12, minX: 300 },
+    );
+    const [boxX] = (ctx.roundRect as ReturnType<typeof vi.fn>).mock.calls[0] as number[];
+    expect(boxX).toBeGreaterThanOrEqual(300 + 12);
+  });
+
+  test("returns how many entries were left out", () => {
+    const ctx = context();
+    ctx.canvas.height = 100;
+    const omitted = drawLegendDecoration(
+      ctx,
+      {
+        channels: Array.from({ length: 200 }, (_, index) => ({
+          name: `C${index}`,
+          color: [0, 0, 0] as [number, number, number],
+        })),
+        overlays: [],
+      },
+      { fontPx: 12, theme: THEME, inset: 12, minX: 1800 },
+    );
+    expect(omitted).toBeGreaterThan(0);
   });
 });
 

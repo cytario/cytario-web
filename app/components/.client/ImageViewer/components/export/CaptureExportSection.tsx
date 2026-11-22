@@ -281,6 +281,9 @@ export const CaptureExportSection = () => {
         ) {
           notes.push("legend: no visible channels");
         }
+        if (result.legendOmitted > 0) {
+          notes.push(`legend: ${result.legendOmitted} entries did not fit the image`);
+        }
 
         if (run.destination === "clipboard") {
           try {

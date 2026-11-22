@@ -70,6 +70,8 @@ export interface ExportViewResult {
   upscaled: boolean;
   /** Every sampled pixel of the image area is the same color. */
   uniform: boolean;
+  /** Legend entries left out because they did not fit the image. */
+  legendOmitted: number;
 }
 
 export class ExportRenderError extends Error {
@@ -171,19 +173,19 @@ export const composeCapture = async (
 
   // No physical pixel size, no scale bar: its length would be invented.
   const millimetersPerLevel0 = millimetersPerLevel0Pixel(input.metadata);
+  let scaleBarRight = 0;
   if (input.decorations.scaleBar && millimetersPerLevel0 !== null) {
     const millimetersPerPixel = millimetersPerOutputPixel(frame, millimetersPerLevel0);
-    drawScaleBarDecoration(context, { millimetersPerPixel, fontPx, theme });
+    scaleBarRight = drawScaleBarDecoration(context, { millimetersPerPixel, fontPx, theme });
   }
-  if (input.decorations.legend) {
-    drawLegendDecoration(
-      context,
-      input.legend,
-      legendFontPx(input.preset.dpi),
-      theme,
-      decorationInset(fontPx),
-    );
-  }
+  const legendOmitted = input.decorations.legend
+    ? drawLegendDecoration(context, input.legend, {
+        fontPx: legendFontPx(input.preset.dpi),
+        theme,
+        inset: decorationInset(fontPx),
+        minX: scaleBarRight,
+      })
+    : 0;
 
   const blob = await new Promise<Blob | null>((resolve) =>
     outputCanvas.toBlob((result) => resolve(result), "image/png"),
@@ -200,6 +202,7 @@ export const composeCapture = async (
     clamped: frame.clamped,
     upscaled: frame.upscaled,
     uniform,
+    legendOmitted,
   };
 };
 

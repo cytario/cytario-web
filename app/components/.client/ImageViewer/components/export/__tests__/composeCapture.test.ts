@@ -173,7 +173,7 @@ describe("composeCapture", () => {
 
   test("paints every legend chip in its own channel colour", async () => {
     const renderCanvas = renderCanvasOf(1920, 1080);
-    const drawLegend = vi.spyOn(decorations, "drawLegendDecoration").mockImplementation(() => {});
+    const drawLegend = vi.spyOn(decorations, "drawLegendDecoration").mockReturnValue(0);
     const legend = {
       channels: [
         { name: "DAPI", color: [0, 0, 255] as [number, number, number] },
@@ -200,6 +200,26 @@ describe("composeCapture", () => {
     drawLegend.mockRestore();
     getContext.mockRestore();
     toBlob.mockRestore();
+  });
+
+  test("keeps the legend clear of the scale bar and reports what it left out", async () => {
+    const renderCanvas = renderCanvasOf(1920, 1080);
+    vi.spyOn(decorations, "drawScaleBarDecoration").mockReturnValue(250);
+    const drawLegend = vi.spyOn(decorations, "drawLegendDecoration").mockReturnValue(3);
+
+    const result = await composeCapture(renderCanvas, {
+      preset: RESOLUTION_PRESETS[1],
+      imageBasename: "slide",
+      decorations: { scaleBar: true, legend: true },
+      frame,
+      metadata,
+      legend: { channels: [{ name: "DAPI", color: [0, 0, 255] }], overlays: [] },
+    });
+
+    expect(drawLegend.mock.calls[0][2]).toMatchObject({ minX: 250 });
+    expect(result.legendOmitted).toBe(3);
+
+    vi.restoreAllMocks();
   });
 
   test("draws no scale bar for an image without a physical pixel size", async () => {
