@@ -6,6 +6,9 @@ const POINTS_PER_INCH = 72;
 const DECORATION_POINT_SIZE = 7;
 /** The legend reads as the figure's key, so it is set larger than the rest. */
 const LEGEND_POINT_SIZE = 9;
+/** Smallest the legend shrinks to before it drops entries. */
+const MIN_LEGEND_POINT_SIZE = 5;
+const LEGEND_SHRINK_STEP = 0.9;
 // Mirrors Tailwind's `shadow-md` under the viewer's floating bars.
 const FLOATING_BAR_SHADOW = "rgb(0 0 0 / 0.1)";
 const FLOATING_BAR_OPACITY = 0.8;
@@ -123,11 +126,12 @@ export interface ScaleBarDrawOptions {
 }
 
 /** Draws the viewer's scale bar — end ticks, two line segments, the label
- *  centred between them — in its floating bar in the bottom-left corner. */
+ *  centred between them — in its floating bar in the bottom-left corner.
+ *  Returns the bar's right edge, in output px. */
 export const drawScaleBarDecoration = (
   context: CanvasRenderingContext2D,
   { millimetersPerPixel, fontPx, theme }: ScaleBarDrawOptions,
-): void => {
+): number => {
   const { width, label } = exportScaleBar(millimetersPerPixel, fontPx);
   const { scale, padding, contentHeight, height, offset } = floatingBarMetrics(fontPx);
   const barX = offset;
@@ -158,6 +162,7 @@ export const drawScaleBarDecoration = (
   context.textAlign = "center";
   context.fillText(label, left + width / 2, centerY);
   context.textAlign = "start";
+  return barX + width + 2 * padding;
 };
 
 export interface LegendItem {
@@ -176,58 +181,243 @@ export interface Legend {
 /** Distance of every decoration from the image border, in output px. */
 export const decorationInset = (fontPx: number): number => floatingBarMetrics(fontPx).offset;
 
-/** Draws the legend as a vertical list of color chips + names in the
- *  bottom-right corner — channels, a divider, then overlay markers. `inset`
- *  is the other decorations' border distance, so the corners line up although
- *  the legend's font is larger. */
-export const drawLegendDecoration = (
-  context: CanvasRenderingContext2D,
+type LegendRow = { kind: "item"; item: LegendItem } | { kind: "divider" };
+
+interface PlacedRowPosition {
+  column: number;
+  /** Top of the row, relative to the content box. */
+  top: number;
+}
+
+type PlacedLegendRow = PlacedRowPosition &
+  (
+    | {
+        kind: "item";
+        item: LegendItem;
+        /** Name as drawn — ellipsized to the column. */ text: string;
+      }
+    | { kind: "divider" }
+    | { kind: "more"; text: string }
+  );
+
+interface LegendLayout {
+  fontPx: number;
+  columnCount: number;
+  columnWidth: number;
+  contentHeight: number;
+  rows: PlacedLegendRow[];
+  /** Entries left out because they did not fit even at the smallest size. */
+  omitted: number;
+}
+
+const legendMetrics = (fontPx: number) => {
+  const { scale, padding, contentHeight: rowHeight } = floatingBarMetrics(fontPx);
+  return {
+    padding,
+    rowHeight,
+    rowGap: LEGEND_ROW_GAP * scale,
+    dividerThickness: LEGEND_DIVIDER_THICKNESS * scale,
+    chipSize: fontPx * 0.75,
+    chipGap: fontPx / 3,
+    columnGap: 2 * padding,
+  };
+};
+
+/** Shortens `text` with an ellipsis until `measure` fits it in `maxWidth`. */
+const ellipsize = (text: string, maxWidth: number, measure: (text: string) => number): string => {
+  if (measure(text) <= maxWidth) return text;
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (measure(`${text.slice(0, mid)}…`) <= maxWidth) low = mid;
+    else high = mid - 1;
+  }
+  return `${text.slice(0, low)}…`;
+};
+
+/** Lays the rows out in equal-width columns filled top to bottom within
+ *  `maxWidth × maxHeight` at one font size. With `truncate`, rows that do not
+ *  fit are replaced by a "+N more" row; without it, an overflow yields null. */
+const layoutLegendAt = (
+  rows: LegendRow[],
+  fontPx: number,
+  maxWidth: number,
+  maxHeight: number,
+  measure: (text: string, fontPx: number) => number,
+  truncate: boolean,
+): LegendLayout | null => {
+  const { padding, rowHeight, rowGap, dividerThickness, chipSize, chipGap, columnGap } =
+    legendMetrics(fontPx);
+  const availableWidth = maxWidth - 2 * padding;
+  const availableHeight = maxHeight - 2 * padding;
+  if (availableWidth <= chipSize + chipGap || availableHeight < rowHeight) return null;
+
+  const measureAt = (text: string) => measure(text, fontPx);
+  const itemWidths = rows.map((row) =>
+    row.kind === "item" ? chipSize + chipGap + measureAt(row.item.name) : 0,
+  );
+  const totalItems = rows.filter((row) => row.kind === "item").length;
+  // When truncating, the column must also hold the "+N more" label.
+  const moreWidth = truncate ? measureAt(`+${totalItems} more`) : 0;
+  const columnWidth = Math.min(Math.max(...itemWidths, moreWidth), availableWidth);
+  const maxColumns = Math.max(
+    1,
+    Math.floor((availableWidth + columnGap) / (columnWidth + columnGap)),
+  );
+  const labelWidth = columnWidth - chipSize - chipGap;
+
+  const placed: PlacedLegendRow[] = [];
+  let column = 0;
+  let columnHeight = 0;
+  let contentHeight = 0;
+  let overflowAt = -1;
+
+  for (const [index, row] of rows.entries()) {
+    const height = row.kind === "item" ? rowHeight : dividerThickness;
+    // A divider at a column break separates nothing.
+    if (row.kind === "divider" && columnHeight === 0) continue;
+    if (columnHeight + (columnHeight > 0 ? rowGap : 0) + height > availableHeight) {
+      if (row.kind === "divider") continue;
+      if (column + 1 >= maxColumns) {
+        overflowAt = index;
+        break;
+      }
+      column += 1;
+      columnHeight = 0;
+    }
+    const top = columnHeight + (columnHeight > 0 ? rowGap : 0);
+    placed.push(
+      row.kind === "item"
+        ? {
+            kind: "item",
+            item: row.item,
+            text: ellipsize(row.item.name, labelWidth, measureAt),
+            column,
+            top,
+          }
+        : { kind: "divider", column, top },
+    );
+    columnHeight = top + height;
+    contentHeight = Math.max(contentHeight, columnHeight);
+  }
+
+  let omitted = 0;
+  if (overflowAt >= 0) {
+    if (!truncate) return null;
+    // The last slot reports what was left out.
+    while (placed.length > 0 && placed[placed.length - 1].kind === "divider") placed.pop();
+    const replaced = placed.pop();
+    const shownItems = placed.filter((row) => row.kind === "item").length;
+    omitted = totalItems - shownItems;
+    if (!replaced) return null;
+    placed.push({
+      kind: "more",
+      text: ellipsize(`+${omitted} more`, columnWidth, measureAt),
+      column: replaced.column,
+      top: replaced.top,
+    });
+  }
+
+  return {
+    fontPx,
+    columnCount: column + 1,
+    columnWidth,
+    contentHeight,
+    rows: placed,
+    omitted,
+  };
+};
+
+/** Fits the legend into `maxWidth × maxHeight`: the full font in one column
+ *  when it fits, else more columns, then a smaller font down to the minimum,
+ *  and only then a "+N more" row for what still does not fit. */
+export const layoutLegend = (
   { channels, overlays }: Legend,
   fontPx: number,
-  theme: DecorationTheme,
-  inset: number = floatingBarMetrics(fontPx).offset,
-): void => {
-  const { scale, padding, contentHeight, height: pillHeight } = floatingBarMetrics(fontPx);
+  maxWidth: number,
+  maxHeight: number,
+  measure: (text: string, fontPx: number) => number,
+): LegendLayout | null => {
   const groups = [channels, overlays].filter((group) => group.length > 0);
-  if (groups.length === 0) return;
+  if (groups.length === 0) return null;
+  const rows: LegendRow[] = groups.flatMap((group, index) => [
+    ...(index > 0 ? [{ kind: "divider" as const }] : []),
+    ...group.map((item) => ({ kind: "item" as const, item })),
+  ]);
 
-  setLabelFont(context, theme, fontPx);
-  const chipSize = fontPx * 0.75;
-  const chipGap = fontPx / 3;
-  const rowGap = LEGEND_ROW_GAP * scale;
-  const dividerThickness = LEGEND_DIVIDER_THICKNESS * scale;
+  const minFontPx = (fontPx * MIN_LEGEND_POINT_SIZE) / LEGEND_POINT_SIZE;
+  for (let size = fontPx; size > minFontPx; size *= LEGEND_SHRINK_STEP) {
+    const layout = layoutLegendAt(rows, size, maxWidth, maxHeight, measure, false);
+    if (layout) return layout;
+  }
+  return layoutLegendAt(rows, minFontPx, maxWidth, maxHeight, measure, true);
+};
 
-  const contentWidth = Math.max(
-    ...groups.flat().map(({ name }) => chipSize + chipGap + context.measureText(name).width),
+export interface LegendDrawOptions {
+  /** The legend's full font size; it shrinks from here only to fit. */
+  fontPx: number;
+  theme: DecorationTheme;
+  /** Distance from the image border — the other decorations' inset. */
+  inset?: number;
+  /** Leftmost x the legend may reach — the right edge of the scale bar. */
+  minX?: number;
+}
+
+/** Draws the legend in the bottom-right corner as columns of color chips and
+ *  names — channels, a divider, then overlay markers — fitted to the image.
+ *  Returns the number of entries left out. */
+export const drawLegendDecoration = (
+  context: CanvasRenderingContext2D,
+  legend: Legend,
+  { fontPx, theme, inset = floatingBarMetrics(fontPx).offset, minX = 0 }: LegendDrawOptions,
+): number => {
+  const itemCount = legend.channels.length + legend.overlays.length;
+  if (itemCount === 0) return 0;
+
+  const maxWidth = context.canvas.width - inset - Math.max(inset, minX + inset);
+  const maxHeight = context.canvas.height - 2 * inset;
+  const measure = (text: string, size: number) => {
+    setLabelFont(context, theme, size);
+    return context.measureText(text).width;
+  };
+  const layout = layoutLegend(legend, fontPx, maxWidth, maxHeight, measure);
+  if (!layout) return itemCount;
+
+  const { padding, chipSize, chipGap, columnGap, dividerThickness, rowHeight } = legendMetrics(
+    layout.fontPx,
   );
-  const rowCount = groups.flat().length;
-  const dividerSpace = (groups.length - 1) * (dividerThickness + rowGap);
-  const contentBlockHeight = rowCount * contentHeight + (rowCount - 1) * rowGap + dividerSpace;
-
-  const boxWidth = contentWidth + 2 * padding;
-  const boxHeight = contentBlockHeight + 2 * padding;
+  const { scale, height: pillHeight } = floatingBarMetrics(layout.fontPx);
+  const boxWidth =
+    layout.columnCount * layout.columnWidth + (layout.columnCount - 1) * columnGap + 2 * padding;
+  const boxHeight = layout.contentHeight + 2 * padding;
   const boxX = context.canvas.width - inset - boxWidth;
   const boxY = context.canvas.height - inset - boxHeight;
   // Corners match the single-row floating bars beside it.
   drawFloatingBar(context, theme, scale, [boxX, boxY, boxWidth, boxHeight], pillHeight / 2);
 
-  const left = boxX + padding;
-  let rowTop = boxY + padding;
-  groups.forEach((group, groupIndex) => {
-    if (groupIndex > 0) {
+  setLabelFont(context, theme, layout.fontPx);
+  for (const row of layout.rows) {
+    const left = boxX + padding + row.column * (layout.columnWidth + columnGap);
+    const top = boxY + padding + row.top;
+    if (row.kind === "divider") {
       context.fillStyle = theme.mutedForeground;
-      context.fillRect(left, rowTop, contentWidth, dividerThickness);
-      rowTop += dividerThickness + rowGap;
+      context.fillRect(left, top, layout.columnWidth, dividerThickness);
+      continue;
     }
-    for (const { name, color } of group) {
-      const centerY = rowTop + contentHeight / 2;
-      context.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-      context.fillRect(left, centerY - chipSize / 2, chipSize, chipSize);
-      context.fillStyle = theme.foreground;
-      context.fillText(name, left + chipSize + chipGap, centerY);
-      rowTop += contentHeight + rowGap;
+    const centerY = top + rowHeight / 2;
+    if (row.kind === "more") {
+      context.fillStyle = theme.mutedForeground;
+      context.fillText(row.text, left, centerY);
+      continue;
     }
-  });
+    const [red, green, blue] = row.item.color;
+    context.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+    context.fillRect(left, centerY - chipSize / 2, chipSize, chipSize);
+    context.fillStyle = theme.foreground;
+    context.fillText(row.text, left + chipSize + chipGap, centerY);
+  }
+  return layout.omitted;
 };
 
 /** Resolves the font (Montserrat web font may not be loaded in a fresh document). */

@@ -190,6 +190,9 @@ export type ViewerStore = ViewerStoreState &
   OverlaysSlice &
   ChannelsSlice;
 
+/** Read access to the viewer store, for code that runs outside React. */
+export type ViewerStoreSource = { getState: () => ViewerStore };
+
 /**
  * Slice creator typed for the viewer store's
  * `subscribeWithSelector → persist → immer → devtools → temporal` middleware

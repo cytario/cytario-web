@@ -47,14 +47,16 @@ const layerInstances: { isLoaded: boolean }[] = [];
 // The observer the deck hands to the layer composition is how readiness now
 // reaches the component: these tests drive it the way deck does.
 let observer: TileReadinessObserver | undefined;
+let renderedPanelId: number | undefined;
 
 vi.mock("../../canvas/useViewerLayers", () => ({
   useViewerLayers: (
-    _panelId: number,
+    panelId: number,
     _interactive?: boolean,
     _exclude?: string | null,
     tileObserver?: TileReadinessObserver,
   ) => {
+    renderedPanelId = panelId;
     if (tileObserver) observer = tileObserver;
     return {
       layers: layerInstances,
@@ -70,17 +72,6 @@ vi.mock("../scalePixelSizes", () => ({
 
 vi.mock("../../canvas/useView", () => ({
   useView: () => ({ id: "detail" }),
-}));
-
-const storeState = () => ({
-  imagePanelIndex: 0,
-  activeImagePanelId: 0,
-  imagePanels: [0],
-  layersStates: [{ isChannelsLoading: 0, isOverlaysLoading: 0 }],
-});
-
-vi.mock("../../../state/store/core/ViewerStoreContext", () => ({
-  useViewerStore: (selector: (state: unknown) => unknown) => selector(storeState()),
 }));
 
 const fakeDeck = () => ({
@@ -110,11 +101,12 @@ type DeckProps = { layers: unknown[] };
 
 const lastDeckProps = (): DeckProps => deckRender.mock.calls.at(-1)?.[0] as DeckProps;
 
-const renderDeck = () => {
+const renderDeck = (imagePanelId = 0) => {
   const onSettled = vi.fn();
   const onFailed = vi.fn();
   const view = render(
     <CaptureDeck
+      imagePanelId={imagePanelId}
       viewState={viewState}
       width={320}
       height={240}
@@ -146,6 +138,11 @@ beforeEach(() => {
 });
 
 describe("CaptureDeck readiness", () => {
+  test("renders the layers of the panel it is given, not the live active panel", () => {
+    renderDeck(1);
+    expect(renderedPanelId).toBe(1);
+  });
+
   test("does not mount the layers in the deck's first commit", async () => {
     renderDeck();
     // A layer created in the same commit as the deck can select tiles against
@@ -156,24 +153,19 @@ describe("CaptureDeck readiness", () => {
     expect(lastDeckProps().layers).toEqual(layerInstances);
   });
 
-  test("does not read the canvas on the load callback — deck has not drawn yet", async () => {
+  test("does not read the canvas before a frame is drawn", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    // onViewportLoad fires from the layer update, which deck runs *before* the
-    // draw pass: the canvas still holds the previous frame at this point.
-    act(() => observer?.onViewportLoad?.(6));
-
     expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("delivers the canvas on the render that follows the load", async () => {
+  test("delivers the canvas on the first frame drawn with every tile built", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    act(() => observer?.onViewportLoad?.(6));
     drawFrame();
 
     expect(onSettled).toHaveBeenCalledTimes(1);
@@ -181,13 +173,10 @@ describe("CaptureDeck readiness", () => {
     expect(onFailed).not.toHaveBeenCalled();
   });
 
-  test("delivers without the load callback when a warm cache never transitions", async () => {
+  test("delivers from a warm cache whose tileset is loaded on the first frame", async () => {
     const { onSettled, onFailed } = renderDeck();
     await mountLayers();
 
-    // The reported bug: a second export reuses cached tiles, the tileset is
-    // loaded on the first frame, so deck never fires onViewportLoad. Waiting
-    // for it hung the capture until the render timeout.
     tiledLayers = tilesetWith(9);
     drawFrame();
 
@@ -258,14 +247,13 @@ describe("CaptureDeck readiness", () => {
     expect(onSettled).not.toHaveBeenCalled();
   });
 
-  test("settles once even if further viewport loads arrive", async () => {
+  test("settles once even if further frames are drawn", async () => {
     const { onSettled } = renderDeck();
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    act(() => observer?.onViewportLoad?.(6));
     drawFrame();
-    act(() => observer?.onViewportLoad?.(9));
+    tiledLayers = tilesetWith(9);
     drawFrame();
 
     expect(onSettled).toHaveBeenCalledTimes(1);
@@ -276,7 +264,6 @@ describe("CaptureDeck readiness", () => {
     await mountLayers();
     tiledLayers = tilesetWith(6);
 
-    act(() => observer?.onViewportLoad?.(6));
     drawFrame();
     act(() => observer?.onTileError?.(new Error("late")));
 

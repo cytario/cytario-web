@@ -1,5 +1,5 @@
 import { ToastProvider } from "@cytario/design";
-import { act, render, screen, waitFor, within as withinElement } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -9,9 +9,8 @@ import { createViewerStore } from "../../../state/store/createViewerStore";
 import type { ViewerStore } from "../../../state/store/types";
 import { CaptureExportSection } from "../CaptureExportSection";
 import { commitExportAnnotation as commitExportAnnotationActual } from "../commitExportAnnotation";
-import { downloadExport } from "../composeCapture";
-import { createSidebarStore } from "~/components/Sidebar/createSidebarStore";
-import { SidebarContext } from "~/components/Sidebar/SidebarContext";
+import { copyExportToClipboard, downloadExport } from "../composeCapture";
+import { RENDER_TIMEOUT_MS } from "../planExport";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -38,12 +37,31 @@ const captureDeckProps: {
   viewState: { zoom: number };
   onSettled: (canvas: HTMLCanvasElement) => void;
   excludeAnnotationId?: string | null;
+  imagePanelId: number;
 }[] = [];
 const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
 // While set, the deck mock parks each onSettled instead of firing it on
 // mount, so a test can change the store between plan and settle.
 let deferDeckSettle = false;
 const commitExportAnnotationMock = vi.fn();
+const missingChunks: string[] = [];
+const fallbackRenderLimitsSpy = vi.fn();
+
+vi.mock("../clamp", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../clamp")>();
+  return {
+    ...actual,
+    fallbackRenderLimits: () => {
+      fallbackRenderLimitsSpy();
+      return actual.fallbackRenderLimits();
+    },
+  };
+});
+
+vi.mock("../../../state/transport/CredentialedHTTPStore", () => ({
+  getMissingChunks: () => [...missingChunks],
+  resetMissingChunks: vi.fn(),
+}));
 
 vi.mock("../composeCapture", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../composeCapture")>();
@@ -64,6 +82,7 @@ vi.mock("../CaptureDeck", () => ({
     height: number;
     pixelScale?: number;
     viewState: { zoom: number; target: [number, number] };
+    imagePanelId: number;
   }) => {
     captureDeckProps.push(props);
     const { onSettled } = props;
@@ -203,28 +222,11 @@ const buildStore = () => {
   });
 };
 
-const renderSection = (canAnnotate = true, { open = true }: { open?: boolean } = {}) => {
+const renderSection = (canAnnotate = true) => {
   seedViewerConnection("test-conn", canAnnotate ? "annotate" : "read-only");
-  // The section reads its sidebar handle to know whether it is on screen — the
-  // real sidebar drives the viewport from that, so the tests must too.
-  const store = createSidebarStore({ name: `test-${Math.random()}` });
-  // An unseeded section is open by default, so seed the closed case instead.
-  if (!open) store.getState().toggleSection("capture");
-  const context = {
-    store,
-    floatable: true,
-    bounds: { top: 0, left: 0, right: 800, bottom: 600, width: 800, height: 600 },
-    canFloat: true,
-    dropTargetId: null,
-    setDropTargetId: () => {},
-    announce: () => {},
-    canvasGestureActive: false,
-  };
   return render(
     <ToastProvider>
-      <SidebarContext.Provider value={context}>
-        <CaptureExportSection />
-      </SidebarContext.Provider>
+      <CaptureExportSection />
     </ToastProvider>,
   );
 };
@@ -239,6 +241,7 @@ const exportResult = () =>
     clamped: false,
     upscaled: false,
     uniform: false,
+    legendOmitted: 0,
   }) as never;
 
 const within = () => screen.getByRole("region", { name: "Capture and export" });
@@ -258,6 +261,7 @@ describe("Capture and export section", () => {
     buildStore();
     deferDeckSettle = false;
     pendingDeckSettles.length = 0;
+    missingChunks.length = 0;
   });
 
   test("renders with spec defaults: Current view, Presentation, decoration states", () => {
@@ -390,36 +394,9 @@ describe("Capture and export section", () => {
     expect(screen.queryByText(/Scale bar:/)).toBeNull();
   });
 
-  test("shows a preview and saves only once the user confirms", async () => {
-    const user = userEvent.setup();
-    renderSection();
-
-    await user.click(screen.getByRole("button", { name: /download/i }));
-
-    // Nothing is delivered yet: the user has not looked at the result.
-    const preview = await screen.findByTestId("export-preview");
-    expect(downloadExport).not.toHaveBeenCalled();
-    expect(withinElement(preview).getByRole("img")).toHaveAttribute("alt", "Preview of the export");
-
-    await user.click(withinElement(preview).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
-  });
-
-  test("discarding the preview delivers nothing", async () => {
-    const user = userEvent.setup();
-    renderSection();
-
-    await user.click(screen.getByRole("button", { name: /download/i }));
-    const preview = await screen.findByTestId("export-preview");
-
-    await user.click(withinElement(preview).getByRole("button", { name: "Discard" }));
-    expect(screen.queryByTestId("export-preview")).toBeNull();
-    expect(downloadExport).not.toHaveBeenCalled();
-  });
-
-  test("a flat render is a warning on the preview, not a refusal", async () => {
-    // An empty corner of a slide renders flat and is a legitimate export — the
-    // software cannot tell it apart from a failure, so only the user judges it.
+  test("delivers immediately, with the flat-frame note on the success toast", async () => {
+    // Content is the user's call: a flat render still downloads, and the note
+    // tells them to check it. Nothing is withheld pending a review step.
     composeCaptureMock.mockResolvedValue(
       Object.assign({}, exportResult(), { uniform: true }) as never,
     );
@@ -427,13 +404,12 @@ describe("Capture and export section", () => {
     renderSection();
 
     await user.click(screen.getByRole("button", { name: /download/i }));
-    const preview = await screen.findByTestId("export-preview");
 
-    expect(preview).toHaveTextContent(/single flat colour/i);
-    expect(screen.queryByTestId("export-error")).toBeNull();
-
-    await user.click(withinElement(preview).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("export-preview")).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText(/single flat colour/i)).toBeInTheDocument();
+    });
   });
 
   test("Download runs the capture with the chosen options", async () => {
@@ -488,6 +464,33 @@ describe("Capture and export section", () => {
     expect(call.legend.channels).toEqual([{ name: "DAPI", color: [0, 255, 0] }]);
   });
 
+  test("the legend and the deck describe the active panel's view, wherever it sits in the list", async () => {
+    const user = userEvent.setup();
+    // The active panel shows the second view, whose only visible channel is FITC.
+    currentStore.setState((state) => {
+      state.layersStates.push({
+        ...state.layersStates[0],
+        id: "view-2",
+        channels: {
+          DAPI: { isVisible: false, contrastLimits: [0, 255], color: [0, 255, 0] },
+          FITC: { isVisible: true, contrastLimits: [0, 255], color: [255, 0, 255] },
+        },
+      });
+      state.imagePanels = [1];
+      state.imagePanelIndex = 0;
+    });
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(composeCaptureMock).toHaveBeenCalledTimes(1));
+    expect(captureDeckProps.at(-1)?.imagePanelId).toBe(0);
+    expect(composeCaptureMock.mock.calls[0][1].legend).toEqual({
+      channels: [{ name: "FITC", color: [255, 0, 255] }],
+      overlays: [],
+    });
+  });
+
   test("the completion toast says so when the legend is on but nothing is visible", async () => {
     const user = userEvent.setup();
     renderSection();
@@ -505,6 +508,87 @@ describe("Capture and export section", () => {
     await waitFor(() => {
       expect(screen.getByText(/legend: no visible channels/)).toBeInTheDocument();
     });
+  });
+
+  test("missing data chunks are reported on the delivered capture, not failed on", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    // A sparse array legitimately omits chunks; they render as fill.
+    missingChunks.push("0/0/0/3/4", "0/0/0/3/5");
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("export-error")).toBeNull();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/2 image data chunk\(s\) were not found while capturing/),
+      ).toBeInTheDocument();
+    });
+  });
+
+  test("legend entries that did not fit are reported on the toast", async () => {
+    const user = userEvent.setup();
+    composeCaptureMock.mockResolvedValue({ ...(exportResult() as object), legendOmitted: 7 });
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/legend: 7 entries did not fit the image/)).toBeInTheDocument();
+    });
+  });
+
+  test("the canvas limits are probed when a capture runs, never by showing the section", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    act(() =>
+      currentStore
+        .getState()
+        .setViewStateActive({ ...currentStore.getState().viewStateActive!, zoom: 1 }),
+    );
+    expect(fallbackRenderLimitsSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+    expect(fallbackRenderLimitsSpy).toHaveBeenCalled();
+  });
+
+  test("a capture whose render never settles fails on the timeout", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      deferDeckSettle = true;
+      renderSection();
+
+      await user.click(screen.getByRole("button", { name: /download/i }));
+      expect(screen.queryByTestId("export-error")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(RENDER_TIMEOUT_MS);
+      });
+
+      expect(screen.getByTestId("export-error")).toHaveTextContent(/timed out/i);
+      expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+      expect(composeCaptureMock).not.toHaveBeenCalled();
+      expect(downloadExport).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("a clipboard that refuses the image falls back to a download, and says so", async () => {
+    vi.mocked(copyExportToClipboard).mockRejectedValueOnce(new Error("denied"));
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+
+    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(downloadExport).mock.calls[0][1]).toBe("slide_2025-01-07-130509.png");
+    expect(
+      await screen.findByText("Clipboard unavailable — downloaded instead."),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/Captured slide_2025-01-07-130509\.png/)).toBeInTheDocument();
   });
 
   test("Copy runs the capture once", async () => {
@@ -560,6 +644,18 @@ describe("Capture and export section", () => {
     expect(
       screen.getByRole("button", { name: /download/i }).querySelector(".animate-spin"),
     ).toBeNull();
+  });
+
+  test("Retry repeats a failed Copy as a copy, not a download", async () => {
+    composeCaptureMock.mockRejectedValueOnce(new Error("boom"));
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+    await user.click(await screen.findByRole("button", { name: /retry/i }));
+
+    await waitFor(() => expect(copyExportToClipboard).toHaveBeenCalledTimes(1));
+    expect(downloadExport).not.toHaveBeenCalled();
   });
 
   test("a current-view capture with the checkbox commits the exported extent", async () => {
@@ -709,25 +805,31 @@ describe("Capture and export section", () => {
     });
   });
 
-  test("drawing a region does not move the view while this section is closed", async () => {
-    // Every section renders whether or not it is open, and drawing a rectangle
-    // selects it. Following that selection off-screen reset the viewport under
-    // the user mid-drawing.
-    renderSection(true, { open: false });
-    const before = currentStore.getState().viewStateActive?.target;
+  test("a canvas selection of a rectangle region does not move the view", async () => {
+    // Drawing or stamping a rectangle selects it — the capture source follows,
+    // the viewport must not.
+    renderSection();
+    const before = currentStore.getState().viewStateActive;
 
-    // rect-1 is "Region A": a rectangle, so selecting it is what a finished
-    // draw produces.
     act(() => {
       currentStore.getState().setAnnotationSelectedIds(["rect-1"]);
     });
 
-    await waitFor(() => expect(currentStore.getState().annotationSelectedIds).toEqual(["rect-1"]));
-    // Give the viewport effect its chance to run; it must not.
+    await expect(screen.getByRole("radio", { name: /annotation region/i })).toBeChecked();
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
-    expect(currentStore.getState().viewStateActive?.target).toEqual(before);
+    expect(currentStore.getState().viewStateActive).toEqual(before);
+  });
+
+  test("switching to the region source does not move the view until a region is picked", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    const before = currentStore.getState().viewStateActive;
+
+    await user.click(screen.getByRole("radio", { name: /annotation region/i }));
+
+    expect(currentStore.getState().viewStateActive).toEqual(before);
   });
 });
 

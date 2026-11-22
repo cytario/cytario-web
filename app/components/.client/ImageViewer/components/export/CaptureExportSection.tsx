@@ -12,16 +12,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CaptureDeck } from "./CaptureDeck";
 import { captureBounds, frameCapture } from "./captureFrame";
-import { fallbackRenderLimits } from "./clamp";
+import { DEFAULT_RENDER_LIMITS } from "./clamp";
 import { commitExportAnnotation } from "./commitExportAnnotation";
 import {
   composeCapture,
   RESOLUTION_PRESETS,
+  RESOLUTION_PRESETS_BY_ID,
   type ExportDecorations,
+  type ExportDestination,
   type ResolutionPreset,
 } from "./composeCapture";
 import { copyExportToClipboard, downloadExport } from "./composeCapture";
-import { planExport, legendForState, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
+import { planExport, legendForPanel, RENDER_TIMEOUT_MS, type CapturePlan } from "./planExport";
 import { rectangleRegions } from "./regionSelection";
 import { useViewerStore, useViewerStoreApi } from "../../state/store/core/ViewerStoreContext";
 import { select } from "../../state/store/selectors";
@@ -31,24 +33,12 @@ import { geometriesBounds } from "../annotations/flyToFeature";
 import { calculateViewStateToFitBounds } from "../canvas/Measurements/calculateViewStateToFitBounds";
 import { physicalPixelSize } from "../canvas/Measurements/utils";
 import { Section } from "~/components/Section/Section";
-import { useSectionHandle } from "~/components/Sidebar/SidebarContext";
 import { parseResourceId } from "~/utils/resourceId";
 
 type SourceChoice = "current-view" | "annotation-region";
 type RunState =
   | { phase: "idle" }
-  | { phase: "rendering"; destination: "download" | "clipboard" }
-  | {
-      /** Rendered, waiting for the user to look before it is delivered. The only
-       *  honest check on image content: a person knows whether this region should
-       *  hold tissue, and whether the legend belongs in it. */
-      phase: "preview";
-      destination: "download" | "clipboard";
-      previewUrl: string;
-      filename: string;
-      notes: string[];
-      blob: Blob;
-    }
+  | { phase: "rendering"; destination: ExportDestination }
   | { phase: "error"; message: string };
 
 /** An in-flight capture: the resolved plan plus everything the compose and
@@ -56,7 +46,7 @@ type RunState =
  * — inside the app tree, where the viewer store context exists. */
 interface ActiveRun {
   plan: CapturePlan;
-  destination: "download" | "clipboard";
+  destination: ExportDestination;
   preset: ResolutionPreset;
   decorations: ExportDecorations;
   imageBasename: string;
@@ -88,25 +78,23 @@ const regionViewState = (
 /**
  * Capture and export section: configures and runs a capture of the active
  * panel's current view — source selection, region picker, resolution presets,
- * decorations, provenance annotation, summary, and the run actions. While the
- * section is active the main canvas previews the source: selecting a
- * region pans and zooms the active panel to it.
+ * decorations, provenance annotation, summary, and the run actions. Picking a
+ * region in the picker pans and zooms the active panel to it.
  */
 export const CaptureExportSection = () => {
   const { toast } = useToast();
   const storeApi = useViewerStoreApi();
   const resourceId = useViewerStore((s) => s.id);
-  const viewStateActive = useViewerStore(select.viewStateActive);
   const metadata = useViewerStore(select.metadata);
   const setViewStateActive = useViewerStore(select.setViewStateActive);
   const canAnnotate = useCanAnnotate();
 
-  const [source, setSource] = useState<SourceChoice>("current-view");
   const [presetId, setPresetId] = useState<ResolutionPreset["id"]>("presentation");
   const [decorations, setDecorations] = useState<ExportDecorations>(DEFAULT_DECORATIONS);
   const [createExportAnnotation, setCreateExportAnnotation] = useState(false);
   const [runState, setRunState] = useState<RunState>({ phase: "idle" });
   const [activeRun, setActiveRun] = useState<ActiveRun | null>(null);
+  const lastDestinationRef = useRef<ActiveRun["destination"]>("download");
 
   const imageBasename = useMemo(() => {
     try {
@@ -126,14 +114,6 @@ export const CaptureExportSection = () => {
   // picker. Anything else selected (nothing, several, points) leaves the
   // source as-is.
   const annotationSelectedIds = useViewerStore((s) => s.annotationSelectedIds);
-  // Selecting a region pans and zooms the active panel to show it — the main
-  // canvas is the preview. That is only wanted while this section is actually
-  // on screen: drawing a rectangle selects it, so an always-on effect would
-  // reset the viewport under the user mid-drawing. `isOpen` is the docked
-  // accordion state; a floated panel is always expanded.
-  const section = useSectionHandle("capture");
-  const sectionVisible = Boolean(section?.isFloating) || (section?.isOpen ?? false);
-
   const setAnnotationSelectedIds = useViewerStore((s) => s.setAnnotationSelectedIds);
   const selectedRegion = useMemo(
     () =>
@@ -145,17 +125,18 @@ export const CaptureExportSection = () => {
 
   // Selection changes move the source with them: a selected rectangle region
   // makes the capture a region capture, losing it returns to the current view.
-  // Only while this section is on screen — drawing a rectangle selects it, and
-  // an off-screen section must not follow the user's drawing.
-  const prevSelectedRegionIdRef = useRef<string | null>(null);
+  // The viewport stays put — drawing or stamping a rectangle selects it too.
+  const [source, setSource] = useState<SourceChoice>(
+    selectedRegion ? "annotation-region" : "current-view",
+  );
+  const prevSelectedRegionIdRef = useRef<string | null>(selectedRegion?.id ?? null);
   useEffect(() => {
-    if (!sectionVisible) return;
     const id = selectedRegion?.id ?? null;
     const prevId = prevSelectedRegionIdRef.current;
     prevSelectedRegionIdRef.current = id;
     if (prevId === id) return;
     setSource(id ? "annotation-region" : "current-view");
-  }, [sectionVisible, selectedRegion]);
+  }, [selectedRegion]);
 
   const regionBounds = useMemo(
     () =>
@@ -165,38 +146,34 @@ export const CaptureExportSection = () => {
     [source, selectedRegion],
   );
 
-  const preset = RESOLUTION_PRESETS.find((item) => item.id === presetId) ?? RESOLUTION_PRESETS[1];
+  const preset = RESOLUTION_PRESETS_BY_ID[presetId];
 
-  const regionBoundsKey = regionBounds?.join(",") ?? null;
-  const setViewStateActiveRef = useRef(setViewStateActive);
-  useEffect(() => {
-    setViewStateActiveRef.current = setViewStateActive;
-  }, [setViewStateActive]);
-  useEffect(() => {
-    if (!sectionVisible) return;
-    if (source !== "annotation-region" || !regionBoundsKey || !viewStateActive) return;
-    const bounds = regionBoundsKey.split(",").map(Number) as [number, number, number, number];
-    setViewStateActiveRef.current(
-      regionViewState(bounds, viewStateActive.width, viewStateActive.height, viewStateActive),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sectionVisible, source, regionBoundsKey]);
-
-  // The same derivation the run's plan uses, so the summary names exactly
-  // what the capture will export.
-  const frame = useMemo(
-    () =>
-      viewStateActive?.width && viewStateActive.height
-        ? frameCapture(
-            captureBounds(viewStateActive, regionBounds),
-            preset.targetWidthPx,
-            fallbackRenderLimits(),
-          )
-        : null,
-    [viewStateActive, regionBounds, preset],
+  // Only an explicit pick moves the viewport; a canvas selection never does.
+  const showRegion = useCallback(
+    (regionId: string) => {
+      const geometry = availableRegions.find((region) => region.id === regionId)?.feature.geometry;
+      const bounds = geometry ? geometriesBounds([geometry]) : null;
+      const viewState = storeApi.getState().viewStateActive;
+      if (!bounds || !viewState) return;
+      setViewStateActive(regionViewState(bounds, viewState.width, viewState.height, viewState));
+    },
+    [availableRegions, storeApi, setViewStateActive],
   );
 
-  const summaryLine = frame ? `Output: ${frame.width} × ${frame.height} px · PNG` : null;
+  // The run's own derivation, on the common browser limits rather than the
+  // probed ones — a device-specific clamp is reported when it happens. The
+  // selector yields the line itself, so panning re-renders nothing unless the
+  // output size changes.
+  const summaryLine = useViewerStore((state) => {
+    const viewState = state.viewStateActive;
+    if (!viewState?.width || !viewState.height) return null;
+    const { width, height } = frameCapture(
+      captureBounds(viewState, regionBounds),
+      preset.targetWidthPx,
+      DEFAULT_RENDER_LIMITS,
+    );
+    return `Output: ${width} × ${height} px · PNG`;
+  });
 
   const hasPhysicalScale = metadata ? physicalPixelSize(metadata.Pixels) !== null : false;
   const decorationRows: {
@@ -241,9 +218,9 @@ export const CaptureExportSection = () => {
   const deliver = useCallback(
     (run: ActiveRun) =>
       async (canvas: HTMLCanvasElement): Promise<void> => {
-        // The legend must reflect the store the pixels rendered from —
-        // resolve it at settle time, not from the plan-time snapshot.
-        const legend = legendForState(storeApi);
+        // Settle time, not plan time: the legend must match the store the
+        // pixels rendered from, for the panel the deck rendered.
+        const legend = legendForPanel(storeApi.getState(), run.plan.imagePanelId);
         let result;
         try {
           result = await composeCapture(canvas, {
@@ -256,16 +233,6 @@ export const CaptureExportSection = () => {
           });
         } catch (error) {
           fail(error instanceof Error ? error.message : "The capture could not be rendered.");
-          return;
-        }
-
-        // A chunk the pyramid index promised but the store does not hold is a
-        // machinery failure: the tiles it should have covered were never read.
-        const missing = getMissingChunks();
-        if (missing.length > 0) {
-          fail(
-            `The image's pyramid is incomplete — ${missing.length} data chunk(s) of the selected area are missing, so it cannot be exported faithfully.`,
-          );
           return;
         }
 
@@ -287,13 +254,23 @@ export const CaptureExportSection = () => {
           }
         }
 
-        // Image content is the user's call, not ours. These are shown beside the
-        // preview so a person can judge them — a flat frame is also exactly what
-        // an empty corner of a slide looks like.
+        // Image content is the user's call, not ours: a flat frame is exactly
+        // what an empty corner of a slide looks like, so it is reported, never
+        // treated as a failure. Only the machinery decides that.
         const notes: string[] = [];
         if (result.uniform) {
           notes.push(
             "the image area is a single flat colour — check that this region holds tissue",
+          );
+        }
+        // A missing chunk is legitimate in a sparse array and renders as fill —
+        // so it is reported, not failed on. The count spans the run, not the
+        // export: the live panel loads through the same store, and a 404 does
+        // not say which deck asked for it.
+        const missingChunkCount = getMissingChunks().length;
+        if (missingChunkCount > 0) {
+          notes.push(
+            `${missingChunkCount} image data chunk(s) were not found while capturing — any tiles they cover render empty`,
           );
         }
         if (result.clamped) {
@@ -311,41 +288,30 @@ export const CaptureExportSection = () => {
         ) {
           notes.push("legend: no visible channels");
         }
+        if (result.legendOmitted > 0) {
+          notes.push(`legend: ${result.legendOmitted} entries did not fit the image`);
+        }
 
-        setRunState({
-          phase: "preview",
-          destination: run.destination,
-          previewUrl: URL.createObjectURL(result.blob),
-          filename: result.filename,
-          notes,
-          blob: result.blob,
+        if (run.destination === "clipboard") {
+          try {
+            await copyExportToClipboard(result.blob);
+          } catch {
+            downloadExport(result.blob, result.filename);
+            toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
+          }
+        } else {
+          downloadExport(result.blob, result.filename);
+        }
+
+        toast({
+          variant: "success",
+          message: [`Captured ${result.filename}`, ...notes].join(" — "),
         });
+        setActiveRun(null);
+        setRunState({ phase: "idle" });
       },
     [fail, toast, storeApi, createExportAnnotation, canAnnotate],
   );
-
-  /** Hands the reviewed export over and returns the section to rest. */
-  const confirmDelivery = useCallback(async () => {
-    if (runState.phase !== "preview") return;
-    const { blob, filename, destination, previewUrl } = runState;
-    try {
-      if (destination === "clipboard") {
-        try {
-          await copyExportToClipboard(blob);
-        } catch {
-          downloadExport(blob, filename);
-          toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
-        }
-      } else {
-        downloadExport(blob, filename);
-      }
-      toast({ variant: "success", message: `Captured ${filename}` });
-    } finally {
-      URL.revokeObjectURL(previewUrl);
-      setActiveRun(null);
-      setRunState({ phase: "idle" });
-    }
-  }, [runState, toast]);
 
   // Stable per run: the deck's observer is memoised on this callback, and a new
   // identity per render would rebuild the layer's props mid-capture.
@@ -358,10 +324,9 @@ export const CaptureExportSection = () => {
   );
 
   const runCapture = useCallback(
-    (destination: "download" | "clipboard") => {
+    (destination: ExportDestination) => {
+      lastDestinationRef.current = destination;
       try {
-        // Count missing chunks from this run only — the live panel's fetches
-        // must not condemn a capture.
         resetMissingChunks();
         const plan = planExport({
           store: storeApi,
@@ -400,12 +365,12 @@ export const CaptureExportSection = () => {
           // Remount per framed view state: the deck derives all of its settle
           // state (viewport, tile readiness) from the frame it mounts for.
           key={`${activeRun.plan.viewState.target.join(",")}@${activeRun.plan.viewState.zoom}`}
+          imagePanelId={activeRun.plan.imagePanelId}
           viewState={activeRun.plan.viewState}
           width={activeRun.plan.frame.width}
           height={activeRun.plan.frame.height}
           pixelScale={activeRun.plan.pixelScale}
           excludeAnnotationId={activeRun.regionFeatureId}
-          hidden
           onSettled={handleSettled}
           onFailed={fail}
         />
@@ -448,7 +413,9 @@ export const CaptureExportSection = () => {
               items={availableRegions.map((region) => ({ id: region.id, name: region.name }))}
               selectedKey={selectedRegion?.id ?? null}
               onSelectionChange={(key) => {
-                if (typeof key === "string") setAnnotationSelectedIds([key]);
+                if (typeof key !== "string") return;
+                setAnnotationSelectedIds([key]);
+                showRegion(key);
               }}
             />
           )}
@@ -492,42 +459,6 @@ export const CaptureExportSection = () => {
 
         {summaryLine && <p className="text-xs text-muted-foreground">{summaryLine}</p>}
 
-        {runState.phase === "preview" && (
-          <div
-            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-            data-testid="export-preview"
-          >
-            {/* Scaled to the panel, never full size: the file itself is
-                thousands of pixels wide and would never fit on screen. */}
-            <img
-              src={runState.previewUrl}
-              alt="Preview of the export"
-              className="max-h-56 w-full rounded-md border border-border object-contain"
-            />
-            <span className="text-xs text-muted-foreground">
-              {runState.notes.length > 0
-                ? runState.notes.join(" — ")
-                : "Check the preview before saving."}
-            </span>
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={() => {
-                  URL.revokeObjectURL(runState.previewUrl);
-                  setActiveRun(null);
-                  setRunState({ phase: "idle" });
-                }}
-              >
-                Discard
-              </Button>
-              <Button variant="primary" size="sm" onPress={() => void confirmDelivery()}>
-                Save
-              </Button>
-            </div>
-          </div>
-        )}
-
         {runState.phase === "error" && (
           <div
             className="flex flex-col gap-2 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive"
@@ -540,7 +471,7 @@ export const CaptureExportSection = () => {
               className="self-start"
               onPress={() => {
                 setRunState({ phase: "idle" });
-                void runCapture("download");
+                runCapture(lastDestinationRef.current);
               }}
             >
               Retry

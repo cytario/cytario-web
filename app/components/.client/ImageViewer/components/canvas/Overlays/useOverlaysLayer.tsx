@@ -9,7 +9,7 @@ import { useCallback, useMemo } from "react";
 import { createMarkerProps } from "./markerUniforms";
 import { OVERLAYS_ID_PREFIX, OverlaysLayer } from "./OverlaysLayer";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
-import { select } from "../../../state/store/selectors";
+import { layersStateForPanel, select } from "../../../state/store/selectors";
 import {
   type CytarioLayerResult,
   type LayerTooltipItem,
@@ -21,22 +21,20 @@ import { DEFAULT_OVERLAYS_FILL_OPACITY } from "~/utils/overlayDefaults";
 /** Creates the overlay marker layers for one image panel. */
 export const useOverlaysLayers = (imagePanelId: number): CytarioLayerResult => {
   const { toast } = useToast();
-  const layersStates = useViewerStore(select.layersStates);
   const metadata = useViewerStore(select.metadata);
   const minZoom = useViewerStore(select.minZoom);
   const maxZoom = useViewerStore(select.maxZoom);
-  const panelLayersStateIndex = useViewerStore((state) => state.imagePanels)[imagePanelId];
+  const layersState = useViewerStore(layersStateForPanel(imagePanelId));
   const setIsOverlaysLoading = useViewerStore(select.setIsOverlaysLoading);
   const { loadTile, finishTile } = useTilesLoading(imagePanelId, setIsOverlaysLoading);
 
   const imageWidth = metadata?.Pixels?.SizeX ?? 0;
   const imageHeight = metadata?.Pixels?.SizeY ?? 0;
 
-  const fillOpacity =
-    layersStates[panelLayersStateIndex]?.overlaysFillOpacity ?? DEFAULT_OVERLAYS_FILL_OPACITY;
-  const showCellOutline = layersStates[panelLayersStateIndex]?.showCellOutline ?? true;
+  const fillOpacity = layersState?.overlaysFillOpacity ?? DEFAULT_OVERLAYS_FILL_OPACITY;
+  const showCellOutline = layersState?.showCellOutline ?? true;
 
-  const overlayState = layersStates[panelLayersStateIndex]?.overlays ?? null;
+  const overlayState = layersState?.overlays ?? null;
 
   const overlaysLayers = useMemo(() => {
     if (!overlayState) return [];

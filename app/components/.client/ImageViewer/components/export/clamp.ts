@@ -12,16 +12,21 @@ export const BROWSER_MAX_CANVAS_SIDE = 16384;
 /** Total-pixel ceiling: 2^28 ≈ 268M px guards GPU memory + readback cost. */
 export const BROWSER_AREA_LIMIT = 16384 * 16384;
 
-export interface PixelDensityInput {
+/** The common browser limits, assumed without probing. */
+export const DEFAULT_RENDER_LIMITS: ExportRenderLimits = {
+  maxCanvasSide: BROWSER_MAX_CANVAS_SIDE,
+  areaLimit: BROWSER_AREA_LIMIT,
+};
+
+export interface CanvasLimitsInput {
   /** Target width in device pixels — the preset's intended display width. */
   targetWidthPx: number;
   /** Target height in device pixels, following the framing's own aspect. */
   targetHeightPx: number;
-  /** Limits measured at capture time; probed from the environment when omitted. */
   limits: ExportRenderLimits;
 }
 
-export interface PixelDensityResult {
+export interface CanvasLimitsResult {
   width: number;
   height: number;
   /** The requested size exceeded the measured limits and was shrunk. */
@@ -35,17 +40,15 @@ const floorEven = (value: number): number => {
 };
 
 /**
- * Maps a resolution preset (DPI) against the framed extent's physical size to
- * the export's pixel dimensions, clamped to what the user's browser can
- * actually render: the probed canvas side cap and a total-area ceiling. The
- * result keeps the framed extent's aspect ratio while shrinking as little as
- * possible.
+ * Clamps the target output size to what the browser can render: the canvas
+ * side cap and a total-area ceiling. The result keeps the target's aspect
+ * ratio while shrinking as little as possible.
  */
-export const pixelsForDensity = ({
+export const clampToCanvasLimits = ({
   targetWidthPx,
   targetHeightPx,
   limits,
-}: PixelDensityInput): PixelDensityResult => {
+}: CanvasLimitsInput): CanvasLimitsResult => {
   const requestedWidth = targetWidthPx;
   const requestedHeight = targetHeightPx;
 
@@ -109,18 +112,19 @@ export const probeMaxCanvasSide = (): number => {
     const canvas = document.createElement("canvas");
     canvas.width = side;
     canvas.height = side;
-    if (canvas.width === side && canvas.height === side) {
-      const context = canvas.getContext("2d");
-      if (context) return side;
-    }
+    const usable = canvas.width === side && canvas.height === side && canvas.getContext("2d");
+    // Release the backing store now rather than whenever the canvas is collected.
+    canvas.width = 0;
+    canvas.height = 0;
+    if (usable) return side;
   }
   return 4096;
 };
 
 let probedLimits: ExportRenderLimits | null = null;
 
-/** Builds a best-effort limits object without a live GL context. Probed once:
- *  the probe allocates up to a 16384² canvas. */
+/** Builds a best-effort limits object without a live GL context. Probed once,
+ *  on the first capture: the probe allocates up to a 16384² canvas. */
 export const fallbackRenderLimits = (): ExportRenderLimits =>
   (probedLimits ??= {
     maxCanvasSide: probeMaxCanvasSide(),

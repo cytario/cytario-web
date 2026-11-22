@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { createViewerStore } from "../../../state/store/createViewerStore";
-import { planExport, legendForState } from "../planExport";
+import { planExport, legendForPanel } from "../planExport";
 
 const seedStore = () => {
   const store = createViewerStore("conn-1/images/slide.ome.tif", "user-a");
@@ -91,7 +91,7 @@ describe("planExport", () => {
     // The top-level channels carry image data only (no isVisible) — the
     // legend must resolve visibility through the panel's merged
     // channelsState, or it is always empty.
-    expect(legendForState(store)).toEqual({
+    expect(legendForPanel(store.getState(), 0)).toEqual({
       channels: [{ name: "DAPI", color: [0, 255, 0] }],
       overlays: [],
     });
@@ -181,9 +181,62 @@ describe("planExport", () => {
       } as never;
     });
 
-    expect(legendForState(store)).toEqual({
+    expect(legendForPanel(store.getState(), 0)).toEqual({
       channels: [{ name: "DAPI", color: [0, 255, 0] }],
       overlays: [{ name: "Marker A", color: [255, 0, 0] }],
     });
+  });
+
+  describe("the legend describes the view a panel shows, not the view at the panel's index", () => {
+    const secondView = {
+      id: "view-2",
+      author: "user-a",
+      channels: {
+        DAPI: { isVisible: false, contrastLimits: [0, 255], color: [0, 255, 0] },
+        FITC: { isVisible: true, contrastLimits: [0, 255], color: [255, 0, 255] },
+      },
+      overlays: {
+        "overlay-1": {
+          markers: { markerC: { isVisible: true, color: [0, 128, 255], label: "Marker C" } },
+        },
+      },
+      channelsOpacity: 1,
+      overlaysFillOpacity: 0.8,
+      showCellOutline: true,
+      annotationsOpacity: 0.5,
+      showAnnotationOutline: true,
+      isChannelsLoading: 0,
+      isOverlaysLoading: 0,
+    };
+    const store = seedStore();
+    store.setState((state) => {
+      state.layersStates.push(secondView as never);
+      state.channels.FITC = { ...state.channels.DAPI, selection: { c: 1, x: 0, y: 0, z: 0, t: 0 } };
+    });
+    const secondViewLegend = {
+      channels: [{ name: "FITC", color: [255, 0, 255] }],
+      overlays: [{ name: "Marker C", color: [0, 128, 255] }],
+    };
+
+    test("a single panel showing the second view", () => {
+      store.setState({ imagePanels: [1], imagePanelIndex: 0 });
+      expect(legendForPanel(store.getState(), 0)).toEqual(secondViewLegend);
+    });
+
+    test("a split view whose panels show the views swapped", () => {
+      store.setState({ imagePanels: [1, 0], imagePanelIndex: 1 });
+      expect(legendForPanel(store.getState(), 0)).toEqual(secondViewLegend);
+      expect(legendForPanel(store.getState(), 1)).toEqual({
+        channels: [{ name: "DAPI", color: [0, 255, 0] }],
+        overlays: [],
+      });
+    });
+  });
+
+  test("the plan pins the active panel, so deck and legend resolve the same one", () => {
+    const store = seedStore();
+    store.setState({ imagePanels: [0, 0], imagePanelIndex: 1 });
+    const plan = planExport({ store, preset: QUICK_SHARE, limits: LIMITS });
+    expect(plan.imagePanelId).toBe(1);
   });
 });

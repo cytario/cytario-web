@@ -15,9 +15,6 @@ import {
 } from "./decorations";
 import type { ViewerStore } from "../../state/store/types";
 
-export type ExportSource =
-  { kind: "current-view" } | { kind: "annotation-region"; featureId: string };
-
 export type ExportDestination = "download" | "clipboard";
 
 export interface ExportDecorations {
@@ -41,25 +38,30 @@ export interface ResolutionPreset {
   targetWidthPx: number;
 }
 
-export const RESOLUTION_PRESETS: ResolutionPreset[] = [
-  {
+export const RESOLUTION_PRESETS_BY_ID: {
+  [Id in ResolutionPreset["id"]]: ResolutionPreset & { id: Id };
+} = {
+  "quick-share": {
     id: "quick-share",
     name: "Quick share",
     dpi: 180,
     displayWidthInches: 6.7,
     targetWidthPx: 1200,
   },
-  {
+  presentation: {
     id: "presentation",
     name: "Presentation",
     dpi: 300,
     displayWidthInches: 6.7,
     targetWidthPx: 2000,
   },
-  { id: "print", name: "Print", dpi: 600, displayWidthInches: 5.8, targetWidthPx: 3500 },
-];
+  print: { id: "print", name: "Print", dpi: 600, displayWidthInches: 5.8, targetWidthPx: 3500 },
+};
 
-export interface ExportViewResult {
+/** The presets in ladder order, smallest first. */
+export const RESOLUTION_PRESETS: ResolutionPreset[] = Object.values(RESOLUTION_PRESETS_BY_ID);
+
+export interface CaptureResult {
   blob: Blob;
   filename: string;
   /** When the capture was taken (`YYYY-MM-DD-HHmmss`) — the filename's suffix. */
@@ -70,6 +72,8 @@ export interface ExportViewResult {
   upscaled: boolean;
   /** Every sampled pixel of the image area is the same color. */
   uniform: boolean;
+  /** Legend entries left out because they did not fit the image. */
+  legendOmitted: number;
 }
 
 export class ExportRenderError extends Error {
@@ -140,7 +144,7 @@ const isUniformImage = (
 export const composeCapture = async (
   canvas: HTMLCanvasElement,
   input: ComposeCaptureInput,
-): Promise<ExportViewResult> => {
+): Promise<CaptureResult> => {
   const { frame } = input;
   if (canvas.width !== frame.width || canvas.height !== frame.height) {
     throw new ExportRenderError(
@@ -171,19 +175,19 @@ export const composeCapture = async (
 
   // No physical pixel size, no scale bar: its length would be invented.
   const millimetersPerLevel0 = millimetersPerLevel0Pixel(input.metadata);
+  let scaleBarRight = 0;
   if (input.decorations.scaleBar && millimetersPerLevel0 !== null) {
     const millimetersPerPixel = millimetersPerOutputPixel(frame, millimetersPerLevel0);
-    drawScaleBarDecoration(context, { millimetersPerPixel, fontPx, theme });
+    scaleBarRight = drawScaleBarDecoration(context, { millimetersPerPixel, fontPx, theme });
   }
-  if (input.decorations.legend) {
-    drawLegendDecoration(
-      context,
-      input.legend,
-      legendFontPx(input.preset.dpi),
-      theme,
-      decorationInset(fontPx),
-    );
-  }
+  const legendOmitted = input.decorations.legend
+    ? drawLegendDecoration(context, input.legend, {
+        fontPx: legendFontPx(input.preset.dpi),
+        theme,
+        inset: decorationInset(fontPx),
+        minX: scaleBarRight,
+      })
+    : 0;
 
   const blob = await new Promise<Blob | null>((resolve) =>
     outputCanvas.toBlob((result) => resolve(result), "image/png"),
@@ -200,6 +204,7 @@ export const composeCapture = async (
     clamped: frame.clamped,
     upscaled: frame.upscaled,
     uniform,
+    legendOmitted,
   };
 };
 
@@ -220,6 +225,3 @@ export const copyExportToClipboard = async (blob: Blob): Promise<void> => {
   }
   await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 };
-
-/** Live access to the viewer store. */
-export type ViewerStoreSource = { getState: () => ViewerStore };
