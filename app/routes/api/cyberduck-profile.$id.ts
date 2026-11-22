@@ -10,6 +10,7 @@ import {
 import { requestDurationMiddleware } from "~/.server/requestDurationMiddleware";
 import { cytarioConfig } from "~/config";
 import { getConnection } from "~/routes/connections/connections.server";
+import type { ProviderType } from "~/utils/providerCatalog.schema";
 import { getS3ProviderConfig } from "~/utils/s3Provider";
 
 export const middleware = [requestDurationMiddleware, authMiddleware];
@@ -61,6 +62,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
       endpoint: resolved.endpoint,
       roleArn: grant.roleArn,
       isPublic: resolved.isPublic,
+      providerType: resolved.providerType,
     };
   } catch {
     return new Response("Provider connection or role is unavailable for this connection", {
@@ -82,6 +84,7 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     region: actualRegion,
     endpoint: providerConfig.s3Endpoint,
     isAWS: providerConfig.isAwsS3,
+    providerType: connectionProvider.providerType,
   };
 
   const profile = connectionProvider.isPublic
@@ -89,7 +92,9 @@ export const loader = async ({ params, context }: ActionFunctionArgs) => {
     : generateCyberduckProfile({
         ...sharedConfig,
         mode: "oidc",
-        roleArn: connectionProvider.roleArn,
+        // RustFS resolves the token's mapped policies as the entitlement — a
+        // role ARN has no meaning on its STS, and the profile omits one.
+        roleArn: connectionProvider.providerType === "rustfs" ? null : connectionProvider.roleArn,
         stsEndpoint: providerConfig.stsEndpoint,
         oauthConfig: {
           authUrl: `${auth.baseUrl}/protocol/openid-connect/auth`,
@@ -116,6 +121,7 @@ interface CyberduckProfileConfigBase {
   region: string;
   endpoint: string;
   isAWS: boolean;
+  providerType: ProviderType;
 }
 
 interface OidcProfileConfig extends CyberduckProfileConfigBase {
@@ -142,11 +148,27 @@ function generateCyberduckProfile(config: CyberduckProfileConfig): string {
 
   const s3Properties: string[] = [];
 
-  // Virtual-host style breaks non-AWS endpoints (MinIO, etc.); AWS S3 works
-  // better with it enabled.
+  // Virtual-host style breaks non-AWS endpoints (RustFS, MinIO, etc.); AWS
+  // S3 works better with it enabled.
   if (!isAWS) {
     s3Properties.push(`        <key>s3.bucket.virtualhost.disable</key>
         <true/>`);
+  }
+
+  if (config.providerType === "rustfs") {
+    // Keep the desktop client's S3 surface inside what the RustFS endpoint
+    // serves: the per-directory multipart lookup, the CloudFront distribution
+    // preloader, the versioning feature, and ACL requests would all issue
+    // calls the endpoint does not implement.
+    for (const [key, value] of [
+      ["s3.upload.multipart.lookup", "false"],
+      ["s3.cloudfront.preload.enable", "false"],
+      ["s3.versioning.enable", "false"],
+      ["s3.acl.default", "none"],
+    ] as const) {
+      s3Properties.push(`        <key>${key}</key>
+        <string>${value}</string>`);
+    }
   }
 
   s3Properties.push(`        <key>s3.location</key>
