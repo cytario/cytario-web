@@ -18,6 +18,7 @@ import {
   composeCapture,
   RESOLUTION_PRESETS,
   type ExportDecorations,
+  type ExportDestination,
   type ResolutionPreset,
 } from "./composeCapture";
 import { copyExportToClipboard, downloadExport } from "./composeCapture";
@@ -36,7 +37,7 @@ import { parseResourceId } from "~/utils/resourceId";
 type SourceChoice = "current-view" | "annotation-region";
 type RunState =
   | { phase: "idle" }
-  | { phase: "rendering"; destination: "download" | "clipboard" }
+  | { phase: "rendering"; destination: ExportDestination }
   | { phase: "error"; message: string };
 
 /** An in-flight capture: the resolved plan plus everything the compose and
@@ -44,7 +45,7 @@ type RunState =
  * — inside the app tree, where the viewer store context exists. */
 interface ActiveRun {
   plan: CapturePlan;
-  destination: "download" | "clipboard";
+  destination: ExportDestination;
   preset: ResolutionPreset;
   decorations: ExportDecorations;
   imageBasename: string;
@@ -318,7 +319,7 @@ export const CaptureExportSection = () => {
   );
 
   const runCapture = useCallback(
-    (destination: "download" | "clipboard") => {
+    (destination: ExportDestination) => {
       lastDestinationRef.current = destination;
       try {
         resetMissingChunks();
@@ -365,7 +366,6 @@ export const CaptureExportSection = () => {
           height={activeRun.plan.frame.height}
           pixelScale={activeRun.plan.pixelScale}
           excludeAnnotationId={activeRun.regionFeatureId}
-          hidden
           onSettled={handleSettled}
           onFailed={fail}
         />

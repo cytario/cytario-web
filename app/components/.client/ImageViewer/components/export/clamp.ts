@@ -18,16 +18,15 @@ export const DEFAULT_RENDER_LIMITS: ExportRenderLimits = {
   areaLimit: BROWSER_AREA_LIMIT,
 };
 
-export interface PixelDensityInput {
+export interface CanvasLimitsInput {
   /** Target width in device pixels — the preset's intended display width. */
   targetWidthPx: number;
   /** Target height in device pixels, following the framing's own aspect. */
   targetHeightPx: number;
-  /** Limits measured at capture time; probed from the environment when omitted. */
   limits: ExportRenderLimits;
 }
 
-export interface PixelDensityResult {
+export interface CanvasLimitsResult {
   width: number;
   height: number;
   /** The requested size exceeded the measured limits and was shrunk. */
@@ -41,17 +40,15 @@ const floorEven = (value: number): number => {
 };
 
 /**
- * Maps a resolution preset (DPI) against the framed extent's physical size to
- * the export's pixel dimensions, clamped to what the user's browser can
- * actually render: the probed canvas side cap and a total-area ceiling. The
- * result keeps the framed extent's aspect ratio while shrinking as little as
- * possible.
+ * Clamps the target output size to what the browser can render: the canvas
+ * side cap and a total-area ceiling. The result keeps the target's aspect
+ * ratio while shrinking as little as possible.
  */
-export const pixelsForDensity = ({
+export const clampToCanvasLimits = ({
   targetWidthPx,
   targetHeightPx,
   limits,
-}: PixelDensityInput): PixelDensityResult => {
+}: CanvasLimitsInput): CanvasLimitsResult => {
   const requestedWidth = targetWidthPx;
   const requestedHeight = targetHeightPx;
 

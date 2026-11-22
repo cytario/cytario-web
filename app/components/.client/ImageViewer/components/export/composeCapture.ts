@@ -15,9 +15,6 @@ import {
 } from "./decorations";
 import type { ViewerStore } from "../../state/store/types";
 
-export type ExportSource =
-  { kind: "current-view" } | { kind: "annotation-region"; featureId: string };
-
 export type ExportDestination = "download" | "clipboard";
 
 export interface ExportDecorations {
@@ -223,6 +220,3 @@ export const copyExportToClipboard = async (blob: Blob): Promise<void> => {
   }
   await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 };
-
-/** Live access to the viewer store. */
-export type ViewerStoreSource = { getState: () => ViewerStore };

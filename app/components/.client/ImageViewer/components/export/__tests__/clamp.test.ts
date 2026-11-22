@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import {
   capAtNativeResolution,
-  pixelsForDensity,
+  clampToCanvasLimits,
   probeMaxCanvasSide,
   type ExportRenderLimits,
 } from "../clamp";
@@ -13,9 +13,9 @@ const limits = (over: Partial<ExportRenderLimits> = {}): ExportRenderLimits => (
   ...over,
 });
 
-describe("pixelsForDensity", () => {
+describe("clampToCanvasLimits", () => {
   test("passes the preset's target size through unclamped", () => {
-    const result = pixelsForDensity({
+    const result = clampToCanvasLimits({
       targetWidthPx: 2000,
       targetHeightPx: 1500,
       limits: limits(),
@@ -28,7 +28,7 @@ describe("pixelsForDensity", () => {
 
   test("scales each preset's target width (600 / 2000 / 3500 px)", () => {
     for (const target of [600, 2000, 3500] as const) {
-      const result = pixelsForDensity({
+      const result = clampToCanvasLimits({
         targetWidthPx: target,
         targetHeightPx: Math.round(target * (2 / 3)),
         limits: limits(),
@@ -38,7 +38,7 @@ describe("pixelsForDensity", () => {
   });
 
   test("keeps the extent's own aspect — no aspect transformation", () => {
-    const result = pixelsForDensity({
+    const result = clampToCanvasLimits({
       targetWidthPx: 3000,
       targetHeightPx: 1000,
       limits: limits(),
@@ -48,7 +48,7 @@ describe("pixelsForDensity", () => {
   });
 
   test("clamps to the canvas side cap while keeping the aspect", () => {
-    const result = pixelsForDensity({
+    const result = clampToCanvasLimits({
       targetWidthPx: 5000,
       targetHeightPx: 4000,
       limits: limits({ maxCanvasSide: 4096 }),
@@ -60,7 +60,7 @@ describe("pixelsForDensity", () => {
   });
 
   test("clamps to the area limit even when both sides individually fit", () => {
-    const result = pixelsForDensity({
+    const result = clampToCanvasLimits({
       targetWidthPx: 15_000,
       targetHeightPx: 13_000,
       // Side caps would allow 16384, but the area cap is tighter.

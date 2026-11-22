@@ -1,10 +1,10 @@
 import { captureBounds, frameCapture, viewStateForFrame, type CaptureFrame } from "./captureFrame";
 import { fallbackRenderLimits, type ExportRenderLimits } from "./clamp";
-import type { ResolutionPreset, ViewerStoreSource } from "./composeCapture";
+import type { ResolutionPreset } from "./composeCapture";
 import { outputPixelsPerViewerPixel, type Legend } from "./decorations";
 import { rectangleRegions } from "./regionSelection";
 import { channelsStateForPanel, layersStateForPanel } from "../../state/store/selectors";
-import type { ViewerStore, ViewState } from "../../state/store/types";
+import type { ViewerStore, ViewerStoreSource, ViewState } from "../../state/store/types";
 import { geometriesBounds } from "../annotations/flyToFeature";
 
 /** How long a run may wait for the capture deck to settle before failing.
@@ -95,7 +95,7 @@ const assertRegionOverlapsImage = (
 };
 
 /** Resolves the capture from the store: the exported rectangle (the current
- *  view, or the selected region plus margin), its output size for the preset,
+ *  view, or exactly the selected region), its output size for the preset,
  *  and the view state that renders exactly that rectangle. */
 export const planExport = ({
   store,

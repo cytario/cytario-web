@@ -1,4 +1,5 @@
-import { ExportRenderError, type ViewerStoreSource } from "./composeCapture";
+import { ExportRenderError } from "./composeCapture";
+import type { ViewerStoreSource } from "../../state/store/types";
 import { validAnnotationFeatures } from "~/utils/db/annotationSchema";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 

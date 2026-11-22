@@ -23,14 +23,9 @@ export interface CaptureDeckProps {
   /** Called when the framed extent cannot render — nothing was selected, or a
    *  tile failed. A capture that renders nothing must not be delivered. */
   onFailed: (message: string) => void;
-  /** Whether annotations render read-only (non-pickable, not editable). */
-  interactive?: boolean;
   /** One annotation feature id to leave out — the region being exported must
    *  not draw its own boundary onto the capture. */
   excludeAnnotationId?: string | null;
-  /** Mount visibly (preview) or hidden (capture run). */
-  hidden?: boolean;
-  style?: CSSProperties;
 }
 
 const HIDDEN_STYLE: CSSProperties = {
@@ -102,10 +97,7 @@ export const CaptureDeck = ({
   pixelScale = 1,
   onSettled,
   onFailed,
-  interactive = false,
   excludeAnnotationId = null,
-  hidden = false,
-  style,
 }: CaptureDeckProps) => {
   const deckRef = useRef<DeckGLRef | null>(null);
   const settledRef = useRef(false);
@@ -129,7 +121,7 @@ export const CaptureDeck = ({
     layers: viewerLayers,
     effects,
     layerFilter,
-  } = useViewerLayers(imagePanelId, interactive, excludeAnnotationId, observer);
+  } = useViewerLayers(imagePanelId, false, excludeAnnotationId, observer);
   const layers = useMemo(
     () =>
       pixelScale === 1
@@ -194,7 +186,7 @@ export const CaptureDeck = ({
   }, [onFailed, onSettled]);
 
   return (
-    <div style={hidden ? { ...HIDDEN_STYLE, ...style } : style} aria-hidden={hidden || undefined}>
+    <div style={HIDDEN_STYLE} aria-hidden>
       <DeckGL
         ref={deckRef}
         // Distinct canvas id: without it the capture deck duplicates the

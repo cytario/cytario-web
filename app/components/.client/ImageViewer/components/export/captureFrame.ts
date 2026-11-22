@@ -1,4 +1,4 @@
-import { capAtNativeResolution, pixelsForDensity, type ExportRenderLimits } from "./clamp";
+import { capAtNativeResolution, clampToCanvasLimits, type ExportRenderLimits } from "./clamp";
 import type { ViewerStore, ViewState } from "../../state/store/types";
 import type { Bounds } from "../canvas/Measurements/calculateViewStateToFitBounds";
 import { physicalPixelSize } from "../canvas/Measurements/utils";
@@ -44,7 +44,7 @@ export const frameCapture = (
 ): CaptureFrame => {
   const extentWidth = boundsWidth(bounds);
   const extentHeight = boundsHeight(bounds);
-  const sized = pixelsForDensity({
+  const sized = clampToCanvasLimits({
     targetWidthPx,
     targetHeightPx: Math.round((targetWidthPx * extentHeight) / extentWidth),
     limits,
