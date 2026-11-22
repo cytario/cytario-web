@@ -522,7 +522,7 @@ describe("Capture and export section", () => {
     expect(screen.queryByTestId("export-error")).toBeNull();
     await waitFor(() => {
       expect(
-        screen.getByText(/2 image data chunk\(s\) were not found and render as empty/),
+        screen.getByText(/2 image data chunk\(s\) were not found while capturing/),
       ).toBeInTheDocument();
     });
   });

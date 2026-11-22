@@ -264,10 +264,14 @@ export const CaptureExportSection = () => {
           );
         }
         // A missing chunk is legitimate in a sparse array and renders as fill —
-        // so it is reported, not failed on.
+        // so it is reported, not failed on. The count spans the run, not the
+        // export: the live panel loads through the same store, and a 404 does
+        // not say which deck asked for it.
         const missingChunkCount = getMissingChunks().length;
         if (missingChunkCount > 0) {
-          notes.push(`${missingChunkCount} image data chunk(s) were not found and render as empty`);
+          notes.push(
+            `${missingChunkCount} image data chunk(s) were not found while capturing — any tiles they cover render empty`,
+          );
         }
         if (result.clamped) {
           notes.push(
