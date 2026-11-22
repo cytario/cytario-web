@@ -233,16 +233,6 @@ export const CaptureExportSection = () => {
           return;
         }
 
-        // A chunk the pyramid index promised but the store does not hold is a
-        // machinery failure: the tiles it should have covered were never read.
-        const missing = getMissingChunks();
-        if (missing.length > 0) {
-          fail(
-            `The image's pyramid is incomplete — ${missing.length} data chunk(s) of the selected area are missing, so it cannot be exported faithfully.`,
-          );
-          return;
-        }
-
         // The provenance region records the exported extent on the current-view
         // path only — a region export's own annotation already records it.
         if (createExportAnnotation && canAnnotate && run.regionFeatureId === null) {
@@ -269,6 +259,12 @@ export const CaptureExportSection = () => {
           notes.push(
             "the image area is a single flat colour — check that this region holds tissue",
           );
+        }
+        // A missing chunk is legitimate in a sparse array and renders as fill —
+        // so it is reported, not failed on.
+        const missingChunkCount = getMissingChunks().length;
+        if (missingChunkCount > 0) {
+          notes.push(`${missingChunkCount} image data chunk(s) were not found and render as empty`);
         }
         if (result.clamped) {
           notes.push(
@@ -320,8 +316,6 @@ export const CaptureExportSection = () => {
   const runCapture = useCallback(
     (destination: "download" | "clipboard") => {
       try {
-        // Count missing chunks from this run only — the live panel's fetches
-        // must not condemn a capture.
         resetMissingChunks();
         const plan = planExport({
           store: storeApi,

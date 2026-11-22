@@ -43,6 +43,12 @@ const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
 // mount, so a test can change the store between plan and settle.
 let deferDeckSettle = false;
 const commitExportAnnotationMock = vi.fn();
+const missingChunks: string[] = [];
+
+vi.mock("../../../state/transport/CredentialedHTTPStore", () => ({
+  getMissingChunks: () => [...missingChunks],
+  resetMissingChunks: vi.fn(),
+}));
 
 vi.mock("../composeCapture", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../composeCapture")>();
@@ -241,6 +247,7 @@ describe("Capture and export section", () => {
     buildStore();
     deferDeckSettle = false;
     pendingDeckSettles.length = 0;
+    missingChunks.length = 0;
   });
 
   test("renders with spec defaults: Current view, Presentation, decoration states", () => {
@@ -486,6 +493,23 @@ describe("Capture and export section", () => {
     });
     await waitFor(() => {
       expect(screen.getByText(/legend: no visible channels/)).toBeInTheDocument();
+    });
+  });
+
+  test("missing data chunks are reported on the delivered capture, not failed on", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    // A sparse array legitimately omits chunks; they render as fill.
+    missingChunks.push("0/0/0/3/4", "0/0/0/3/5");
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("export-error")).toBeNull();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/2 image data chunk\(s\) were not found and render as empty/),
+      ).toBeInTheDocument();
     });
   });
 
