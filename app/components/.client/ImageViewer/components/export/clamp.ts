@@ -12,6 +12,12 @@ export const BROWSER_MAX_CANVAS_SIDE = 16384;
 /** Total-pixel ceiling: 2^28 ≈ 268M px guards GPU memory + readback cost. */
 export const BROWSER_AREA_LIMIT = 16384 * 16384;
 
+/** The common browser limits, assumed without probing. */
+export const DEFAULT_RENDER_LIMITS: ExportRenderLimits = {
+  maxCanvasSide: BROWSER_MAX_CANVAS_SIDE,
+  areaLimit: BROWSER_AREA_LIMIT,
+};
+
 export interface PixelDensityInput {
   /** Target width in device pixels — the preset's intended display width. */
   targetWidthPx: number;
@@ -109,18 +115,19 @@ export const probeMaxCanvasSide = (): number => {
     const canvas = document.createElement("canvas");
     canvas.width = side;
     canvas.height = side;
-    if (canvas.width === side && canvas.height === side) {
-      const context = canvas.getContext("2d");
-      if (context) return side;
-    }
+    const usable = canvas.width === side && canvas.height === side && canvas.getContext("2d");
+    // Release the backing store now rather than whenever the canvas is collected.
+    canvas.width = 0;
+    canvas.height = 0;
+    if (usable) return side;
   }
   return 4096;
 };
 
 let probedLimits: ExportRenderLimits | null = null;
 
-/** Builds a best-effort limits object without a live GL context. Probed once:
- *  the probe allocates up to a 16384² canvas. */
+/** Builds a best-effort limits object without a live GL context. Probed once,
+ *  on the first capture: the probe allocates up to a 16384² canvas. */
 export const fallbackRenderLimits = (): ExportRenderLimits =>
   (probedLimits ??= {
     maxCanvasSide: probeMaxCanvasSide(),

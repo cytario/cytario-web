@@ -1,6 +1,11 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
-import { capAtNativeResolution, pixelsForDensity, type ExportRenderLimits } from "../clamp";
+import {
+  capAtNativeResolution,
+  pixelsForDensity,
+  probeMaxCanvasSide,
+  type ExportRenderLimits,
+} from "../clamp";
 
 const limits = (over: Partial<ExportRenderLimits> = {}): ExportRenderLimits => ({
   maxCanvasSide: 16384,
@@ -102,5 +107,23 @@ describe("capAtNativeResolution", () => {
     );
     expect(result.width).toBe(2048);
     expect(result.upscaled).toBe(true);
+  });
+});
+
+describe("probeMaxCanvasSide", () => {
+  test("releases every canvas it allocates", () => {
+    const created: HTMLCanvasElement[] = [];
+    const createElement = document.createElement.bind(document);
+    const spy = vi.spyOn(document, "createElement").mockImplementation((tagName: string) => {
+      const element = createElement(tagName);
+      if (element instanceof HTMLCanvasElement) created.push(element);
+      return element;
+    });
+
+    probeMaxCanvasSide();
+
+    expect(created.length).toBeGreaterThan(0);
+    expect(created.every((canvas) => canvas.width === 0 && canvas.height === 0)).toBe(true);
+    spy.mockRestore();
   });
 });

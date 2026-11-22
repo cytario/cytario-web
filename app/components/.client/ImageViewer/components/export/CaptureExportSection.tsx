@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CaptureDeck } from "./CaptureDeck";
 import { captureBounds, frameCapture } from "./captureFrame";
-import { fallbackRenderLimits } from "./clamp";
+import { DEFAULT_RENDER_LIMITS } from "./clamp";
 import { commitExportAnnotation } from "./commitExportAnnotation";
 import {
   composeCapture,
@@ -83,12 +83,10 @@ export const CaptureExportSection = () => {
   const { toast } = useToast();
   const storeApi = useViewerStoreApi();
   const resourceId = useViewerStore((s) => s.id);
-  const viewStateActive = useViewerStore(select.viewStateActive);
   const metadata = useViewerStore(select.metadata);
   const setViewStateActive = useViewerStore(select.setViewStateActive);
   const canAnnotate = useCanAnnotate();
 
-  const [source, setSource] = useState<SourceChoice>("current-view");
   const [presetId, setPresetId] = useState<ResolutionPreset["id"]>("presentation");
   const [decorations, setDecorations] = useState<ExportDecorations>(DEFAULT_DECORATIONS);
   const [createExportAnnotation, setCreateExportAnnotation] = useState(false);
@@ -126,7 +124,10 @@ export const CaptureExportSection = () => {
   // Selection changes move the source with them: a selected rectangle region
   // makes the capture a region capture, losing it returns to the current view.
   // The viewport stays put — drawing or stamping a rectangle selects it too.
-  const prevSelectedRegionIdRef = useRef<string | null>(null);
+  const [source, setSource] = useState<SourceChoice>(
+    selectedRegion ? "annotation-region" : "current-view",
+  );
+  const prevSelectedRegionIdRef = useRef<string | null>(selectedRegion?.id ?? null);
   useEffect(() => {
     const id = selectedRegion?.id ?? null;
     const prevId = prevSelectedRegionIdRef.current;
@@ -157,21 +158,20 @@ export const CaptureExportSection = () => {
     [availableRegions, storeApi, setViewStateActive],
   );
 
-  // The same derivation the run's plan uses, so the summary names exactly
-  // what the capture will export.
-  const frame = useMemo(
-    () =>
-      viewStateActive?.width && viewStateActive.height
-        ? frameCapture(
-            captureBounds(viewStateActive, regionBounds),
-            preset.targetWidthPx,
-            fallbackRenderLimits(),
-          )
-        : null,
-    [viewStateActive, regionBounds, preset],
-  );
-
-  const summaryLine = frame ? `Output: ${frame.width} × ${frame.height} px · PNG` : null;
+  // The run's own derivation, on the common browser limits rather than the
+  // probed ones — a device-specific clamp is reported when it happens. The
+  // selector yields the line itself, so panning re-renders nothing unless the
+  // output size changes.
+  const summaryLine = useViewerStore((state) => {
+    const viewState = state.viewStateActive;
+    if (!viewState?.width || !viewState.height) return null;
+    const { width, height } = frameCapture(
+      captureBounds(viewState, regionBounds),
+      preset.targetWidthPx,
+      DEFAULT_RENDER_LIMITS,
+    );
+    return `Output: ${width} × ${height} px · PNG`;
+  });
 
   const hasPhysicalScale = metadata ? physicalPixelSize(metadata.Pixels) !== null : false;
   const decorationRows: {

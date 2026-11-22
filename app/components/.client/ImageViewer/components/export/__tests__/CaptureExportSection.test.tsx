@@ -44,6 +44,18 @@ const pendingDeckSettles: ((canvas: HTMLCanvasElement) => void)[] = [];
 let deferDeckSettle = false;
 const commitExportAnnotationMock = vi.fn();
 const missingChunks: string[] = [];
+const fallbackRenderLimitsSpy = vi.fn();
+
+vi.mock("../clamp", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../clamp")>();
+  return {
+    ...actual,
+    fallbackRenderLimits: () => {
+      fallbackRenderLimitsSpy();
+      return actual.fallbackRenderLimits();
+    },
+  };
+});
 
 vi.mock("../../../state/transport/CredentialedHTTPStore", () => ({
   getMissingChunks: () => [...missingChunks],
@@ -524,6 +536,20 @@ describe("Capture and export section", () => {
     await waitFor(() => {
       expect(screen.getByText(/legend: 7 entries did not fit the image/)).toBeInTheDocument();
     });
+  });
+
+  test("the canvas limits are probed when a capture runs, never by showing the section", async () => {
+    const user = userEvent.setup();
+    renderSection();
+    act(() =>
+      currentStore
+        .getState()
+        .setViewStateActive({ ...currentStore.getState().viewStateActive!, zoom: 1 }),
+    );
+    expect(fallbackRenderLimitsSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /download/i }));
+    expect(fallbackRenderLimitsSpy).toHaveBeenCalled();
   });
 
   test("Copy runs the capture once", async () => {
