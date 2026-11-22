@@ -10,6 +10,7 @@ import type { ViewerStore } from "../../../state/store/types";
 import { CaptureExportSection } from "../CaptureExportSection";
 import { commitExportAnnotation as commitExportAnnotationActual } from "../commitExportAnnotation";
 import { copyExportToClipboard, downloadExport } from "../composeCapture";
+import { RENDER_TIMEOUT_MS } from "../planExport";
 import { seedViewerConnection } from "~/utils/__tests__/__mocks__";
 import type { AnnotationFeature } from "~/utils/db/getAnnotationsWasm";
 
@@ -550,6 +551,44 @@ describe("Capture and export section", () => {
 
     await user.click(screen.getByRole("button", { name: /download/i }));
     expect(fallbackRenderLimitsSpy).toHaveBeenCalled();
+  });
+
+  test("a capture whose render never settles fails on the timeout", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      deferDeckSettle = true;
+      renderSection();
+
+      await user.click(screen.getByRole("button", { name: /download/i }));
+      expect(screen.queryByTestId("export-error")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(RENDER_TIMEOUT_MS);
+      });
+
+      expect(screen.getByTestId("export-error")).toHaveTextContent(/timed out/i);
+      expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+      expect(composeCaptureMock).not.toHaveBeenCalled();
+      expect(downloadExport).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("a clipboard that refuses the image falls back to a download, and says so", async () => {
+    vi.mocked(copyExportToClipboard).mockRejectedValueOnce(new Error("denied"));
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+
+    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(downloadExport).mock.calls[0][1]).toBe("slide_2025-01-07-130509.png");
+    expect(
+      await screen.findByText("Clipboard unavailable — downloaded instead."),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/Captured slide_2025-01-07-130509\.png/)).toBeInTheDocument();
   });
 
   test("Copy runs the capture once", async () => {
