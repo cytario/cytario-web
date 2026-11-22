@@ -43,6 +43,22 @@ vi.mock("~/.server/auth/wellKnownEndpoints", () => ({
   },
 }));
 
+// The real client connects and logs from socket events as soon as it is
+// imported, which can land after a test file's worker has torn down. Tests that
+// exercise Redis mock this module themselves; anything else calling it fails loudly.
+vi.mock("~/.server/db/redis", () => ({
+  redis: new Proxy(
+    {},
+    {
+      get: (_target, property) => () => {
+        throw new Error(
+          `redis.${String(property)}() called in a unit test — mock ~/.server/db/redis in that test`,
+        );
+      },
+    },
+  ),
+}));
+
 vi.mock("~/components/Tooltip/Tooltip", () => ({
   Tooltip: vi.fn(({ children }) => createElement("div", { "data-testid": "tooltip" }, children)),
 }));
