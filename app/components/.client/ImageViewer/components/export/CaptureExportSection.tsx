@@ -38,17 +38,6 @@ type SourceChoice = "current-view" | "annotation-region";
 type RunState =
   | { phase: "idle" }
   | { phase: "rendering"; destination: "download" | "clipboard" }
-  | {
-      /** Rendered, waiting for the user to look before it is delivered. The only
-       *  honest check on image content: a person knows whether this region should
-       *  hold tissue, and whether the legend belongs in it. */
-      phase: "preview";
-      destination: "download" | "clipboard";
-      previewUrl: string;
-      filename: string;
-      notes: string[];
-      blob: Blob;
-    }
   | { phase: "error"; message: string };
 
 /** An in-flight capture: the resolved plan plus everything the compose and
@@ -287,9 +276,9 @@ export const CaptureExportSection = () => {
           }
         }
 
-        // Image content is the user's call, not ours. These are shown beside the
-        // preview so a person can judge them — a flat frame is also exactly what
-        // an empty corner of a slide looks like.
+        // Image content is the user's call, not ours: a flat frame is exactly
+        // what an empty corner of a slide looks like, so it is reported, never
+        // treated as a failure. Only the machinery decides that.
         const notes: string[] = [];
         if (result.uniform) {
           notes.push(
@@ -312,40 +301,26 @@ export const CaptureExportSection = () => {
           notes.push("legend: no visible channels");
         }
 
-        setRunState({
-          phase: "preview",
-          destination: run.destination,
-          previewUrl: URL.createObjectURL(result.blob),
-          filename: result.filename,
-          notes,
-          blob: result.blob,
+        if (run.destination === "clipboard") {
+          try {
+            await copyExportToClipboard(result.blob);
+          } catch {
+            downloadExport(result.blob, result.filename);
+            toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
+          }
+        } else {
+          downloadExport(result.blob, result.filename);
+        }
+
+        toast({
+          variant: "success",
+          message: [`Captured ${result.filename}`, ...notes].join(" — "),
         });
+        setActiveRun(null);
+        setRunState({ phase: "idle" });
       },
     [fail, toast, storeApi, createExportAnnotation, canAnnotate],
   );
-
-  /** Hands the reviewed export over and returns the section to rest. */
-  const confirmDelivery = useCallback(async () => {
-    if (runState.phase !== "preview") return;
-    const { blob, filename, destination, previewUrl } = runState;
-    try {
-      if (destination === "clipboard") {
-        try {
-          await copyExportToClipboard(blob);
-        } catch {
-          downloadExport(blob, filename);
-          toast({ variant: "info", message: "Clipboard unavailable — downloaded instead." });
-        }
-      } else {
-        downloadExport(blob, filename);
-      }
-      toast({ variant: "success", message: `Captured ${filename}` });
-    } finally {
-      URL.revokeObjectURL(previewUrl);
-      setActiveRun(null);
-      setRunState({ phase: "idle" });
-    }
-  }, [runState, toast]);
 
   // Stable per run: the deck's observer is memoised on this callback, and a new
   // identity per render would rebuild the layer's props mid-capture.
@@ -491,42 +466,6 @@ export const CaptureExportSection = () => {
         </div>
 
         {summaryLine && <p className="text-xs text-muted-foreground">{summaryLine}</p>}
-
-        {runState.phase === "preview" && (
-          <div
-            className="flex flex-col gap-2 rounded-md border border-border p-3 text-sm"
-            data-testid="export-preview"
-          >
-            {/* Scaled to the panel, never full size: the file itself is
-                thousands of pixels wide and would never fit on screen. */}
-            <img
-              src={runState.previewUrl}
-              alt="Preview of the export"
-              className="max-h-56 w-full rounded-md border border-border object-contain"
-            />
-            <span className="text-xs text-muted-foreground">
-              {runState.notes.length > 0
-                ? runState.notes.join(" — ")
-                : "Check the preview before saving."}
-            </span>
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={() => {
-                  URL.revokeObjectURL(runState.previewUrl);
-                  setActiveRun(null);
-                  setRunState({ phase: "idle" });
-                }}
-              >
-                Discard
-              </Button>
-              <Button variant="primary" size="sm" onPress={() => void confirmDelivery()}>
-                Save
-              </Button>
-            </div>
-          </div>
-        )}
 
         {runState.phase === "error" && (
           <div

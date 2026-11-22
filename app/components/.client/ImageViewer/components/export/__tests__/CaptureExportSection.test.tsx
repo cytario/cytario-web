@@ -1,5 +1,5 @@
 import { ToastProvider } from "@cytario/design";
-import { act, render, screen, waitFor, within as withinElement } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -390,36 +390,9 @@ describe("Capture and export section", () => {
     expect(screen.queryByText(/Scale bar:/)).toBeNull();
   });
 
-  test("shows a preview and saves only once the user confirms", async () => {
-    const user = userEvent.setup();
-    renderSection();
-
-    await user.click(screen.getByRole("button", { name: /download/i }));
-
-    // Nothing is delivered yet: the user has not looked at the result.
-    const preview = await screen.findByTestId("export-preview");
-    expect(downloadExport).not.toHaveBeenCalled();
-    expect(withinElement(preview).getByRole("img")).toHaveAttribute("alt", "Preview of the export");
-
-    await user.click(withinElement(preview).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
-  });
-
-  test("discarding the preview delivers nothing", async () => {
-    const user = userEvent.setup();
-    renderSection();
-
-    await user.click(screen.getByRole("button", { name: /download/i }));
-    const preview = await screen.findByTestId("export-preview");
-
-    await user.click(withinElement(preview).getByRole("button", { name: "Discard" }));
-    expect(screen.queryByTestId("export-preview")).toBeNull();
-    expect(downloadExport).not.toHaveBeenCalled();
-  });
-
-  test("a flat render is a warning on the preview, not a refusal", async () => {
-    // An empty corner of a slide renders flat and is a legitimate export — the
-    // software cannot tell it apart from a failure, so only the user judges it.
+  test("delivers immediately, with the flat-frame note on the success toast", async () => {
+    // Content is the user's call: a flat render still downloads, and the note
+    // tells them to check it. Nothing is withheld pending a review step.
     composeCaptureMock.mockResolvedValue(
       Object.assign({}, exportResult(), { uniform: true }) as never,
     );
@@ -427,13 +400,12 @@ describe("Capture and export section", () => {
     renderSection();
 
     await user.click(screen.getByRole("button", { name: /download/i }));
-    const preview = await screen.findByTestId("export-preview");
 
-    expect(preview).toHaveTextContent(/single flat colour/i);
-    expect(screen.queryByTestId("export-error")).toBeNull();
-
-    await user.click(withinElement(preview).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(downloadExport).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("export-preview")).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText(/single flat colour/i)).toBeInTheDocument();
+    });
   });
 
   test("Download runs the capture with the chosen options", async () => {
