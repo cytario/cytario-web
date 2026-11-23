@@ -16,6 +16,9 @@ import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
 
+/** How long the viewport must settle before deck.gl requests its tiles. */
+export const TILE_REQUEST_DEBOUNCE_MS = 150;
+
 /** Both abort shapes loaders use: DOMException (plugins, spec) and plain Error. */
 const isAbortError = (error: unknown): boolean =>
   (error instanceof DOMException || error instanceof Error) && error.name === "AbortError";
@@ -212,6 +215,9 @@ export const useChannelsLayer = (
       // new tiles load — visible as flicker across a zoom step. Pin
       // `best-available` so a partial-resolution image is always shown.
       refinementStrategy: "best-available",
+      // Without a debounce every wheel step requests the tiles of each level it
+      // passes through, and those fetches queue ahead of the final view's.
+      debounceTime: TILE_REQUEST_DEBOUNCE_MS,
       pickable: true,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;

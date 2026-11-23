@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { createViewerStore } from "../../../../state/store/createViewerStore";
-import { useChannelsLayer } from "../useChannelsLayer";
+import { TILE_REQUEST_DEBOUNCE_MS, useChannelsLayer } from "../useChannelsLayer";
 
 let store: ReturnType<typeof createViewerStore>;
 
@@ -311,6 +311,14 @@ describe("useChannelsLayer selections stability", () => {
 
     expect(props.selections).toHaveLength(2);
     expect(props.channelsVisible).toEqual([true, true]);
+  });
+
+  test("tile requests wait for the viewport to settle", () => {
+    const { result } = renderHook(() => useChannelsLayer(0));
+    const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    expect(TILE_REQUEST_DEBOUNCE_MS).toBeGreaterThan(0);
+    expect(props.debounceTime).toBe(TILE_REQUEST_DEBOUNCE_MS);
   });
 
   test("a caller-aborted tile rejects with viv's SIGNAL_ABORTED sentinel", async () => {
