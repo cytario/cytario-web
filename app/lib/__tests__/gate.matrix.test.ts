@@ -8,7 +8,7 @@ import { assertApiCompatible } from "@cytario/plugin-api";
 // DOES touch the moved API must be pinned, and an old host must skip the
 // spanning form only if its parser cannot read it.
 test("the v9 host accepts a spanning plugin and rejects older majors", () => {
-  expect(HOST_API_VERSION).toBe("9.1.0");
+  expect(HOST_API_VERSION).toBe("9.2.0");
   const plugin = (apiVersion: string) => ({ name: "p", apiVersion });
 
   // Spanning: accepted (this is the whole point of the || support).
