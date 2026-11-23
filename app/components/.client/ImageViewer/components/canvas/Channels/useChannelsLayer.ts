@@ -129,6 +129,9 @@ export const useChannelsLayer = (
 
     return rawLoader.map((loaderLevel, levelIndex) => {
       const originalGetTile = loaderLevel.getTile.bind(loaderLevel);
+      // A level that has not opted in may share one request across tiles, so
+      // one tile's abort would fail its neighbours: it gets no signal.
+      const isAbortable = loaderLevel.supportsAbortableTileReads === true;
 
       const wrappedLoader = Object.create(Object.getPrototypeOf(loaderLevel));
       Object.assign(wrappedLoader, loaderLevel);
@@ -156,8 +159,9 @@ export const useChannelsLayer = (
           getCachedTile(
             rawLoader,
             cacheKey,
-            (sharedSignal) => originalGetTile({ ...params, signal: sharedSignal }),
-            params.signal,
+            (sharedSignal) =>
+              originalGetTile({ ...params, signal: isAbortable ? sharedSignal : undefined }),
+            isAbortable ? params.signal : undefined,
           );
 
         // deck.gl treats a getTileData rejection as terminal (content = null,
@@ -167,7 +171,8 @@ export const useChannelsLayer = (
         // viv's SIGNAL_ABORTED sentinel (the composite getTileData catches it and
         // returns null, which deck.gl marks refinable — plugin loaders throw
         // DOMException AbortError, viv's own loaders throw the sentinel). One
-        // retry covers transient failures; persistent ones still reject.
+        // retry covers transient failures of a tile still wanted; persistent
+        // ones still reject, and an abandoned tile is never retried.
         try {
           const result = await fetchTile();
           finishTile(tileId);

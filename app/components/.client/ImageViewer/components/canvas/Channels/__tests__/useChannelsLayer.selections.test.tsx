@@ -437,6 +437,7 @@ describe("useChannelsLayer selections stability", () => {
     let seenSignal: AbortSignal | undefined;
     const pendingLoader = {
       ...loaderLevel,
+      supportsAbortableTileReads: true,
       getTile: (request: { signal?: AbortSignal }) => {
         seenSignal = request.signal;
         return new Promise<Awaited<ReturnType<typeof loaderLevel.getTile>>>(() => {});
@@ -465,6 +466,41 @@ describe("useChannelsLayer selections stability", () => {
 
     await expect(tile).rejects.toBe("__vivSignalAborted");
     expect(seenSignal?.aborted).toBe(true);
+  });
+
+  test("a level that has not opted in never sees deck.gl's signal", async () => {
+    // A loader over geotiff's default BlockedSource shares one request across
+    // tiles, so one tile's abort would fail its neighbours.
+    const controller = new AbortController();
+    let seenSignal: unknown = "unset";
+    const spyLoader = {
+      ...loaderLevel,
+      getTile: (request: { signal?: AbortSignal }) => {
+        seenSignal = request.signal ?? null;
+        return Promise.resolve({ data: new Uint8Array(16), width: 4, height: 4 });
+      },
+    };
+    act(() => {
+      store.setState({ loader: [spyLoader] });
+    });
+    const { result } = renderHook(() => useChannelsLayer(0));
+
+    const wrappedLoader = (
+      result.current.layers[0] as unknown as {
+        props: { loader: { getTile: (p: unknown) => Promise<unknown> }[] };
+      }
+    ).props.loader[0];
+
+    const tile = wrappedLoader.getTile({
+      x: 0,
+      y: 0,
+      selection: { c: 0, z: 0 },
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(tile).resolves.toMatchObject({ width: 4, height: 4 });
+    expect(seenSignal).toBe(null);
   });
 
   test("viv's own abort sentinel is not retried", async () => {

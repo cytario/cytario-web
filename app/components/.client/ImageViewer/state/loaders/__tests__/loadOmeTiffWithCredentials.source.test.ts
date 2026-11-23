@@ -16,18 +16,20 @@ vi.mock("geotiff", () => ({
 vi.mock("@hms-dbmi/viv", () => ({
   loadOmeTiff: vi.fn(async (_url: string, { source }: { source: typeof geotiff }) => {
     sourceSeenByViv = source.source;
-    return { data: [], metadata: { Pixels: { Type: "uint16", Channels: [] } } };
+    return { data: [{}, {}], metadata: { Pixels: { Type: "uint16", Channels: [] } } };
   }),
 }));
 
 describe("loadOmeTiffWithCredentials tile reads", () => {
-  test("routes tile reads around geotiff's block cache to the signed client", async () => {
+  test("routes tile reads around geotiff's block cache and opts every level in to aborts", async () => {
     const signedFetch = vi.fn(async () => new Response(new ArrayBuffer(10), { status: 206 }));
     signedFetch.mockResolvedValueOnce(new Response(null, { status: 404 }));
 
-    await loadOmeTiffWithCredentials("s3://bucket/image.ome.tif", {
+    const { data } = await loadOmeTiffWithCredentials("s3://bucket/image.ome.tif", {
       signedFetch,
     } as unknown as LoadOptions);
+
+    expect(data.map((level) => level.supportsAbortableTileReads)).toEqual([true, true]);
 
     expect(sourceSeenByViv).toBeInstanceOf(SignalRoutedTiffSource);
 

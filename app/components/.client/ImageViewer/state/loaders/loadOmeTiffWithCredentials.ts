@@ -324,6 +324,12 @@ export async function loadOmeTiffWithCredentials(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   normalizeOmePixelsType(result.metadata as any);
 
+  // Pixel reads bypass the block cache (SignalRoutedTiffSource), so a tile's
+  // abort cancels only its own request.
+  for (const level of result.data as Loader) {
+    level.supportsAbortableTileReads = true;
+  }
+
   return {
     data: result.data as unknown as Loader,
     metadata: result.metadata as unknown as Image,
