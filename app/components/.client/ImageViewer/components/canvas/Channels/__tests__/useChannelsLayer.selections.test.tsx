@@ -321,6 +321,13 @@ describe("useChannelsLayer selections stability", () => {
     expect(props.debounceTime).toBe(TILE_REQUEST_DEBOUNCE_MS);
   });
 
+  test("a caller can request tiles without waiting for the viewport to settle", () => {
+    const { result } = renderHook(() => useChannelsLayer(0, undefined, 0));
+    const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    expect(props.debounceTime).toBe(0);
+  });
+
   test("a caller-aborted tile rejects with viv's SIGNAL_ABORTED sentinel", async () => {
     // deck.gl aborts in-flight tiles on every viewport change and treats a
     // getTileData rejection as TERMINAL (never re-requested — the tile parks

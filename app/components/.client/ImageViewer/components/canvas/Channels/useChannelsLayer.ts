@@ -70,6 +70,7 @@ export interface TileReadinessObserver {
 export const useChannelsLayer = (
   imagePanelId: number,
   observer?: TileReadinessObserver,
+  tileRequestDebounceMs = TILE_REQUEST_DEBOUNCE_MS,
 ): CytarioLayerResult<InstanceType<typeof MultiscaleImageLayer> | null> => {
   const dtype = useViewerStore((state) => {
     const type = state.metadata?.Pixels.Type ?? "Uint8";
@@ -220,7 +221,7 @@ export const useChannelsLayer = (
       refinementStrategy: "best-available",
       // Without a debounce every wheel step requests the tiles of each level it
       // passes through, and those fetches queue ahead of the final view's.
-      debounceTime: TILE_REQUEST_DEBOUNCE_MS,
+      debounceTime: tileRequestDebounceMs,
       pickable: true,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;
@@ -247,6 +248,7 @@ export const useChannelsLayer = (
     dtype,
     channelsOpacity,
     imagePanelId,
+    tileRequestDebounceMs,
   ]);
 
   const getTooltipItems = useCallback(

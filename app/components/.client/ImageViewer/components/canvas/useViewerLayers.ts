@@ -33,8 +33,13 @@ export const useViewerLayers = (
   interactive = true,
   excludeAnnotationId: string | null = null,
   tileObserver?: TileReadinessObserver,
+  tileRequestDebounceMs?: number,
 ): ViewerLayersResult => {
-  const { layers: channelLayers } = useChannelsLayer(imagePanelId, tileObserver);
+  const { layers: channelLayers } = useChannelsLayer(
+    imagePanelId,
+    tileObserver,
+    tileRequestDebounceMs,
+  );
   const { layers: overlayLayers } = useOverlaysLayers(imagePanelId);
   const { layers: annotationLayers } = useAnnotationsLayer(
     imagePanelId,
