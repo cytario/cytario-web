@@ -80,11 +80,8 @@ export const useChannelsLayer = (
   // fresh `selections` per edit would `reloadAll()` every visible tile. viv
   // applies contrast/colors/visibility as uniforms instead, so those columns
   // must stay fresh per edit while `selections` only changes when the set of
-  // admitted channels — or a channel's selection values — changes. The key
-  // serializes the columns' ids+selections, not every renderable channel:
-  // beyond MAX_CHANNELS the cap admits different channels as visibility
-  // toggles reshuffle the budget, and `selections` must follow that admission
-  // (its index pairs with colors/contrastLimits/channelsVisible by position).
+  // admitted (visible) channels — or a channel's selection values — changes.
+  // `selections` pairs with colors/contrastLimits/channelsVisible by position.
   const columnsWithoutSelections = useMemo(
     () => mapChannelConfigsToState(channelsState),
     [channelsState],
@@ -243,47 +240,29 @@ export const useChannelsLayer = (
     imagePanelId,
   ]);
 
-  // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState`, which
-  // now includes hidden-but-initialized channels; filter to the visible ones so
-  // tooltips and pixel readouts only cover channels the user can actually see.
-  // `selectionIndex` keeps each visible channel's position in the columns (and
-  // thus in `selections` and viv's per-selection hoverData) — the column index
-  // and the visible index diverge as soon as any hidden channel precedes a
-  // visible one.
-  const visibleChannels = useMemo(() => {
-    const result: { id: string; color: number[]; selectionIndex: number }[] = [];
-    for (let i = 0; i < ids.length; i++) {
-      if (!channelsVisible[i]) continue;
-      result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255], selectionIndex: i });
-    }
-    return result;
-  }, [ids, colors, channelsVisible]);
-
   const getTooltipItems = useCallback(
     (info: PickingInfo): LayerTooltipItem[] => {
       const data = handleImageViewerHover(info);
       if (!data) return [];
 
+      // hoverData is indexed like the columns, which hold only visible channels.
       const { hoverData } = data;
-
-      // hoverData is indexed by the columns' (selections') order, which includes
-      // hidden-but-initialized channels — read each visible channel's intensity
-      // through its own selectionIndex, not its position among the visible ones.
-      const ids = visibleChannels.map((c) => c.id);
-      const values = visibleChannels.map((c) => hoverData[c.selectionIndex] ?? 0);
-      setPixelValues(ids, values);
+      setPixelValues(
+        ids,
+        ids.map((_, index) => hoverData[index] ?? 0),
+      );
 
       const valuesRecord: Record<string, { value: string; color?: number[] }> = {};
-      for (const { id, color, selectionIndex } of visibleChannels) {
-        const value = hoverData[selectionIndex];
-        if (value === undefined) continue;
-        valuesRecord[id] = { value: String(value), color };
-      }
+      ids.forEach((id, index) => {
+        const value = hoverData[index];
+        if (value === undefined) return;
+        valuesRecord[id] = { value: String(value), color: colors[index] ?? [255, 255, 255] };
+      });
       return Object.keys(valuesRecord).length > 0
         ? [{ type: "Channels" as const, values: valuesRecord }]
         : [];
     },
-    [visibleChannels, setPixelValues],
+    [ids, colors, setPixelValues],
   );
 
   return { layers: [multiscaleLayer], getTooltipItems };

@@ -98,10 +98,7 @@ const seedChannels = (hiddenFirst = false) => {
 const selectionsFromLayer = (layers: unknown[]): { props: { selections: unknown[] } } | undefined =>
   (layers[0] as { props: { selections: unknown[] } } | undefined) ?? undefined;
 
-/**
- * Seeds `count` channels, all initialized, with `visibleIndexes` visible —
- * the >MAX_CHANNELS regime where the admission cap reshuffles on toggles.
- */
+/** Seeds `count` channels, all initialized, with `visibleIndexes` visible. */
 const seedManyChannels = (count: number, visibleIndexes: number[]) => {
   const ids = Array.from({ length: count }, (_, index) => `Ch${index}`);
   const visibleSet = new Set(visibleIndexes);
@@ -184,7 +181,19 @@ describe("useChannelsLayer selections stability", () => {
     expect(after).toBe(before);
   });
 
-  test("selections identity is stable across a visibility-off change", () => {
+  test("hidden channels get no selection, so their tiles are never fetched", () => {
+    const { result } = renderHook(() => useChannelsLayer(0));
+    const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    // C is initialized but hidden.
+    expect(props.selections).toEqual([
+      { c: 0, x: 0, y: 0, z: 0, t: 0 },
+      { c: 1, x: 0, y: 0, z: 0, t: 0 },
+    ]);
+    expect(props.channelsVisible).toEqual([true, true]);
+  });
+
+  test("a visibility-off change drops the channel from selections", () => {
     const { result, rerender } = renderHook(() => useChannelsLayer(0));
     const before = selectionsFromLayer(result.current.layers)!.props.selections;
 
@@ -196,7 +205,8 @@ describe("useChannelsLayer selections stability", () => {
     rerender();
 
     const after = selectionsFromLayer(result.current.layers)!.props.selections;
-    expect(after).toBe(before);
+    expect(after).not.toBe(before);
+    expect(after).toEqual([{ c: 0, x: 0, y: 0, z: 0, t: 0 }]);
   });
 
   test("selections identity is stable across a color change", () => {
@@ -214,15 +224,13 @@ describe("useChannelsLayer selections stability", () => {
     expect(after).toBe(before);
   });
 
-  test("contrast, color and visibility edits stay live while selections hold", () => {
+  test("contrast and color edits stay live while selections hold", () => {
     const { result, rerender } = renderHook(() => useChannelsLayer(0));
     const layerProps = () => (result.current.layers[0] as { props: Record<string, unknown> }).props;
-
-    expect(layerProps().channelsVisible).toEqual([true, true, false]);
+    const before = layerProps().selections;
 
     act(() => {
       store.setState((state) => {
-        state.layersStates[0].channels.B.isVisible = false;
         state.layersStates[0].channels.A.contrastLimits = [5, 120];
         state.layersStates[0].channels.A.color = [9, 9, 9];
       });
@@ -230,98 +238,47 @@ describe("useChannelsLayer selections stability", () => {
     rerender();
 
     const props = layerProps();
-    expect(props.selections).toHaveLength(3);
-    expect(props.channelsVisible).toEqual([true, false, false]);
+    expect(props.selections).toBe(before);
     expect(props.contrastLimits).toEqual([
       [5, 120],
-      [0, 255],
       [0, 255],
     ]);
     expect(props.colors).toEqual([
       [9, 9, 9],
       [0, 255, 0],
-      [0, 0, 255],
     ]);
   });
 
-  test("adding a channel to the initialized set rebuilds selections", () => {
+  test("turning a channel on rebuilds selections with it", () => {
     const { result, rerender } = renderHook(() => useChannelsLayer(0));
     const before = selectionsFromLayer(result.current.layers)!.props.selections;
 
     act(() => {
       store.setState((state) => {
-        state.channels.D.isInitialized = true;
-        state.layersStates[0].channels.D = {
-          isVisible: false,
-          contrastLimits: [0, 255],
-          color: [255, 255, 0],
-        };
+        state.layersStates[0].channels.C.isVisible = true;
       });
     });
     rerender();
 
     const after = selectionsFromLayer(result.current.layers)!.props.selections;
     expect(after).not.toBe(before);
-    expect(after).toHaveLength(4);
+    expect(after).toHaveLength(3);
   });
 
-  test("selections follow the admission cap when a toggle ON evicts a hidden fill channel", () => {
-    // 12 initialized channels, 9 visible: before the toggle the cap admits the
-    // 9 visible plus one hidden fill (Ch9). Toggling Ch11 on makes 10 visible
-    // and drops the fill — the admitted set changes, so selections must be
-    // rebuilt to keep index pairing with the fresh colors/channelsVisible
-    // columns. With the old renderable-set key this transition kept the stale
-    // array and rendered Ch9's plane in Ch11's color.
-    seedManyChannels(12, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
-    const { result, rerender } = renderHook(() => useChannelsLayer(0));
+  test("visible channels beyond the viv cap wait, in image order", () => {
+    seedManyChannels(12, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    const { result } = renderHook(() => useChannelsLayer(0));
     const layerProps = () => (result.current.layers[0] as { props: Record<string, unknown> }).props;
 
-    expect(layerProps().selections).toHaveLength(10);
-    expect((layerProps().selections as { c: number }[])[9].c).toBe(9);
-
-    act(() => {
-      store.setState((state) => {
-        state.layersStates[0].channels.Ch11.isVisible = true;
-      });
-    });
-    rerender();
-
     const selections = layerProps().selections as { c: number }[];
-    expect(selections).toHaveLength(10);
-    expect(selections[9].c).toBe(11);
-    expect(layerProps().channelsVisible).toEqual([...Array(9).fill(true), true]);
+    expect(selections.map((selection) => selection.c)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(layerProps().channelsVisible).toEqual(Array(10).fill(true));
   });
 
-  test("selections follow the admission cap when a toggle OFF admits an earlier hidden channel", () => {
-    // All 12 initialized, channels 2–11 visible (10 — cap full). Toggling Ch2
-    // off frees one hidden slot and the first hidden renderable in image
-    // order (Ch0) takes it, shifting the admitted set: selections[0] must now
-    // carry Ch0's plane paired with the fresh columns, not keep Ch2's.
-    seedManyChannels(12, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    const { result, rerender } = renderHook(() => useChannelsLayer(0));
-    const layerProps = () => (result.current.layers[0] as { props: Record<string, unknown> }).props;
-
-    expect((layerProps().selections as { c: number }[])[0].c).toBe(2);
-
-    act(() => {
-      store.setState((state) => {
-        state.layersStates[0].channels.Ch2.isVisible = false;
-      });
-    });
-    rerender();
-
-    const selections = layerProps().selections as { c: number }[];
-    const channelsVisible = layerProps().channelsVisible as boolean[];
-    expect(selections).toHaveLength(10);
-    expect(selections[0].c).toBe(0);
-    expect(channelsVisible[0]).toBe(false);
-    expect(selections.map((selection) => selection.c)).toEqual([0, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-  });
-
-  test("selections stay identity-stable for contrast and color edits beyond the cap", () => {
-    // The perf win the memo exists for: with more renderable channels than the
-    // cap, an edit that does not change the admitted set must not rebuild the
-    // selections array (deck.gl would reloadAll every visible tile).
+  test("selections stay identity-stable for contrast and color edits with many channels", () => {
+    // The perf win the memo exists for: an edit that does not change the
+    // admitted set must not rebuild the selections array (deck.gl would
+    // reloadAll every visible tile).
     seedManyChannels(12, [0, 1, 2, 3, 4, 5, 6, 7, 8]);
     const { result, rerender } = renderHook(() => useChannelsLayer(0));
     const before = selectionsFromLayer(result.current.layers)!.props.selections;
@@ -352,8 +309,8 @@ describe("useChannelsLayer selections stability", () => {
     const { result } = renderHook(() => useChannelsLayer(0));
     const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
 
-    expect(props.selections).toHaveLength(3);
-    expect(props.channelsVisible).toEqual([true, true, false]);
+    expect(props.selections).toHaveLength(2);
+    expect(props.channelsVisible).toEqual([true, true]);
   });
 
   test("a caller-aborted tile rejects with viv's SIGNAL_ABORTED sentinel", async () => {
@@ -543,24 +500,23 @@ describe("useChannelsLayer selections stability", () => {
     ]);
   });
 
-  test("pixel readouts keep channel-value alignment when a hidden channel precedes a visible one", () => {
-    seedChannels(true); // A hidden, B visible, C hidden — columns [A, B, C]
+  test("pixel readouts pair each visible channel with its own selection's value", () => {
+    seedChannels(true); // A hidden, B visible, C hidden — columns [B]
     const { result } = renderHook(() => useChannelsLayer(0));
 
-    // hoverData maps over selections (all three initialized channels): B's
-    // intensity lives at index 1, not at its visible-position index 0.
+    // hoverData maps over selections, which hold only B.
     const items = result.current.getTooltipItems({} as never);
 
     expect(items).toEqual([
       {
         type: "Channels",
         values: {
-          B: { value: "22", color: [0, 255, 0] },
+          B: { value: "11", color: [0, 255, 0] },
         },
       },
     ]);
 
     // The store readout (sidebar) must carry the same aligned pair.
-    expect(store.getState().pixelValues).toEqual({ B: 22 });
+    expect(store.getState().pixelValues).toEqual({ B: 11 });
   });
 });
