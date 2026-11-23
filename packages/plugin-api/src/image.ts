@@ -135,6 +135,14 @@ export interface LoaderLevel {
   dtype: string;
   labels: string[];
   tileSize: number;
+  /**
+   * Whether aborting `TileRequest.signal` cancels only that tile's read. The
+   * host passes `signal` to `getTile` only when this is true; absent, tiles the
+   * viewer abandons still download in full. Leave it unset when reads share
+   * requests across tiles (e.g. geotiff's default BlockedSource), where one
+   * tile's abort fails the others sharing its request.
+   */
+  supportsAbortableTileReads?: boolean;
 }
 
 export type Loader = LoaderLevel[];
