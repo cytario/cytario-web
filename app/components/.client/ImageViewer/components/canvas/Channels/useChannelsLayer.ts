@@ -2,6 +2,7 @@ import { PickingInfo } from "@deck.gl/core";
 import { MultiscaleImageLayer, ColorPaletteExtension, SIGNAL_ABORTED } from "@hms-dbmi/viv";
 import { useCallback, useMemo } from "react";
 
+import { AbandonedTileAbortingTileset } from "./AbandonedTileAbortingTileset";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import {
@@ -222,6 +223,8 @@ export const useChannelsLayer = (
       // Without a debounce every wheel step requests the tiles of each level it
       // passes through, and those fetches queue ahead of the final view's.
       debounceTime: tileRequestDebounceMs,
+      // viv spreads its props into the inner TileLayer, which builds its tileset from this.
+      TilesetClass: AbandonedTileAbortingTileset,
       pickable: true,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;

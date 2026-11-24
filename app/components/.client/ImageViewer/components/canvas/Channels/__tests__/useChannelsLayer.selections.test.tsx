@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { createViewerStore } from "../../../../state/store/createViewerStore";
+import { AbandonedTileAbortingTileset } from "../AbandonedTileAbortingTileset";
 import { TILE_REQUEST_DEBOUNCE_MS, useChannelsLayer } from "../useChannelsLayer";
 
 let store: ReturnType<typeof createViewerStore>;
@@ -319,6 +320,13 @@ describe("useChannelsLayer selections stability", () => {
 
     expect(TILE_REQUEST_DEBOUNCE_MS).toBeGreaterThan(0);
     expect(props.debounceTime).toBe(TILE_REQUEST_DEBOUNCE_MS);
+  });
+
+  test("the tile layer aborts tiles the viewport has abandoned", () => {
+    const { result } = renderHook(() => useChannelsLayer(0));
+    const props = (result.current.layers[0] as { props: Record<string, unknown> }).props;
+
+    expect(props.TilesetClass).toBe(AbandonedTileAbortingTileset);
   });
 
   test("a caller can request tiles without waiting for the viewport to settle", () => {
