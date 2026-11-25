@@ -91,7 +91,7 @@ describe("auth / gates / slots surface", () => {
         case "deny":
           return `deny:${outcome.status ?? 403}:${outcome.message ?? ""}`;
         case "lock":
-          return `lock:${outcome.connectionIds.join(",")}`;
+          return `lock:${outcome.connectionIds.join(",")}:${outcome.message ?? ""}`;
         default: {
           const unreachable: never = outcome;
           return unreachable;
@@ -102,8 +102,29 @@ describe("auth / gates / slots surface", () => {
     expect(render({ kind: "redirect", url: "/x" })).toBe("redirect:/x");
     expect(render({ kind: "deny" })).toBe("deny:403:");
     expect(render({ kind: "deny", status: 401, message: "nope" })).toBe("deny:401:nope");
-    expect(render({ kind: "lock", connectionIds: ["a", "b"] })).toBe("lock:a,b");
-    expect(render({ kind: "lock", connectionIds: [] })).toBe("lock:");
+    expect(render({ kind: "lock", connectionIds: ["a", "b"] })).toBe("lock:a,b:");
+    expect(render({ kind: "lock", connectionIds: [] })).toBe("lock::");
+  });
+
+  test("a lock outcome carries the same optional CTA fields as deny", () => {
+    // The bare shape stays valid: a host with no copy to offer locks silently.
+    const bare: GateOutcome = { kind: "lock", connectionIds: ["a"] };
+    expect(bare.kind === "lock" && bare.message).toBeUndefined();
+
+    const withCta: GateOutcome = {
+      kind: "lock",
+      connectionIds: ["conn-1"],
+      message: "Upgrade plan to browse private data.",
+      resolveUrl: "https://admin.cytario.com/billing",
+      resolveLabel: "Upgrade plan",
+    };
+    expect(withCta.kind === "lock" && withCta.message).toBe("Upgrade plan to browse private data.");
+    expect(withCta.kind === "lock" && withCta.resolveUrl).toBe("https://admin.cytario.com/billing");
+    expect(withCta.kind === "lock" && withCta.resolveLabel).toBe("Upgrade plan");
+
+    // Every CTA member is independently absent-capable.
+    const messageOnly: GateOutcome = { kind: "lock", connectionIds: ["a"], message: "locked" };
+    expect(messageOnly.kind === "lock" && messageOnly.resolveUrl).toBeUndefined();
   });
 
   test("a GateRegistry accepts a SessionGate", () => {

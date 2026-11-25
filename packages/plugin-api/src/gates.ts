@@ -20,8 +20,17 @@ export type GateOutcome =
     }
   // The request continues, but the named connections render visible-locked:
   // listed and deletable, never browsable. The host renders the locked
-  // presentation generically — it never learns why they are locked.
-  | { kind: "lock"; connectionIds: string[] };
+  // presentation generically — it never learns why they are locked. A request
+  // that NAMES one of these connections does not proceed: the host redirects a
+  // document navigation to the org listing with `message` (and returns a 402
+  // JSON body `{ error, resolveUrl?, resolveLabel? }` for a data/API request).
+  | {
+      kind: "lock";
+      connectionIds: string[];
+      message?: string;
+      resolveUrl?: string;
+      resolveLabel?: string;
+    };
 
 /**
  * Host-resolved resource facts. The host states what it knows; the plugin
