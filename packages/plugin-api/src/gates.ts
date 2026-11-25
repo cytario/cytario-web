@@ -17,12 +17,28 @@ export type GateOutcome =
       message?: string;
       resolveUrl?: string;
       resolveLabel?: string;
-    };
+    }
+  // The request continues, but the named connections render visible-locked:
+  // listed and deletable, never browsable. The host renders the locked
+  // presentation generically — it never learns why they are locked.
+  | { kind: "lock"; connectionIds: string[] };
 
+/**
+ * Host-resolved resource facts. The host states what it knows; the plugin
+ * decides what it means.
+ */
 export interface GateRequest {
   url: string;
   method: string; // uppercase — lets a gate treat writes differently from reads
   identity: Identity; // org, attrs, groups, scopes (the plugin interprets attrs itself)
+  /** Present when the request addresses a storage resource. */
+  resource?: {
+    /** The connection id named by a `/:org/:id/*` request; undefined otherwise. */
+    connectionId?: string;
+    /** Whether the connection's provider is public (credential-less, read-only),
+     *  resolved from the host's provider catalog; undefined when unknown. */
+    isPublic?: boolean;
+  };
 }
 
 export type SessionGate = (req: GateRequest) => GateOutcome | Promise<GateOutcome>;
