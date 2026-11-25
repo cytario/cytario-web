@@ -68,10 +68,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       organizations.map(async (organization) => {
         const connections = await listConnections(profile, organization);
 
-        // The gate's verdict for this org's list — a locked row is still
-        // listed, so the CLI shows it rather than silently dropping it.
-        const locked = new Set(await lockedConnectionIds(profile, organization));
-
         const catalog = await getProviderCatalog(organization, token).catch((error: unknown) => {
           console.error("[me/connections] provider catalog lookup failed", error);
           return undefined;
@@ -87,23 +83,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           );
         }
 
+        const resolved = connections.map((connection) => ({
+          connection,
+          provider: resolveConnectionProviderWithGrants(catalog, connection, bucketCatalog),
+        }));
+
+        // The gate's per-connection verdict — a locked row is still listed, so
+        // the CLI shows it rather than silently dropping it.
+        const locked = new Set(
+          await lockedConnectionIds(
+            profile,
+            organization,
+            resolved.map(({ connection, provider }) => ({
+              connectionId: connection.id,
+              isPublic: provider?.isPublic,
+            })),
+          ),
+        );
+
         const orgRows = await Promise.all(
-          connections.map(async (connection): Promise<MeConnection | null> => {
-            const resolved = resolveConnectionProviderWithGrants(
-              catalog,
-              connection,
-              bucketCatalog,
-            );
-            if (!resolved) return null;
-            const grant = pickGrantForUser(resolved, profile, organization);
+          resolved.map(async ({ connection, provider }): Promise<MeConnection | null> => {
+            if (!provider) return null;
+            const grant = pickGrantForUser(provider, profile, organization);
 
             const bucketRow = bucketCatalog?.buckets.find(
               (b) =>
                 b.bucketName === connection.bucketName &&
                 catalog.providerConnections.some((p) => p.id === b.providerConnectionId),
             );
-            const region = bucketRow?.region ?? resolved.region;
-            const providerConfig = getS3ProviderConfig(resolved.endpoint, region);
+            const region = bucketRow?.region ?? provider.region;
+            const providerConfig = getS3ProviderConfig(provider.endpoint, region);
 
             return {
               organization,

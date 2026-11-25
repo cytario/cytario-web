@@ -145,6 +145,38 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(body.connections[0]?.locked).toBe(true);
   });
 
+  test("a deny on the connection's browse request also marks the row locked", async () => {
+    hasGatesMock.mockReturnValue(true);
+    runGatesMock.mockResolvedValue({ kind: "deny", status: 402 });
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as { connections: Array<{ locked: boolean }> };
+
+    expect(body.connections[0]?.locked).toBe(true);
+  });
+
+  test("asks the gate once per connection, naming it and its provider's publicness", async () => {
+    hasGatesMock.mockReturnValue(true);
+    runGatesMock.mockResolvedValue({ kind: "continue" });
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    await loader(buildArgs("token"));
+
+    expect(runGatesMock).toHaveBeenCalledWith({
+      url: "/org1/conn-uuid-1",
+      method: "GET",
+      identity: expect.objectContaining({ organization: "org1" }),
+      resource: { connectionId: "conn-uuid-1", isPublic: false },
+    });
+  });
+
   test("asks the gate per organization, not once for the whole read", async () => {
     hasGatesMock.mockReturnValue(true);
     runGatesMock.mockResolvedValue({ kind: "continue" });
@@ -157,10 +189,12 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
 
     await loader(buildArgs("token"));
 
-    const gateOrgs = runGatesMock.mock.calls.map(
-      ([req]) => (req as { identity: { organization: string } }).identity.organization,
+    const gateOrgs = new Set(
+      runGatesMock.mock.calls.map(
+        ([req]) => (req as { identity: { organization: string } }).identity.organization,
+      ),
     );
-    expect(gateOrgs).toEqual(["alpha", "zulu"]);
+    expect([...gateOrgs].sort()).toEqual(["alpha", "zulu"]);
   });
 
   test("401 without a Bearer token", async () => {

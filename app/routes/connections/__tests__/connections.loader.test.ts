@@ -10,18 +10,35 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   authMiddleware: vi.fn(async (_ctx, next) => next()),
 }));
 
+const lockedConnectionIdsMock = vi.hoisted(() => vi.fn());
+
+vi.mock("~/.server/gateResourceFacts.server", () => ({
+  lockedConnectionIds: lockedConnectionIdsMock,
+}));
+
 const { authContext } = await import("~/.server/auth/authMiddleware");
+
+const publicProvider = {
+  region: "eu-central-1",
+  endpoint: null,
+  allowsSharing: false,
+  accessLevel: "read-only" as const,
+  isPublic: true,
+};
 
 const buildContext = (lockedConnectionIds: string[] = []) => ({
   get: vi.fn((ctx) => {
     if (ctx === authContext) {
       return {
+        user: mock.user(),
+        requestOrganization: "org1",
         connectionConfigs: [
           mock.connectionConfig({ id: "conn-a", name: "conn-a" }),
           mock.connectionConfig({ id: "conn-b", name: "conn-b" }),
         ],
         credentials: {},
         credentialErrors: {},
+        connectionProviders: { "conn-a": publicProvider },
         lockedConnectionIds,
       };
     }
@@ -29,8 +46,10 @@ const buildContext = (lockedConnectionIds: string[] = []) => ({
   }),
 });
 
-const runLoader = (lockedConnectionIds: string[] = []) =>
-  loadConnections({ context: buildContext(lockedConnectionIds) as never } as never);
+const runLoader = (lockedConnectionIds: string[] = []) => {
+  lockedConnectionIdsMock.mockResolvedValue(lockedConnectionIds);
+  return loadConnections({ context: buildContext() as never } as never);
+};
 
 describe("connections loader — gate-locked presentation", () => {
   beforeEach(() => {
@@ -63,5 +82,27 @@ describe("connections loader — gate-locked presentation", () => {
 
     expect(connectionConfigs.map((config) => config.id)).toEqual(["conn-a", "conn-b"]);
     expect(nodes).toHaveLength(2);
+  });
+
+  test("asks the gate once per listed connection, with each one's own publicness", async () => {
+    await runLoader();
+
+    expect(lockedConnectionIdsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: "mock-user-id" }),
+      "org1",
+      [
+        // conn-a's provider resolved as public; conn-b's is absent (unknown).
+        { connectionId: "conn-a", isPublic: true },
+        { connectionId: "conn-b", isPublic: undefined },
+      ],
+    );
+  });
+
+  test("no gate in this build locks nothing and the list is untouched", async () => {
+    lockedConnectionIdsMock.mockResolvedValue([]);
+
+    const { nodes } = await runLoader();
+
+    expect(nodes.some((node) => node.isLocked)).toBe(false);
   });
 });

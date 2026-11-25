@@ -8,6 +8,7 @@ import {
 import { ModalOutlet } from "./ModalOutlet";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
+import { lockedConnectionIds } from "~/.server/gateResourceFacts.server";
 import { createLabel } from "~/.server/logging";
 import { PluginSlots } from "~/components/PluginSlots";
 import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
@@ -34,8 +35,19 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     connectionProviders,
     user,
     requestOrganization: org,
-    lockedConnectionIds,
+    lockedConnectionIds: lockedForThisRequest,
   } = context.get(authContext);
+  // The sidebar needs the same per-connection verdict the listings ask for:
+  // an org-root lock names nothing per connection, so both signals count.
+  const probedLocked = await lockedConnectionIds(
+    user,
+    org,
+    connectionConfigs.map((config) => ({
+      connectionId: config.id,
+      isPublic: connectionProviders[config.id]?.isPublic,
+    })),
+  );
+  const locked = [...new Set([...lockedForThisRequest, ...probedLocked])];
   // No shouldRevalidate gate: the credential keep-alive drives an explicit
   // revalidation to re-mint STS credentials, and RR runs this loader on every
   // navigation — recents/favorites riding along is cheaper than a gate that
@@ -64,7 +76,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     connectionProviders,
     // Presentation only: the gate already refused the browsable requests, so
     // the client just renders these connections locked.
-    lockedConnectionIds,
+    lockedConnectionIds: locked,
     identity: toIdentity(user, org),
     hostConfig: {
       portalUrl: cytarioConfig.endpoints.portal,
