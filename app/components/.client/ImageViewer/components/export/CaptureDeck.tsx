@@ -116,11 +116,12 @@ export const CaptureDeck = ({
     [],
   );
 
+  // The framed view never moves, so waiting for it to settle only delays the capture.
   const {
     layers: viewerLayers,
     effects,
     layerFilter,
-  } = useViewerLayers(imagePanelId, false, excludeAnnotationId, observer);
+  } = useViewerLayers(imagePanelId, false, excludeAnnotationId, observer, 0);
   const layers = useMemo(
     () =>
       pixelScale === 1

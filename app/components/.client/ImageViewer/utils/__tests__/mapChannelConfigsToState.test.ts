@@ -37,7 +37,7 @@ const makeChannelsState = (
   ) as ChannelsState;
 
 describe("mapChannelConfigsToState", () => {
-  test("includes initialized channels regardless of visibility", () => {
+  test("excludes hidden channels even when initialized", () => {
     const columns = mapChannelConfigsToState(
       makeChannelsState([
         { id: "Red", isVisible: true },
@@ -45,8 +45,8 @@ describe("mapChannelConfigsToState", () => {
       ]),
     );
 
-    expect(columns.ids).toEqual(["Red", "Green"]);
-    expect(columns.selections).toHaveLength(2);
+    expect(columns.ids).toEqual(["Red"]);
+    expect(columns.selections).toHaveLength(1);
   });
 
   test("includes a visible channel while its stats are still initializing", () => {
@@ -66,18 +66,7 @@ describe("mapChannelConfigsToState", () => {
     expect(columns.selections).toHaveLength(2);
   });
 
-  test("excludes channels that are neither initialized nor visible", () => {
-    const columns = mapChannelConfigsToState(
-      makeChannelsState([
-        { id: "Red", isVisible: true },
-        { id: "Green", isInitialized: false, isVisible: false },
-      ]),
-    );
-
-    expect(columns.ids).toEqual(["Red"]);
-  });
-
-  test("channelsVisible mirrors isVisible while the arrays stay aligned", () => {
+  test("keeps the columns aligned in channel order", () => {
     const columns = mapChannelConfigsToState(
       makeChannelsState([
         { id: "Red", isVisible: true, contrastLimits: [0, 100], color: [255, 0, 0] },
@@ -86,16 +75,14 @@ describe("mapChannelConfigsToState", () => {
       ]),
     );
 
-    expect(columns.channelsVisible).toEqual([true, false, true]);
-    expect(columns.ids).toEqual(["Red", "Green", "Blue"]);
+    expect(columns.ids).toEqual(["Red", "Blue"]);
+    expect(columns.channelsVisible).toEqual([true, true]);
     expect(columns.contrastLimits).toEqual([
       [0, 100],
-      [0, 200],
       [0, 300],
     ]);
     expect(columns.colors).toEqual([
       [255, 0, 0],
-      [0, 255, 0],
       [0, 0, 255],
     ]);
     expect(columns.selections.every((selection) => selection.c === 0 && selection.x === 0)).toBe(
@@ -103,63 +90,23 @@ describe("mapChannelConfigsToState", () => {
     );
   });
 
-  test("keeps hidden channels out of everything user-visible except their tile data", () => {
-    const columns = mapChannelConfigsToState(
-      makeChannelsState([
-        { id: "Red", isVisible: true, color: [255, 0, 0] },
-        { id: "Green", isVisible: false, color: [0, 255, 0] },
-      ]),
-    );
-
-    const visibleIndexes = columns.channelsVisible.flatMap((visible, index) =>
-      visible ? [index] : [],
-    );
-    const visibleIds = visibleIndexes.map((index) => columns.ids[index]);
-    expect(visibleIds).toEqual(["Red"]);
-    expect(visibleIndexes).toHaveLength(columns.selections.length - 1);
-  });
-
-  test("drops hidden channels beyond the viv channel cap once visible ones fill it", () => {
+  test("admits at most the viv channel cap, keeping the first visible ones", () => {
     const entries = Array.from({ length: 11 }, (_, index) => ({
       id: `Channel ${index}`,
-      isVisible: index < 10,
+      isVisible: true,
     }));
     const columns = mapChannelConfigsToState(makeChannelsState(entries));
 
     expect(columns.ids).toHaveLength(10);
-    expect(columns.ids.every((id) => id !== "Channel 10")).toBe(true);
+    expect(columns.ids).not.toContain("Channel 10");
     expect(columns.selections).toHaveLength(10);
-    expect(columns.channelsVisible).toEqual(Array(10).fill(true));
   });
 
-  test("keeps a hidden channel within the cap when fewer than the cap are visible", () => {
-    const entries = Array.from({ length: 8 }, (_, index) => ({
-      id: `Channel ${index}`,
-      isVisible: index === 0,
-    }));
-    const columns = mapChannelConfigsToState(makeChannelsState(entries));
+  test("returns empty columns when no channel is visible", () => {
+    const columns = mapChannelConfigsToState(makeChannelsState([{ id: "Red", isVisible: false }]));
 
-    expect(columns.ids).toHaveLength(8);
-    expect(columns.channelsVisible.filter(Boolean)).toHaveLength(1);
-  });
-
-  test("drops a visible-uninitialized channel beyond the cap only when visible ones already fill it", () => {
-    // 10 visible initialized + 1 more toggled on before its stats resolve: viv
-    // composites at most MAX_CHANNELS, so the late one waits — but a visible
-    // channel is never dropped while a hidden one occupies a slot.
-    const entries = [
-      ...Array.from({ length: 10 }, (_, index) => ({
-        id: `Channel ${index}`,
-        isVisible: true,
-      })),
-      { id: "Late Visible", isInitialized: false, isVisible: true },
-      { id: "Hidden", isInitialized: true, isVisible: false },
-    ];
-    const columns = mapChannelConfigsToState(makeChannelsState(entries));
-
-    expect(columns.ids).toHaveLength(10);
-    expect(columns.channelsVisible.every(Boolean)).toBe(true);
-    expect(columns.ids).not.toContain("Hidden");
+    expect(columns.ids).toEqual([]);
+    expect(columns.selections).toEqual([]);
   });
 
   test("returns empty columns for an empty channels state", () => {

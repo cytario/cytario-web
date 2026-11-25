@@ -65,39 +65,93 @@ function cacheFor(namespace: object): Cache {
   return cache;
 }
 
+/** Consumers of one in-flight fetch; it is aborted once all of them have given up. */
+interface PendingFetch {
+  controller: AbortController;
+  consumers: number;
+  /** A consumer without a signal can never give up, so the fetch must finish. */
+  pinned: boolean;
+}
+
+const pendingFetches = new WeakMap<Promise<unknown>, PendingFetch>();
+
+const abortError = (): DOMException => new DOMException("Tile request was aborted", "AbortError");
+
 /**
  * Return a memoized in-flight (or resolved) promise for `key`, fetching via
  * `fetcher` on miss. Failed fetches (including aborts) are evicted so the next
  * caller refetches — keeps a panned-away panel's abort from poisoning the cache.
+ *
+ * A caller passing `signal` stops waiting when it aborts; the shared fetch is
+ * aborted (through the signal handed to `fetcher`) only when every caller
+ * waiting on it has aborted.
  */
 export function getCachedTile<T>(
   namespace: object,
   key: string,
-  fetcher: () => Promise<T>,
+  fetcher: (signal: AbortSignal) => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
+  if (signal?.aborted) return Promise.reject(abortError());
+
   const cache = cacheFor(namespace);
 
-  const existing = cache.get(key);
-  if (existing) return existing as Promise<T>;
+  let stored = cache.get(key) as Promise<T> | undefined;
+  if (!stored) {
+    const controller = new AbortController();
+    const fetched: Promise<T> = fetcher(controller.signal).then(
+      (value) => {
+        pendingFetches.delete(fetched);
+        resolvedSizes.set(fetched, byteLengthOf(value));
+        // Re-set with the resolved size known; lru-cache re-runs
+        // sizeCalculation, and entries over maxEntrySize are dropped by the
+        // library itself.
+        if (cache.peek(key) === fetched) cache.set(key, fetched);
+        return value;
+      },
+      (error) => {
+        pendingFetches.delete(fetched);
+        if (cache.peek(key) === fetched) cache.delete(key);
+        throw error;
+      },
+    );
+    pendingFetches.set(fetched, { controller, consumers: 0, pinned: false });
+    cache.set(key, fetched);
+    stored = fetched;
+  }
 
-  const stored = fetcher().then(
-    (value) => {
-      resolvedSizes.set(stored, byteLengthOf(value));
-      // Re-set with the resolved size known; lru-cache re-runs
-      // sizeCalculation, and entries over maxEntrySize are dropped by the
-      // library itself.
-      cache.set(key, stored);
-      return value;
-    },
-    (error) => {
-      cache.delete(key);
-      throw error;
-    },
-  );
+  const pending = pendingFetches.get(stored);
+  if (!pending) return stored;
+  if (!signal) {
+    pending.pinned = true;
+    return stored;
+  }
 
-  cache.set(key, stored);
-
-  return stored;
+  const shared = stored;
+  pending.consumers += 1;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      pending.consumers -= 1;
+      if (pending.consumers === 0 && !pending.pinned) {
+        // Evict first so a caller arriving now starts a fresh fetch instead of
+        // joining the one being aborted.
+        if (cache.peek(key) === shared) cache.delete(key);
+        pending.controller.abort();
+      }
+      reject(abortError());
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    shared.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 /** Drop all cached entries across every namespace (memory-pressure reaction). */

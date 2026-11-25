@@ -3,6 +3,7 @@ import { fromCustomClient } from "geotiff";
 
 import type { Image, Loader } from "../store/core/ome.tif.types";
 import { BlobTiffClient } from "../transport/BlobTiffClient";
+import { SignalRoutedTiffSource } from "../transport/SignalRoutedTiffSource";
 import { SigV4TiffClient } from "../transport/SigV4TiffClient";
 import { normalizePixelType } from "@cytario/plugin-api";
 import type { LoadOptions } from "@cytario/plugin-api";
@@ -257,6 +258,9 @@ export async function loadOmeTiffWithCredentials(
   const source = await fromCustomClient(client as any, {
     cacheSize: Number.POSITIVE_INFINITY,
   });
+  // geotiff builds every GeoTIFFImage over `source.source`, so swapping it here
+  // routes all later reads; fromCustomClient offers no way to pass it in.
+  source.source = new SignalRoutedTiffSource(source.source, client);
 
   // INTERIM WORKAROUND (root-cause-over-workaround rule): relies on geotiff.js caching
   // the parsed IFD (ifdRequests[0]) and viv reading the same fileDirectory object
@@ -319,6 +323,12 @@ export async function loadOmeTiffWithCredentials(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   normalizeOmePixelsType(result.metadata as any);
+
+  // Pixel reads bypass the block cache (SignalRoutedTiffSource), so a tile's
+  // abort cancels only its own request.
+  for (const level of result.data as Loader) {
+    level.supportsAbortableTileReads = true;
+  }
 
   return {
     data: result.data as unknown as Loader,

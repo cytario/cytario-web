@@ -48,6 +48,7 @@ const layerInstances: { isLoaded: boolean }[] = [];
 // reaches the component: these tests drive it the way deck does.
 let observer: TileReadinessObserver | undefined;
 let renderedPanelId: number | undefined;
+let renderedTileRequestDebounceMs: number | undefined;
 
 vi.mock("../../canvas/useViewerLayers", () => ({
   useViewerLayers: (
@@ -55,8 +56,10 @@ vi.mock("../../canvas/useViewerLayers", () => ({
     _interactive?: boolean,
     _exclude?: string | null,
     tileObserver?: TileReadinessObserver,
+    tileRequestDebounceMs?: number,
   ) => {
     renderedPanelId = panelId;
+    renderedTileRequestDebounceMs = tileRequestDebounceMs;
     if (tileObserver) observer = tileObserver;
     return {
       layers: layerInstances,
@@ -141,6 +144,11 @@ describe("CaptureDeck readiness", () => {
   test("renders the layers of the panel it is given, not the live active panel", () => {
     renderDeck(1);
     expect(renderedPanelId).toBe(1);
+  });
+
+  test("requests tiles without waiting for a settle, since the framed view never moves", () => {
+    renderDeck(1);
+    expect(renderedTileRequestDebounceMs).toBe(0);
   });
 
   test("does not mount the layers in the deck's first commit", async () => {

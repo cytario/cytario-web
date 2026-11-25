@@ -121,4 +121,91 @@ describe("sharedTileCache", () => {
     const result = await getCachedTile(b, "same-key", async () => "from-b");
     expect(result).toBe("from-b");
   });
+
+  test("a caller's abort leaves the fetch running while another caller waits", async () => {
+    const ns = {};
+    let fetchSignal: AbortSignal | undefined;
+    let resolveFetch: (value: string) => void = () => {};
+    const fetcher = vi.fn((signal: AbortSignal) => {
+      fetchSignal = signal;
+      return new Promise<string>((resolve) => {
+        resolveFetch = resolve;
+      });
+    });
+    const first = new AbortController();
+    const second = new AbortController();
+
+    const firstTile = getCachedTile(ns, "k", fetcher, first.signal);
+    const secondTile = getCachedTile(ns, "k", fetcher, second.signal);
+    first.abort();
+
+    await expect(firstTile).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchSignal?.aborted).toBe(false);
+
+    resolveFetch("tile");
+    await expect(secondTile).resolves.toBe("tile");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  test("the fetch is aborted once every caller has aborted, and the next caller refetches", async () => {
+    const ns = {};
+    const signals: AbortSignal[] = [];
+    const fetcher = vi.fn(
+      (signal: AbortSignal) =>
+        new Promise<string>((resolve, reject) => {
+          signals.push(signal);
+          signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+          if (signals.length > 1) resolve("fresh");
+        }),
+    );
+    const first = new AbortController();
+    const second = new AbortController();
+
+    const firstTile = getCachedTile(ns, "k", fetcher, first.signal);
+    const secondTile = getCachedTile(ns, "k", fetcher, second.signal);
+    first.abort();
+    second.abort();
+
+    await expect(firstTile).rejects.toMatchObject({ name: "AbortError" });
+    await expect(secondTile).rejects.toMatchObject({ name: "AbortError" });
+    expect(signals[0].aborted).toBe(true);
+
+    await expect(getCachedTile(ns, "k", fetcher, new AbortController().signal)).resolves.toBe(
+      "fresh",
+    );
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  test("a caller without a signal keeps the fetch alive", async () => {
+    const ns = {};
+    let fetchSignal: AbortSignal | undefined;
+    let resolveFetch: (value: string) => void = () => {};
+    const fetcher = (signal: AbortSignal) => {
+      fetchSignal = signal;
+      return new Promise<string>((resolve) => {
+        resolveFetch = resolve;
+      });
+    };
+    const controller = new AbortController();
+
+    const withSignal = getCachedTile(ns, "k", fetcher, controller.signal);
+    const withoutSignal = getCachedTile(ns, "k", fetcher);
+    controller.abort();
+
+    await expect(withSignal).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchSignal?.aborted).toBe(false);
+    resolveFetch("tile");
+    await expect(withoutSignal).resolves.toBe("tile");
+  });
+
+  test("an already-aborted caller rejects without fetching", async () => {
+    const fetcher = vi.fn(async () => "tile");
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(getCachedTile({}, "k", fetcher, controller.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });

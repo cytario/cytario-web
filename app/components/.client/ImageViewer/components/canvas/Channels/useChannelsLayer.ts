@@ -2,6 +2,7 @@ import { PickingInfo } from "@deck.gl/core";
 import { MultiscaleImageLayer, ColorPaletteExtension, SIGNAL_ABORTED } from "@hms-dbmi/viv";
 import { useCallback, useMemo } from "react";
 
+import { AbandonedTileAbortingTileset } from "./AbandonedTileAbortingTileset";
 import { useViewerStore } from "../../../state/store/core/ViewerStoreContext";
 import { channelsStateForPanel, select } from "../../../state/store/selectors";
 import {
@@ -15,6 +16,9 @@ import { getCachedTile } from "../../../utils/sharedTileCache";
 import { useTilesLoading } from "../../../utils/useTilesLoading";
 
 const EMPTY_OBJECT = Object.freeze({}) as ChannelsState;
+
+/** How long the viewport must settle before deck.gl requests its tiles. */
+export const TILE_REQUEST_DEBOUNCE_MS = 150;
 
 /** Both abort shapes loaders use: DOMException (plugins, spec) and plain Error. */
 const isAbortError = (error: unknown): boolean =>
@@ -67,6 +71,7 @@ export interface TileReadinessObserver {
 export const useChannelsLayer = (
   imagePanelId: number,
   observer?: TileReadinessObserver,
+  tileRequestDebounceMs = TILE_REQUEST_DEBOUNCE_MS,
 ): CytarioLayerResult<InstanceType<typeof MultiscaleImageLayer> | null> => {
   const dtype = useViewerStore((state) => {
     const type = state.metadata?.Pixels.Type ?? "Uint8";
@@ -80,11 +85,8 @@ export const useChannelsLayer = (
   // fresh `selections` per edit would `reloadAll()` every visible tile. viv
   // applies contrast/colors/visibility as uniforms instead, so those columns
   // must stay fresh per edit while `selections` only changes when the set of
-  // admitted channels — or a channel's selection values — changes. The key
-  // serializes the columns' ids+selections, not every renderable channel:
-  // beyond MAX_CHANNELS the cap admits different channels as visibility
-  // toggles reshuffle the budget, and `selections` must follow that admission
-  // (its index pairs with colors/contrastLimits/channelsVisible by position).
+  // admitted (visible) channels — or a channel's selection values — changes.
+  // `selections` pairs with colors/contrastLimits/channelsVisible by position.
   const columnsWithoutSelections = useMemo(
     () => mapChannelConfigsToState(channelsState),
     [channelsState],
@@ -129,6 +131,9 @@ export const useChannelsLayer = (
 
     return rawLoader.map((loaderLevel, levelIndex) => {
       const originalGetTile = loaderLevel.getTile.bind(loaderLevel);
+      // A level that has not opted in may share one request across tiles, so
+      // one tile's abort would fail its neighbours: it gets no signal.
+      const isAbortable = loaderLevel.supportsAbortableTileReads === true;
 
       const wrappedLoader = Object.create(Object.getPrototypeOf(loaderLevel));
       Object.assign(wrappedLoader, loaderLevel);
@@ -150,16 +155,15 @@ export const useChannelsLayer = (
         // namespaced to rawLoader so an image switch drops the cache. signal is
         // intentionally excluded from the key.
         const cacheKey = `${levelIndex}:${params.x}:${params.y}:${selectionKey(params.selection)}`;
-        // deck.gl's per-tile signal is deliberately NOT threaded into the
-        // loader. geotiff's BlockedSource coalesces sibling tiles into shared
-        // 64 KiB block-group fetches, so one tile's abort kills the group and
-        // every sibling rejects with AggregateError — which deck.gl treats as
-        // terminal (content = null, never re-requested), parking those tiles at
-        // their blurry parent level. Letting fetches complete instead is safe:
-        // deck.gl's loaderId guard discards results whose tile was aborted.
+        // The loader sees the cache's shared signal, not deck.gl's: a fetch
+        // another panel still waits for must not be aborted by this tile.
         const fetchTile = () =>
-          getCachedTile(rawLoader, cacheKey, () =>
-            originalGetTile({ ...params, signal: undefined }),
+          getCachedTile(
+            rawLoader,
+            cacheKey,
+            (sharedSignal) =>
+              originalGetTile({ ...params, signal: isAbortable ? sharedSignal : undefined }),
+            isAbortable ? params.signal : undefined,
           );
 
         // deck.gl treats a getTileData rejection as terminal (content = null,
@@ -169,13 +173,14 @@ export const useChannelsLayer = (
         // viv's SIGNAL_ABORTED sentinel (the composite getTileData catches it and
         // returns null, which deck.gl marks refinable — plugin loaders throw
         // DOMException AbortError, viv's own loaders throw the sentinel). One
-        // retry covers transient failures; persistent ones still reject.
+        // retry covers transient failures of a tile still wanted; persistent
+        // ones still reject, and an abandoned tile is never retried.
         try {
           const result = await fetchTile();
           finishTile(tileId);
           return result;
         } catch (error) {
-          if (isAbortError(error)) {
+          if (isAbortError(error) || error === SIGNAL_ABORTED || params.signal?.aborted) {
             finishTile(tileId);
             throw SIGNAL_ABORTED;
           }
@@ -215,6 +220,11 @@ export const useChannelsLayer = (
       // new tiles load — visible as flicker across a zoom step. Pin
       // `best-available` so a partial-resolution image is always shown.
       refinementStrategy: "best-available",
+      // Without a debounce every wheel step requests the tiles of each level it
+      // passes through, and those fetches queue ahead of the final view's.
+      debounceTime: tileRequestDebounceMs,
+      // viv spreads its props into the inner TileLayer, which builds its tileset from this.
+      TilesetClass: AbandonedTileAbortingTileset,
       pickable: true,
       onTileError: (error: unknown) => {
         if (isAbortError(error)) return;
@@ -241,49 +251,32 @@ export const useChannelsLayer = (
     dtype,
     channelsOpacity,
     imagePanelId,
+    tileRequestDebounceMs,
   ]);
-
-  // `colors` and `ids` are parallel arrays from `mapChannelConfigsToState`, which
-  // now includes hidden-but-initialized channels; filter to the visible ones so
-  // tooltips and pixel readouts only cover channels the user can actually see.
-  // `selectionIndex` keeps each visible channel's position in the columns (and
-  // thus in `selections` and viv's per-selection hoverData) — the column index
-  // and the visible index diverge as soon as any hidden channel precedes a
-  // visible one.
-  const visibleChannels = useMemo(() => {
-    const result: { id: string; color: number[]; selectionIndex: number }[] = [];
-    for (let i = 0; i < ids.length; i++) {
-      if (!channelsVisible[i]) continue;
-      result.push({ id: ids[i], color: colors[i] ?? [255, 255, 255], selectionIndex: i });
-    }
-    return result;
-  }, [ids, colors, channelsVisible]);
 
   const getTooltipItems = useCallback(
     (info: PickingInfo): LayerTooltipItem[] => {
       const data = handleImageViewerHover(info);
       if (!data) return [];
 
+      // hoverData is indexed like the columns, which hold only visible channels.
       const { hoverData } = data;
-
-      // hoverData is indexed by the columns' (selections') order, which includes
-      // hidden-but-initialized channels — read each visible channel's intensity
-      // through its own selectionIndex, not its position among the visible ones.
-      const ids = visibleChannels.map((c) => c.id);
-      const values = visibleChannels.map((c) => hoverData[c.selectionIndex] ?? 0);
-      setPixelValues(ids, values);
+      setPixelValues(
+        ids,
+        ids.map((_, index) => hoverData[index] ?? 0),
+      );
 
       const valuesRecord: Record<string, { value: string; color?: number[] }> = {};
-      for (const { id, color, selectionIndex } of visibleChannels) {
-        const value = hoverData[selectionIndex];
-        if (value === undefined) continue;
-        valuesRecord[id] = { value: String(value), color };
-      }
+      ids.forEach((id, index) => {
+        const value = hoverData[index];
+        if (value === undefined) return;
+        valuesRecord[id] = { value: String(value), color: colors[index] ?? [255, 255, 255] };
+      });
       return Object.keys(valuesRecord).length > 0
         ? [{ type: "Channels" as const, values: valuesRecord }]
         : [];
     },
-    [visibleChannels, setPixelValues],
+    [ids, colors, setPixelValues],
   );
 
   return { layers: [multiscaleLayer], getTooltipItems };
