@@ -110,6 +110,22 @@ export function connectionIdFromOrgPath(pathname: string): string | undefined {
   }
 }
 
+/**
+ * The connection id an `/api/v1/{org}/cyberduck-profile/{id}` pathname names —
+ * that route's `$id` IS the connection id (its loader reads the connection row
+ * by it). `undefined` for any other API path.
+ */
+export function connectionIdFromCyberduckProfilePath(pathname: string): string | undefined {
+  const match = /^\/api\/v1\/[^/]+\/cyberduck-profile\/([^/]+)\/?$/.exec(pathname);
+  const segment = match?.[1];
+  if (!segment) return undefined;
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 const ORG_AGNOSTIC_ROOT_SET = new Set<string>([
   "/recent",
   "/favorites",

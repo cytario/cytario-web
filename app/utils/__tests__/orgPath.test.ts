@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  connectionIdFromCyberduckProfilePath,
   connectionIdFromOrgPath,
   organizationFromApiPath,
   organizationFromPath,
@@ -156,5 +157,35 @@ describe("connectionIdFromOrgPath", () => {
   test("decodes an encoded id and degrades a malformed escape to the raw segment", () => {
     expect(connectionIdFromOrgPath("/acme/conn%2Fuuid")).toBe("conn/uuid");
     expect(connectionIdFromOrgPath("/acme/conn%zz")).toBe("conn%zz");
+  });
+});
+
+describe("connectionIdFromCyberduckProfilePath", () => {
+  test("reads the connection id out of /api/v1/{org}/cyberduck-profile/{id}", () => {
+    expect(connectionIdFromCyberduckProfilePath("/api/v1/acme/cyberduck-profile/conn-uuid-1")).toBe(
+      "conn-uuid-1",
+    );
+  });
+
+  test("is undefined for every other API path", () => {
+    for (const path of [
+      "/api/v1/acme/provider-catalog",
+      "/api/v1/acme/bucket-catalog",
+      "/api/v1/acme/cyberduck-profile",
+      "/api/v1/acme/cyberduck-profile/conn-uuid-1/extra",
+      "/api/me/connections",
+      "/acme/conn-uuid-1",
+    ]) {
+      expect(connectionIdFromCyberduckProfilePath(path), path).toBeUndefined();
+    }
+  });
+
+  test("decodes an encoded id and degrades a malformed escape to the raw segment", () => {
+    expect(connectionIdFromCyberduckProfilePath("/api/v1/acme/cyberduck-profile/conn%2Fuuid")).toBe(
+      "conn/uuid",
+    );
+    expect(connectionIdFromCyberduckProfilePath("/api/v1/acme/cyberduck-profile/conn%zz")).toBe(
+      "conn%zz",
+    );
   });
 });

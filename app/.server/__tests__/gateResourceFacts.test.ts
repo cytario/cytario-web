@@ -81,6 +81,52 @@ describe("resolveGateResource", () => {
     expect(getConnection).toHaveBeenCalledWith(user, "org1", "conn-1");
   });
 
+  test("a cyberduck-profile API path resolves the same facts as the connection's browse path", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: "pc-mock", isPublic: false })],
+      }),
+    );
+
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/api/v1/org1/cyberduck-profile/conn-1"),
+      url: new URL("http://localhost/api/v1/org1/cyberduck-profile/conn-1"),
+    });
+
+    // $id IS the connection id: the profile generator reads the row by it.
+    expect(facts).toEqual({ connectionId: "conn-1", isPublic: false });
+    expect(getConnection).toHaveBeenCalledWith(user, "org1", "conn-1");
+  });
+
+  test("a cyberduck-profile request for an unknown connection still contributes its id", async () => {
+    vi.mocked(getConnection).mockResolvedValue(null);
+
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/api/v1/org1/cyberduck-profile/conn-x"),
+      url: new URL("http://localhost/api/v1/org1/cyberduck-profile/conn-x"),
+    });
+
+    expect(facts).toEqual({ connectionId: "conn-x" });
+  });
+
+  test("other org API paths resolve no connection facts", async () => {
+    for (const path of [
+      "/api/v1/org1/provider-catalog",
+      "/api/v1/org1/bucket-catalog",
+      "/api/v1/org1/job-grant/initiate",
+    ]) {
+      const facts = await resolveGateResource({
+        ...base,
+        request: request(`http://localhost${path}`),
+        url: new URL(`http://localhost${path}`),
+      });
+      expect(facts, path).toBeUndefined();
+    }
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
   test("an unknown connection still contributes the id it named", async () => {
     vi.mocked(getConnection).mockResolvedValue(null);
 
@@ -178,30 +224,69 @@ describe("resolveGateResource", () => {
 });
 
 describe("lockedConnectionIds", () => {
-  test("asks the gate for the org root list and returns its locked ids", async () => {
-    runGatesMock.mockResolvedValue({ kind: "lock", connectionIds: ["conn-1", "conn-2"] });
+  const listed = [
+    { connectionId: "conn-private", isPublic: false },
+    { connectionId: "conn-public", isPublic: true },
+  ];
 
-    await expect(lockedConnectionIds(user, "org1")).resolves.toEqual(["conn-1", "conn-2"]);
+  test("probes each listed connection with its own facts and collects the locked ones", async () => {
+    runGatesMock.mockImplementation(async (req: { resource?: { connectionId?: string } }) =>
+      req.resource?.connectionId === "conn-private"
+        ? { kind: "lock", connectionIds: ["conn-private"] }
+        : { kind: "continue" },
+    );
+
+    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual(["conn-private"]);
+
+    // One question per connection, naming that connection — never the org root.
+    expect(runGatesMock).toHaveBeenCalledTimes(2);
     expect(runGatesMock).toHaveBeenCalledWith({
-      url: "/org1",
+      url: "/org1/conn-private",
       method: "GET",
       identity: expect.objectContaining({ organization: "org1" }),
+      resource: { connectionId: "conn-private", isPublic: false },
+    });
+    expect(runGatesMock).toHaveBeenCalledWith({
+      url: "/org1/conn-public",
+      method: "GET",
+      identity: expect.objectContaining({ organization: "org1" }),
+      resource: { connectionId: "conn-public", isPublic: true },
     });
   });
 
-  test("a continue verdict locks nothing", async () => {
-    await expect(lockedConnectionIds(user, "org1")).resolves.toEqual([]);
+  test("a deny verdict also marks the row locked", async () => {
+    runGatesMock.mockResolvedValue({ kind: "deny", status: 402 });
+
+    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual([
+      "conn-private",
+      "conn-public",
+    ]);
   });
 
-  test("a deny verdict locks nothing (the request is refused elsewhere)", async () => {
-    runGatesMock.mockResolvedValue({ kind: "deny", status: 402 });
-    await expect(lockedConnectionIds(user, "org1")).resolves.toEqual([]);
+  test("an unknown publicness is left absent rather than guessed", async () => {
+    await lockedConnectionIds(user, "org1", [{ connectionId: "conn-1" }]);
+
+    expect(runGatesMock).toHaveBeenCalledWith({
+      url: "/org1/conn-1",
+      method: "GET",
+      identity: expect.objectContaining({ organization: "org1" }),
+      resource: { connectionId: "conn-1" },
+    });
+  });
+
+  test("continue locks nothing", async () => {
+    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual([]);
+  });
+
+  test("no connections to probe asks the gate nothing", async () => {
+    await expect(lockedConnectionIds(user, "org1", [])).resolves.toEqual([]);
+    expect(runGatesMock).not.toHaveBeenCalled();
   });
 
   test("no gate in this build locks nothing", async () => {
     hasGatesMock.mockReturnValue(false);
 
-    await expect(lockedConnectionIds(user, "org1")).resolves.toEqual([]);
+    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual([]);
     expect(runGatesMock).not.toHaveBeenCalled();
   });
 });
