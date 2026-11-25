@@ -9,6 +9,12 @@ vi.mock("~/.server/auth/authMiddleware", () => ({
   authMiddleware: vi.fn(async (_ctx, next) => next()),
 }));
 
+const lockedConnectionIdsMock = vi.hoisted(() => vi.fn());
+
+vi.mock("~/.server/gateResourceFacts.server", () => ({
+  lockedConnectionIds: lockedConnectionIdsMock,
+}));
+
 vi.mock("~/routes/recent/recent.loader", () => ({
   loadRecentlyViewed: vi.fn(),
 }));
@@ -32,6 +38,7 @@ const buildContext = (user = mock.user(), lockedConnectionIds: string[] = []) =>
           : Object.keys(user.organizations)[0],
         connectionConfigs: [],
         credentials: { "test-conn": mock.credentials() },
+        connectionProviders: {},
         lockedConnectionIds,
       };
     }
@@ -55,6 +62,7 @@ describe("protected layout loader", () => {
     vi.clearAllMocks();
     vi.mocked(loadRecentlyViewed).mockResolvedValue([]);
     vi.mocked(loadFavorites).mockResolvedValue([]);
+    lockedConnectionIdsMock.mockResolvedValue([]);
   });
 
   test("returns the Identity projection", async () => {
@@ -103,6 +111,14 @@ describe("protected layout loader", () => {
     const data = await runLoader(mock.user(), ["conn-locked"]);
 
     expect(data.lockedConnectionIds).toEqual(["conn-locked"]);
+  });
+
+  test("merges the per-connection probe with the ids this request's gate named", async () => {
+    lockedConnectionIdsMock.mockResolvedValue(["conn-probed", "conn-locked"]);
+
+    const data = await runLoader(mock.user(), ["conn-locked", "conn-request"]);
+
+    expect(data.lockedConnectionIds.sort()).toEqual(["conn-locked", "conn-probed", "conn-request"]);
   });
 
   test("degrades to empty recents/favorites when a query rejects", async () => {
