@@ -8,6 +8,7 @@ import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
+import { resolveGateResource } from "~/.server/gateResourceFacts.server";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
 import mock from "~/utils/__tests__/__mocks__";
@@ -58,6 +59,10 @@ vi.mock("../verifyIdToken", () => ({
 
 vi.mock("~/.server/pluginGates", () => ({
   runGates: vi.fn(),
+}));
+
+vi.mock("~/.server/gateResourceFacts.server", () => ({
+  resolveGateResource: vi.fn(),
 }));
 
 vi.mock("react-router", async (importOriginal) => {
@@ -175,6 +180,7 @@ describe("authMiddleware", () => {
     });
     // No plugin loaded by default → gates short-circuit to continue.
     vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
+    vi.mocked(resolveGateResource).mockResolvedValue(undefined);
     vi.mocked(getPreferredOrg).mockResolvedValue(null);
     vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
     vi.mocked(readActiveOrgHint).mockResolvedValue(undefined);
@@ -1068,6 +1074,80 @@ describe("authMiddleware", () => {
       const gateOrder = vi.mocked(runGates).mock.invocationCallOrder[0];
       const verifyOrder = vi.mocked(verifyIdToken).mock.invocationCallOrder[0];
       expect(gateOrder).toBeLessThan(verifyOrder);
+    });
+
+    test("resolves the resource facts from the request org before the gate runs", async () => {
+      // The row read is org-scoped and canSee-filtered — it is what names the
+      // connection's provider, which is the fact the gate needs.
+      vi.mocked(resolveGateResource).mockResolvedValue({
+        connectionId: "conn-uuid-1",
+        isPublic: false,
+      });
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/org1/conn-uuid-1/folder/file.ome.tif"),
+      );
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(resolveGateResource).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: expect.objectContaining({ sub: "mock-user-id" }),
+          organization: "org1",
+          sessionId: mockSession.id,
+        }),
+      );
+      expect(runGates).toHaveBeenCalledWith(
+        expect.objectContaining({ resource: { connectionId: "conn-uuid-1", isPublic: false } }),
+      );
+      expect(vi.mocked(resolveGateResource).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(runGates).mock.invocationCallOrder[0],
+      );
+    });
+
+    test("a zero-org request resolves no resource facts", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: mock.user({ organizations: {} }),
+      });
+
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(resolveGateResource).not.toHaveBeenCalled();
+    });
+
+    test("a lock outcome proceeds and carries the locked ids into authContext", async () => {
+      vi.mocked(runGates).mockResolvedValue({ kind: "lock", connectionIds: ["conn-locked"] });
+
+      const args = createMiddlewareArgs();
+
+      const result = await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      );
+
+      // Locked is not blocked: the request still reaches the handler, which
+      // answers with its own response rather than the gate's.
+      expect(result).toBe(await mockNext.mock.results[0]?.value);
+      expect(mockNext).toHaveBeenCalled();
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ lockedConnectionIds: ["conn-locked"] }),
+      );
+    });
+
+    test("continue leaves the locked set empty", async () => {
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ lockedConnectionIds: [] }),
+      );
     });
   });
 

@@ -24,6 +24,7 @@ import {
 import { verifyIdToken } from "./verifyIdToken";
 import { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
 import type { ClientConnectionProvider } from "~/.server/auth/getSessionCredentials";
+import { resolveGateResource } from "~/.server/gateResourceFacts.server";
 import { createLabel } from "~/.server/logging";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
@@ -51,6 +52,9 @@ export interface AuthContextData extends Omit<SessionData, "credentials"> {
   /** THIS request org's credentials — flat connectionId → Credentials; other
    * orgs' credentials never enter the request context. */
   credentials: ConnectionsCredentials;
+  /** Connections a plugin gate reported visible-locked: listed and deletable,
+   * never browsable. Empty when no gate locked anything. */
+  lockedConnectionIds: string[];
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -189,38 +193,59 @@ interface AuthenticatedRequest {
 /**
  * Runs the plugin gates for the request, before any ConnectionConfig query so a
  * zero-org or gated session cannot fall through to an unscoped tenant read;
- * gates receive only the PII-free identity projection. Returns the gate's
- * redirect/deny response, or undefined to continue.
+ * gates receive only the PII-free identity projection plus the resource facts
+ * this request names. Returns the gate's redirect/deny response, or the
+ * connections it locked.
  */
 const applyGates = async (
   request: Request,
   url: URL,
   sessionData: SessionData,
+  sessionId: string,
   requestOrganization: string | undefined,
-): Promise<Response | undefined> => {
+): Promise<{ response?: Response; lockedConnectionIds: string[] }> => {
+  // Resolved only when a gate exists to read them, and best-effort: an unknown
+  // fact is absent, never guessed.
+  const resource = requestOrganization
+    ? await resolveGateResource({
+        request,
+        url,
+        user: sessionData.user,
+        organization: requestOrganization,
+        sessionId,
+        authTokens: sessionData.authTokens,
+      })
+    : undefined;
+
   const outcome = await runGates({
     url: url.toString(),
     method: request.method,
     // toIdentity derives the request org's entitlements (groups, scopes,
     // attributes) from the membership map — gates decide per-org.
     identity: toIdentity(sessionData.user, requestOrganization),
+    ...(resource ? { resource } : {}),
   });
 
   if (outcome.kind === "redirect") {
     console.info(`${label} Gate redirect to ${outcome.url}`);
-    return redirect(outcome.url);
+    return { response: redirect(outcome.url), lockedConnectionIds: [] };
   }
 
   if (outcome.kind === "deny") {
     const status = outcome.status ?? 403;
     console.info(`${label} Gate denied request with status ${status}`);
-    return new Response(JSON.stringify({ error: outcome.message ?? "Request denied" }), {
-      status,
-      headers: { "Content-Type": "application/json" },
-    });
+    return {
+      response: new Response(JSON.stringify({ error: outcome.message ?? "Request denied" }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+      lockedConnectionIds: [],
+    };
   }
 
-  return undefined;
+  // A lock is not a block: the request proceeds, and the named connections
+  // render locked wherever the host lists them.
+  return { lockedConnectionIds: outcome.kind === "lock" ? outcome.connectionIds : [] };
 };
 
 const noOrganizationResponse = (request: Request, pathname: string): Response => {
@@ -287,6 +312,7 @@ const proceedAuthenticated = async (
   { context, session, next }: AuthenticatedRequest,
   sessionData: SessionData,
   requestOrganization: string,
+  lockedConnectionIds: string[],
   persistCredentials: (credentials: SessionData["credentials"]) => Promise<void>,
 ): Promise<unknown> => {
   // The request org drives everything below: the derived entitlements
@@ -316,6 +342,7 @@ const proceedAuthenticated = async (
     connectionConfigs,
     credentialErrors,
     connectionProviders,
+    lockedConnectionIds,
     sessionId: session.id,
     requestOrganization,
   });
@@ -360,9 +387,15 @@ export const authMiddleware: MiddlewareFunction = async (
     resolveRequestOrganization(url, updatedSessionData.user) ??
     (await resolveDefaultOrganization(updatedSessionData.user, incomingHint));
 
-  const gateResponse = await applyGates(request, url, updatedSessionData, requestOrganization);
-  if (gateResponse) {
-    return gateResponse;
+  const gateResult = await applyGates(
+    request,
+    url,
+    updatedSessionData,
+    session.id,
+    requestOrganization,
+  );
+  if (gateResult.response) {
+    return gateResult.response;
   }
   const urlOrg = organizationFromApiPath(url.pathname) ?? organizationFromPath(url.pathname);
   // A path under the /:org subtree whose first segment is NOT a membership
@@ -442,6 +475,7 @@ export const authMiddleware: MiddlewareFunction = async (
         { context, session, next },
         updatedSessionData,
         requestOrganization!,
+        gateResult.lockedConnectionIds,
         async (credentials) => {
           if (credentials !== sessionData.credentials) {
             session.set("credentials", credentials);
@@ -472,6 +506,9 @@ export const authMiddleware: MiddlewareFunction = async (
       { context, session, next },
       refreshedSessionData,
       refreshedRequestOrg,
+      // The gate ran in the pre-refresh org; a verdict about another org's
+      // connections must never reach this request's listings.
+      refreshedRequestOrg === requestOrganization ? gateResult.lockedConnectionIds : [],
       async (credentials) => {
         session.set("credentials", credentials);
         await sessionStorage.commitSession(session);

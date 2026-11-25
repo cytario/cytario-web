@@ -1,14 +1,20 @@
 import type { GateOutcome, GateRegistry, GateRequest, SessionGate } from "@cytario/plugin-api";
 
-const GATE_OUTCOME_KINDS = new Set<GateOutcome["kind"]>(["continue", "redirect", "deny"]);
+const GATE_OUTCOME_KINDS = new Set<GateOutcome["kind"]>(["continue", "redirect", "deny", "lock"]);
 
 function isGateOutcome(value: unknown): value is GateOutcome {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "kind" in value &&
-    GATE_OUTCOME_KINDS.has((value as { kind: GateOutcome["kind"] }).kind)
-  );
+  if (typeof value !== "object" || value === null || !("kind" in value)) return false;
+  const outcome = value as GateOutcome;
+  if (!GATE_OUTCOME_KINDS.has(outcome.kind)) return false;
+  // A lock outcome's ids reach the renderer verbatim, so a malformed list is a
+  // containment failure, not something to pass through and hope about.
+  if (outcome.kind === "lock") {
+    return (
+      Array.isArray(outcome.connectionIds) &&
+      outcome.connectionIds.every((id) => typeof id === "string")
+    );
+  }
+  return true;
 }
 
 interface GateEntry {
@@ -33,6 +39,11 @@ class GateRegistryImpl {
 
   list(): readonly SessionGate[] {
     return this.entries.map((e) => e.gate);
+  }
+
+  /** Whether any plugin registered a gate — the host skips fact resolution when not. */
+  hasEntries(): boolean {
+    return this.entries.length > 0;
   }
 
   // A throwing or malformed gate is treated as `continue` — fail-open,
@@ -71,5 +82,8 @@ class GateRegistryImpl {
 export const gateRegistry = new GateRegistryImpl();
 
 export const runGates = (req: GateRequest): Promise<GateOutcome> => gateRegistry.runGates(req);
+
+/** No plugin gates in this build: the host can skip resolving their input. */
+export const hasGates = (): boolean => gateRegistry.hasEntries();
 
 export type { GateRegistryImpl };

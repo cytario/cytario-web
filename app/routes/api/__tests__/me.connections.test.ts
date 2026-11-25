@@ -28,6 +28,14 @@ vi.mock("~/routes/connections/connections.server", () => ({
   listConnections: vi.fn(),
 }));
 
+const runGatesMock = vi.hoisted(() => vi.fn());
+const hasGatesMock = vi.hoisted(() => vi.fn());
+
+vi.mock("~/.server/pluginGates", () => ({
+  runGates: runGatesMock,
+  hasGates: hasGatesMock,
+}));
+
 const READ_ONLY_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/org-ro";
 const ADMIN_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/internal-admin";
 
@@ -75,6 +83,7 @@ const cliToken = (overrides: Record<string, unknown> = {}) => ({
 describe("me.connections loader — SRS-CY-419101/419102", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasGatesMock.mockReturnValue(false);
   });
 
   test("lists connections with the user's most permissive grant", async () => {
@@ -102,6 +111,56 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     expect(body.connections[0]?.id).toBe("conn-uuid-1");
     expect(body.connections[0]?.roleArn).toBe(ADMIN_ARN);
     expect(body.connections[0]?.accessLevel).toBe("admin");
+  });
+
+  test("rows carry `locked: false` when no gate locked the org's connections", async () => {
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as { connections: Array<{ locked: boolean }> };
+
+    expect(body.connections[0]?.locked).toBe(false);
+  });
+
+  test("a gate-locked connection is still listed, marked locked", async () => {
+    hasGatesMock.mockReturnValue(true);
+    runGatesMock.mockResolvedValue({ kind: "lock", connectionIds: ["conn-uuid-1"] });
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as {
+      connections: Array<{ id: string; locked: boolean }>;
+    };
+
+    expect(response.status).toBe(200);
+    // Row shape unchanged apart from the flag: the CLI still sees the row.
+    expect(body.connections).toHaveLength(1);
+    expect(body.connections[0]?.id).toBe("conn-uuid-1");
+    expect(body.connections[0]?.locked).toBe(true);
+  });
+
+  test("asks the gate per organization, not once for the whole read", async () => {
+    hasGatesMock.mockReturnValue(true);
+    runGatesMock.mockResolvedValue({ kind: "continue" });
+    vi.mocked(verifyCliToken).mockResolvedValue(
+      cliToken({ organization: { zulu: { groups: [] }, alpha: { groups: [] } } }) as never,
+    );
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    await loader(buildArgs("token"));
+
+    const gateOrgs = runGatesMock.mock.calls.map(
+      ([req]) => (req as { identity: { organization: string } }).identity.organization,
+    );
+    expect(gateOrgs).toEqual(["alpha", "zulu"]);
   });
 
   test("401 without a Bearer token", async () => {

@@ -83,6 +83,51 @@ describe("pluginGates", () => {
     expect(await runGates(request())).toEqual({ kind: "redirect", url: "/async" });
   });
 
+  test("passes the host-resolved resource facts through to the gate", async () => {
+    const gate = vi.fn(() => ({ kind: "continue" }) as const);
+    gateRegistry.scopedFor("test-plugin").register(gate);
+
+    await runGates(request({ resource: { connectionId: "conn-1", isPublic: true } }));
+
+    expect(gate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resource: { connectionId: "conn-1", isPublic: true },
+      }),
+    );
+  });
+
+  test("returns a lock outcome and stops", async () => {
+    const later = vi.fn(() => ({ kind: "continue" }) as const);
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "lock", connectionIds: ["conn-1", "conn-2"] }));
+    gateRegistry.scopedFor("test-plugin").register(later);
+
+    expect(await runGates(request())).toEqual({
+      kind: "lock",
+      connectionIds: ["conn-1", "conn-2"],
+    });
+    expect(later).not.toHaveBeenCalled();
+  });
+
+  test("a lock outcome with a malformed id list is contained and treated as continue", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const after = vi.fn(() => ({ kind: "redirect", url: "/after" }) as const);
+
+    gateRegistry.scopedFor("test-plugin").register(() => ({ kind: "lock" }) as never);
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "lock", connectionIds: [1, 2] }) as never);
+    gateRegistry.scopedFor("test-plugin").register(after);
+
+    expect(await runGates(request())).toEqual({ kind: "redirect", url: "/after" });
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("malformed outcome"),
+      expect.objectContaining({ outcome: expect.anything() }),
+    );
+    consoleSpy.mockRestore();
+  });
+
   test("a throwing gate is contained and treated as continue", async () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const after = vi.fn(() => ({ kind: "redirect", url: "/after" }) as const);

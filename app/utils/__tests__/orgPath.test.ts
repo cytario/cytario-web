@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  connectionIdFromOrgPath,
   organizationFromApiPath,
   organizationFromPath,
   orgPath,
@@ -119,5 +120,41 @@ describe("organizationFromApiPath", () => {
 
   test("a malformed percent-escape degrades to the raw segment instead of throwing", () => {
     expect(organizationFromApiPath("/api/v1/ac%zzme/provider-catalog")).toBe("ac%zzme");
+  });
+});
+
+describe("connectionIdFromOrgPath", () => {
+  test("reads the connection id out of /{org}/{id}/…", () => {
+    expect(connectionIdFromOrgPath("/acme/conn-uuid-1")).toBe("conn-uuid-1");
+    expect(connectionIdFromOrgPath("/acme/conn-uuid-1/folder/file.ome.tif")).toBe("conn-uuid-1");
+    expect(connectionIdFromOrgPath("/acme/conn-uuid-1/_.data")).toBe("conn-uuid-1");
+  });
+
+  test("is undefined for the org root and for org-scoped routes that are not connections", () => {
+    expect(connectionIdFromOrgPath("/acme")).toBeUndefined();
+    expect(connectionIdFromOrgPath("/acme/")).toBeUndefined();
+    for (const subPath of [
+      "recent",
+      "favorites",
+      "config",
+      "plugin/x",
+      "local/x.tif",
+      "admin/users",
+    ]) {
+      expect(connectionIdFromOrgPath(`/acme/${subPath}`), subPath).toBeUndefined();
+    }
+  });
+
+  test("is undefined outside an organization context", () => {
+    expect(connectionIdFromOrgPath("/recent")).toBeUndefined();
+    expect(connectionIdFromOrgPath("/api/v1/acme/conn-uuid-1")).toBe(
+      // /api is a reserved root, so the whole pathname is not an org path.
+      undefined,
+    );
+  });
+
+  test("decodes an encoded id and degrades a malformed escape to the raw segment", () => {
+    expect(connectionIdFromOrgPath("/acme/conn%2Fuuid")).toBe("conn/uuid");
+    expect(connectionIdFromOrgPath("/acme/conn%zz")).toBe("conn%zz");
   });
 });

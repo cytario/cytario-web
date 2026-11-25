@@ -3,6 +3,7 @@ import { type LoaderFunctionArgs } from "react-router";
 import { pickGrantForUser } from "~/.server/auth/getSessionCredentials";
 import { profileFromTokenClaims } from "~/.server/auth/getUserInfo";
 import { verifyCliToken } from "~/.server/auth/verifyCliToken";
+import { lockedConnectionIds } from "~/.server/gateResourceFacts.server";
 import { jsonError } from "~/.server/httpResponse";
 import { getBucketCatalog } from "~/.server/providers/bucketCatalog.server";
 import {
@@ -26,6 +27,8 @@ interface MeConnection {
   stsEndpoint: string;
   roleArn: string | null;
   accessLevel: string | null;
+  /** The org's plan lists this connection without allowing it to be browsed. */
+  locked: boolean;
 }
 
 /**
@@ -37,7 +40,7 @@ interface MeConnection {
  * client — no browser session, no STS mint. The token is forwarded to the
  * portal catalog lookups, which exchange it (RFC 8693) to resolve each
  * organization. Backward-compatible: the response stays `{ connections }`;
- * rows only gained the `organization` field.
+ * rows only gained the `organization` field, and now `locked`.
  */
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const authHeader = request.headers.get("Authorization") ?? "";
@@ -64,6 +67,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     await Promise.all(
       organizations.map(async (organization) => {
         const connections = await listConnections(profile, organization);
+
+        // The gate's verdict for this org's list — a locked row is still
+        // listed, so the CLI shows it rather than silently dropping it.
+        const locked = new Set(await lockedConnectionIds(profile, organization));
 
         const catalog = await getProviderCatalog(organization, token).catch((error: unknown) => {
           console.error("[me/connections] provider catalog lookup failed", error);
@@ -109,6 +116,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               stsEndpoint: providerConfig.stsEndpoint,
               roleArn: grant?.roleArn ?? null,
               accessLevel: grant?.accessLevel ?? null,
+              locked: locked.has(connection.id),
             };
           }),
         );
