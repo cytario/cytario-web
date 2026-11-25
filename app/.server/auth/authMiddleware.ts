@@ -191,11 +191,11 @@ interface AuthenticatedRequest {
 }
 
 /**
- * Runs the plugin gates for the request, before any ConnectionConfig query so a
- * zero-org or gated session cannot fall through to an unscoped tenant read;
- * gates receive only the PII-free identity projection plus the resource facts
- * this request names. Returns the gate's redirect/deny response, or the
- * connections it locked.
+ * Runs the plugin gates for the request, ahead of credential minting and before
+ * the ConnectionConfig listing, so a zero-org or gated session cannot fall
+ * through to an unscoped tenant read; gates receive only the PII-free identity
+ * projection plus the resource facts this request names. Returns the gate's
+ * redirect/deny response, or the connections it locked.
  */
 const applyGates = async (
   request: Request,
@@ -382,7 +382,8 @@ export const authMiddleware: MiddlewareFunction = async (
   // Request org BEFORE the gates: a gate's decision is org-scoped (it reads
   // the org's attributes — e.g. subscription state), so it must see the
   // identity projected to the org this request acts in. Resolution here is a
-  // pure membership-map read — no tenant query runs before the gates.
+  // pure membership-map read — no tenant query runs before the gates, apart
+  // from the single org-scoped connection the gate's resource facts need.
   const requestOrganization =
     resolveRequestOrganization(url, updatedSessionData.user) ??
     (await resolveDefaultOrganization(updatedSessionData.user, incomingHint));
