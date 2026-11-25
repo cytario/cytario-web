@@ -1139,6 +1139,151 @@ describe("authMiddleware", () => {
       );
     });
 
+    describe("a lock naming the connection this request addresses", () => {
+      const lockOutcome = {
+        kind: "lock" as const,
+        connectionIds: ["conn-locked"],
+        message: "Upgrade plan to browse private data.",
+        resolveUrl: "https://admin.cytario.com/billing",
+        resolveLabel: "Upgrade plan",
+      };
+
+      const lockedConnectionRequest = (init?: RequestInit) =>
+        createMiddlewareArgs(
+          {},
+          true,
+          new Request("http://localhost/org1/conn-locked/folder/file.ome.tif", init),
+        );
+
+      beforeEach(() => {
+        vi.mocked(resolveGateResource).mockResolvedValue({
+          connectionId: "conn-locked",
+          isPublic: false,
+        });
+        vi.mocked(runGates).mockResolvedValue(lockOutcome);
+        vi.mocked(sessionStorage.commitSession).mockResolvedValue("notice-cookie");
+      });
+
+      test("a document request redirects to the org root carrying the gate's message", async () => {
+        const args = lockedConnectionRequest({ headers: { accept: "text/html" } });
+
+        const result = await authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        );
+
+        expect((result as Response).status).toBe(302);
+        expect(redirect).toHaveBeenCalledWith("/org1", {
+          headers: { "Set-Cookie": "notice-cookie" },
+        });
+        // The notice rides the session, so the listing explains the bounce.
+        expect(mockSession.set).toHaveBeenCalledWith("notification", {
+          status: "warning",
+          message: "Upgrade plan to browse private data.",
+        });
+        expect(mockNext).not.toHaveBeenCalled();
+        expect(listConnections).not.toHaveBeenCalled();
+      });
+
+      test("an API request answers 402 with the CTA instead of an HTML redirect", async () => {
+        vi.mocked(resolveGateResource).mockResolvedValue({
+          connectionId: "conn-locked",
+          isPublic: false,
+        });
+        const args = createMiddlewareArgs(
+          {},
+          true,
+          new Request("http://localhost/api/v1/org1/cyberduck-profile/conn-locked"),
+        );
+
+        const result = await authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        );
+
+        const response = result as Response;
+        expect(response.status).toBe(402);
+        expect(response.headers.get("Content-Type")).toBe("application/json");
+        expect(await response.json()).toEqual({
+          error: "Upgrade plan to browse private data.",
+          resolveUrl: "https://admin.cytario.com/billing",
+          resolveLabel: "Upgrade plan",
+        });
+        expect(mockNext).not.toHaveBeenCalled();
+      });
+
+      test("a JSON data request answers 402 as well, never a redirect to HTML", async () => {
+        const args = lockedConnectionRequest({
+          headers: { accept: "application/json" },
+        });
+
+        const result = await authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        );
+
+        expect((result as Response).status).toBe(402);
+        expect(mockNext).not.toHaveBeenCalled();
+      });
+
+      test("a message-less lock still explains the bounce", async () => {
+        vi.mocked(runGates).mockResolvedValue({
+          kind: "lock",
+          connectionIds: ["conn-locked"],
+        });
+        const args = lockedConnectionRequest({ headers: { accept: "text/html" } });
+
+        await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+        expect(mockSession.set).toHaveBeenCalledWith(
+          "notification",
+          expect.objectContaining({ status: "warning", message: expect.any(String) }),
+        );
+      });
+
+      test("a failing session commit still redirects", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        vi.mocked(sessionStorage.commitSession).mockRejectedValue(new Error("redis down"));
+        const args = lockedConnectionRequest({ headers: { accept: "text/html" } });
+
+        const result = await authMiddleware(
+          args as unknown as Parameters<typeof authMiddleware>[0],
+          mockNext,
+        );
+
+        expect((result as Response).status).toBe(302);
+        expect(redirect).toHaveBeenCalledWith("/org1", undefined);
+        warn.mockRestore();
+      });
+    });
+
+    test("a lock naming another connection proceeds — the named one is not this request's", async () => {
+      vi.mocked(resolveGateResource).mockResolvedValue({
+        connectionId: "conn-other",
+        isPublic: false,
+      });
+      vi.mocked(runGates).mockResolvedValue({
+        kind: "lock",
+        connectionIds: ["conn-locked"],
+        message: "Upgrade plan to browse private data.",
+      });
+      const args = createMiddlewareArgs(
+        {},
+        true,
+        new Request("http://localhost/org1/conn-other/folder", {
+          headers: { accept: "text/html" },
+        }),
+      );
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ lockedConnectionIds: ["conn-locked"] }),
+      );
+    });
+
     test("continue leaves the locked set empty", async () => {
       const args = createMiddlewareArgs();
 

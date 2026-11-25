@@ -28,6 +28,7 @@ import { resolveGateResource } from "~/.server/gateResourceFacts.server";
 import { createLabel } from "~/.server/logging";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
+import type { NotificationInput } from "~/utils/notifications";
 import {
   isOrgAgnosticPath,
   orgPath,
@@ -191,17 +192,53 @@ interface AuthenticatedRequest {
 }
 
 /**
+ * The JSON body a gate's refusal serializes: the message as `error`, plus the
+ * CTA a UI can render beside it.
+ */
+const refusalBody = (
+  outcome: { message?: string; resolveUrl?: string; resolveLabel?: string },
+  fallback: string,
+): string =>
+  JSON.stringify({
+    error: outcome.message ?? fallback,
+    ...(outcome.resolveUrl ? { resolveUrl: outcome.resolveUrl } : {}),
+    ...(outcome.resolveLabel ? { resolveLabel: outcome.resolveLabel } : {}),
+  });
+
+/**
+ * Send a document request whose connection the gate locked back to the org's
+ * connection listing, with the gate's own copy as a flash notification.
+ */
+const lockedConnectionRedirect = async (
+  session: CytarioSession,
+  organization: string | undefined,
+  message: string,
+): Promise<Response> => {
+  session.set("notification", { status: "warning", message } satisfies NotificationInput);
+  let setCookie: string | undefined;
+  try {
+    setCookie = (await sessionStorage.commitSession(session)).split(",")[0];
+  } catch {
+    // The redirect matters more than the banner.
+  }
+  return redirect(
+    orgPath(organization, "/"),
+    setCookie ? { headers: { "Set-Cookie": setCookie } } : undefined,
+  );
+};
+
+/**
  * Runs the plugin gates for the request, ahead of credential minting and before
  * the ConnectionConfig listing, so a zero-org or gated session cannot fall
  * through to an unscoped tenant read; gates receive only the PII-free identity
  * projection plus the resource facts this request names. Returns the gate's
- * redirect/deny response, or the connections it locked.
+ * redirect/deny/lock response, or the connections it locked without naming one.
  */
 const applyGates = async (
   request: Request,
   url: URL,
   sessionData: SessionData,
-  sessionId: string,
+  session: CytarioSession,
   requestOrganization: string | undefined,
 ): Promise<{ response?: Response; lockedConnectionIds: string[] }> => {
   // Resolved only when a gate exists to read them, and best-effort: an unknown
@@ -212,7 +249,7 @@ const applyGates = async (
         url,
         user: sessionData.user,
         organization: requestOrganization,
-        sessionId,
+        sessionId: session.id,
         authTokens: sessionData.authTokens,
       })
     : undefined;
@@ -235,24 +272,46 @@ const applyGates = async (
     const status = outcome.status ?? 403;
     console.info(`${label} Gate denied request with status ${status}`);
     return {
-      response: new Response(
-        JSON.stringify({
-          error: outcome.message ?? "Request denied",
-          ...(outcome.resolveUrl ? { resolveUrl: outcome.resolveUrl } : {}),
-          ...(outcome.resolveLabel ? { resolveLabel: outcome.resolveLabel } : {}),
-        }),
-        {
-          status,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
+      response: new Response(refusalBody(outcome, "Request denied"), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
       lockedConnectionIds: [],
     };
   }
 
-  // A lock is not a block: the request proceeds, and the named connections
-  // render locked wherever the host lists them.
-  return { lockedConnectionIds: outcome.kind === "lock" ? outcome.connectionIds : [] };
+  if (outcome.kind === "lock") {
+    // A lock naming the connection THIS request addresses leaves nothing to
+    // render: a document navigation goes back to the listing carrying the
+    // gate's notice, a data/API request gets a 402 rather than a 302 to an HTML
+    // page it cannot render.
+    const requestedConnectionId = resource?.connectionId;
+    if (requestedConnectionId && outcome.connectionIds.includes(requestedConnectionId)) {
+      console.info(`${label} Gate locked the requested connection ${requestedConnectionId}`);
+      if (wantsJsonResponse(request, url.pathname)) {
+        return {
+          response: new Response(refusalBody(outcome, "Request locked"), {
+            status: 402,
+            headers: { "Content-Type": "application/json" },
+          }),
+          lockedConnectionIds: [],
+        };
+      }
+      return {
+        response: await lockedConnectionRedirect(
+          session,
+          requestOrganization,
+          outcome.message ?? "This connection needs a paid plan to browse.",
+        ),
+        lockedConnectionIds: [],
+      };
+    }
+    // Nothing this request names: it proceeds, and the ids render locked
+    // wherever the host lists them.
+    return { lockedConnectionIds: outcome.connectionIds };
+  }
+
+  return { lockedConnectionIds: [] };
 };
 
 const noOrganizationResponse = (request: Request, pathname: string): Response => {
@@ -399,7 +458,7 @@ export const authMiddleware: MiddlewareFunction = async (
     request,
     url,
     updatedSessionData,
-    session.id,
+    session,
     requestOrganization,
   );
   if (gateResult.response) {
