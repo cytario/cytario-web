@@ -60,6 +60,12 @@ export interface Connection {
 export interface ConnectionsStore {
   connections: Record<string, Connection>;
   /**
+   * Connections a plugin gate listed as visible-locked: rendered, never
+   * browsable. Host-side this is presentation only — the gate already refused
+   * the browsable requests.
+   */
+  lockedConnectionIds: string[];
+  /**
    * Replace the whole store in one write; prunes entries removed server-side.
    * Connections without credentials are kept (status `"error"`, or
    * `"connected"` for a public/credential-less one with no mint error) so a
@@ -75,6 +81,7 @@ export interface ConnectionsStore {
   ) => void;
   /** Patch live health for already-loaded connections. */
   setConnectionStatuses: (updates: Record<string, ConnectionStatusUpdate>) => void;
+  setLockedConnectionIds: (connectionIds: string[]) => void;
 }
 
 const name = "ConnectionsStore";
@@ -85,6 +92,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
     immer((set) => ({
       connections: {},
+      lockedConnectionIds: [],
 
       setConnections: (configs, credentials, errors = {}, providers = {}) => {
         set(
@@ -138,6 +146,16 @@ export const useConnectionsStore = create<ConnectionsStore>()(
           },
           false,
           "setConnectionStatuses",
+        );
+      },
+
+      setLockedConnectionIds: (connectionIds) => {
+        set(
+          (state) => {
+            state.lockedConnectionIds = connectionIds;
+          },
+          false,
+          "setLockedConnectionIds",
         );
       },
     })),

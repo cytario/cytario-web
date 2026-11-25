@@ -21,7 +21,12 @@ export async function enrichConnectionsWithPreviews({
   const probes = await mapWithConcurrency(
     server.connectionConfigs,
     PREVIEW_CONCURRENCY,
-    async (config): Promise<ConnectionProbeResult> => {
+    async (config): Promise<ConnectionProbeResult | undefined> => {
+      // A locked connection is not browsable, so the probe's listing would only
+      // be refused: no health dot, no preview.
+      if (server.nodes.find((node) => node.connectionId === config.id)?.isLocked) {
+        return undefined;
+      }
       if (signal.aborted) return { status: "connected" };
       // A missing credential is only a failure when the server recorded a mint
       // error for it — a public connection is credential-less by design.
@@ -39,6 +44,7 @@ export async function enrichConnectionsWithPreviews({
   const connectionStatuses: Record<string, ConnectionStatusUpdate> = {};
   const nodes: TreeNode[] = server.nodes.map((node, i) => {
     const probe = probes[i];
+    if (!probe) return node;
     connectionStatuses[node.connectionId] = {
       status: probe.status,
       statusMessage: probe.errorMessage,

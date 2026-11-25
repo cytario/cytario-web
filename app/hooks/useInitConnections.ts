@@ -22,3 +22,10 @@ export function useInitConnections(
     setConnections(connectionConfigs, credentials, credentialErrors, connectionProviders);
   }, [connectionConfigs, credentials, credentialErrors, connectionProviders, setConnections]);
 }
+
+/** Seeds the gate's visible-locked set; every listing reads it from the store. */
+export function useInitLockedConnections(lockedConnectionIds: string[]) {
+  useEffect(() => {
+    useConnectionsStore.getState().setLockedConnectionIds(lockedConnectionIds);
+  }, [lockedConnectionIds]);
+}

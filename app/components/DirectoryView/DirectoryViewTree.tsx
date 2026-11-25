@@ -82,6 +82,8 @@ export function DirectoryViewTree({
     isItemFolder: (item) => {
       const data = item.getItemData();
       if (!data) return false;
+      // A locked node has nothing to expand into: the gate refuses the listing.
+      if (data.isLocked) return false;
       if (data.isLeaf) return false;
       return data.type !== "file";
     },

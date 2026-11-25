@@ -45,7 +45,7 @@ describe("useConnectionsStore", () => {
   };
 
   beforeEach(() => {
-    useConnectionsStore.setState({ connections: {} });
+    useConnectionsStore.setState({ connections: {}, lockedConnectionIds: [] });
   });
 
   describe("setConnections", () => {
@@ -138,6 +138,30 @@ describe("useConnectionsStore", () => {
       expect(connections["conn-a"]?.connectionConfig).toEqual(configA);
       expect(connections["conn-b"]?.connectionConfig).toEqual(configB);
       expect(Object.keys(connections)).toEqual(["conn-a", "conn-b"]);
+    });
+  });
+
+  describe("setLockedConnectionIds", () => {
+    test("defaults to an empty set", () => {
+      expect(useConnectionsStore.getState().lockedConnectionIds).toEqual([]);
+    });
+
+    test("replaces the locked set", () => {
+      seed();
+      useConnectionsStore.getState().setLockedConnectionIds(["test-conn"]);
+      expect(useConnectionsStore.getState().lockedConnectionIds).toEqual(["test-conn"]);
+
+      useConnectionsStore.getState().setLockedConnectionIds([]);
+      expect(useConnectionsStore.getState().lockedConnectionIds).toEqual([]);
+    });
+
+    test("a locked connection keeps its config and credentials — only presentation changes", () => {
+      seed();
+      useConnectionsStore.getState().setLockedConnectionIds(["test-conn"]);
+
+      const connection = useConnectionsStore.getState().connections["test-conn"];
+      expect(connection?.connectionConfig).toEqual(connectionConfig);
+      expect(connection?.credentials).toEqual(credentials);
     });
   });
 

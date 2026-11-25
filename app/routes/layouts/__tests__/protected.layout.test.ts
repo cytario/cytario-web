@@ -22,7 +22,7 @@ const { loader } = await import("~/routes/layouts/protected.layout");
 const { loadRecentlyViewed } = await import("~/routes/recent/recent.loader");
 const { loadFavorites } = await import("~/routes/favorites/favorites.loader");
 
-const buildContext = (user = mock.user()) => ({
+const buildContext = (user = mock.user(), lockedConnectionIds: string[] = []) => ({
   get: vi.fn((ctx) => {
     if (ctx === authContext) {
       return {
@@ -32,18 +32,19 @@ const buildContext = (user = mock.user()) => ({
           : Object.keys(user.organizations)[0],
         connectionConfigs: [],
         credentials: { "test-conn": mock.credentials() },
+        lockedConnectionIds,
       };
     }
     return undefined;
   }),
 });
 
-const runLoader = (user = mock.user()) => {
+const runLoader = (user = mock.user(), lockedConnectionIds: string[] = []) => {
   const request = new Request("http://localhost/");
   return loader({
     request,
     params: {},
-    context: buildContext(user) as never,
+    context: buildContext(user, lockedConnectionIds) as never,
     pattern: "",
     url: new URL(request.url),
   });
@@ -96,6 +97,12 @@ describe("protected layout loader", () => {
     expect(data.identity).not.toHaveProperty("policy");
     expect(data).not.toHaveProperty("user");
     expect(data).not.toHaveProperty("authTokens");
+  });
+
+  test("carries the gate's locked connection ids to the client", async () => {
+    const data = await runLoader(mock.user(), ["conn-locked"]);
+
+    expect(data.lockedConnectionIds).toEqual(["conn-locked"]);
   });
 
   test("degrades to empty recents/favorites when a query rejects", async () => {

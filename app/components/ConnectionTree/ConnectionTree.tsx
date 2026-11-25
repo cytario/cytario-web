@@ -42,6 +42,7 @@ export function ConnectionTree({
   const connectionName =
     useConnectionsStore((s) => s.connections[selectedConnection]?.connectionConfig.name) ??
     selectedConnection;
+  const isLocked = useConnectionsStore((s) => s.lockedConnectionIds.includes(selectedConnection));
   const showHiddenFiles = useLayoutStore((s) => s.showHiddenFiles);
   // Caller filters are merged on top of the sidebar's show-hidden default.
   const effectiveFilters = useMemo(
@@ -66,11 +67,12 @@ export function ConnectionTree({
         name: connectionName,
         pathName: "",
         children: [],
-        isLeaf: false,
-        loadState: "idle",
+        isLeaf: isLocked,
+        loadState: isLocked ? undefined : "idle",
+        ...(isLocked ? { isLocked: true } : {}),
       },
     ],
-    [rootId, selectedConnection, connectionName],
+    [rootId, selectedConnection, connectionName, isLocked],
   );
 
   const searchExpanded = useMemo(() => collectInteriorIds(searchNodes), [searchNodes]);

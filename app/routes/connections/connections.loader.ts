@@ -6,7 +6,10 @@ import { authContext } from "~/.server/auth/authMiddleware";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
 
-function buildConnectionNodes(configs: ConnectionConfigWithGrants[]): TreeNode[] {
+function buildConnectionNodes(
+  configs: ConnectionConfigWithGrants[],
+  lockedConnectionIds: readonly string[],
+): TreeNode[] {
   return configs.map((config) => ({
     id: `${config.id}/`,
     connectionId: config.id,
@@ -16,6 +19,7 @@ function buildConnectionNodes(configs: ConnectionConfigWithGrants[]): TreeNode[]
     pathName: "",
     children: [],
     loadState: "idle" as const,
+    ...(lockedConnectionIds.includes(config.id) ? { isLocked: true as const } : {}),
   }));
 }
 
@@ -39,10 +43,11 @@ export interface LoaderData extends ServerLoaderData {
 }
 
 export async function loadConnections({ context }: LoaderFunctionArgs) {
-  const { connectionConfigs, credentials, credentialErrors } = context.get(authContext);
+  const { connectionConfigs, credentials, credentialErrors, lockedConnectionIds } =
+    context.get(authContext);
 
   const payload: ServerLoaderData = {
-    nodes: buildConnectionNodes(connectionConfigs),
+    nodes: buildConnectionNodes(connectionConfigs, lockedConnectionIds),
     credentials,
     credentialErrors,
     connectionConfigs,
