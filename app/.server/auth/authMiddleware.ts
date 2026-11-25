@@ -235,10 +235,17 @@ const applyGates = async (
     const status = outcome.status ?? 403;
     console.info(`${label} Gate denied request with status ${status}`);
     return {
-      response: new Response(JSON.stringify({ error: outcome.message ?? "Request denied" }), {
-        status,
-        headers: { "Content-Type": "application/json" },
-      }),
+      response: new Response(
+        JSON.stringify({
+          error: outcome.message ?? "Request denied",
+          ...(outcome.resolveUrl ? { resolveUrl: outcome.resolveUrl } : {}),
+          ...(outcome.resolveLabel ? { resolveLabel: outcome.resolveLabel } : {}),
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
       lockedConnectionIds: [],
     };
   }
