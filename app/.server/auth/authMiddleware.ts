@@ -1,5 +1,6 @@
 import { createContext, redirect, type MiddlewareFunction } from "react-router";
 
+import { activeOrgHintHeader, readActiveOrgHint } from "./activeOrgHint";
 import { getSessionData } from "./getSession";
 import { getAllSessionCredentials } from "./getSessionCredentials";
 import {
@@ -106,14 +107,21 @@ const isComplete = (data: Partial<SessionData>): boolean => {
 const label = createLabel("authorize", "green");
 
 /**
- * The default org for a request that names none: the persisted preference,
- * validated against the token's memberships, else the first alias. Derived at
- * use — the session carries no org-flavored state.
+ * The default org for a request that names none: the cross-app hint, else the
+ * persisted preference, validated against the token's memberships. Derived
+ * at use — the session carries no org-flavored state.
  */
-const defaultOrganization = async (user: UserProfile): Promise<string | undefined> => {
+const defaultOrganization = async (
+  user: UserProfile,
+  cookieHeader: string | null,
+): Promise<string | undefined> => {
   if (!user.organizations) return undefined;
   const aliases = Object.keys(user.organizations);
   if (aliases.length === 0) return undefined;
+  const hinted = await readActiveOrgHint(cookieHeader);
+  if (hinted !== undefined && hinted in user.organizations) {
+    return hinted;
+  }
   const preferred = await getPreferredOrg(user.sub).catch((error: unknown) => {
     console.warn(`${label} Org preference lookup failed:`, error);
     return null;
@@ -353,7 +361,7 @@ export const authMiddleware: MiddlewareFunction = async (
   // pure membership-map read — no tenant query runs before the gates.
   const requestOrganization =
     resolveRequestOrganization(url, updatedSessionData.user) ??
-    (await defaultOrganization(updatedSessionData.user));
+    (await defaultOrganization(updatedSessionData.user, request.headers.get("cookie")));
 
   const gateResponse = await applyGates(request, url, updatedSessionData, requestOrganization);
   if (gateResponse) {
@@ -397,17 +405,23 @@ export const authMiddleware: MiddlewareFunction = async (
   // actually used — it seeds the login default and the org-agnostic fallback.
   // Background data fetches (.data, keep-alive revalidations) must not write
   // it: one tab's fetch would silently move another tab's next org-less
-  // navigation.
+  // navigation. The cross-app hint publishes on the same condition.
   const isDataFetch =
     url.pathname.endsWith(".data") ||
     request.headers.get("accept")?.includes("application/json") === true;
-  if (!isDataFetch && urlOrg === requestOrganization) {
+  const publishHint = !isDataFetch && urlOrg === requestOrganization;
+  if (publishHint) {
     void setPreferredOrg(updatedSessionData.user.sub, requestOrganization).catch(
       (error: unknown) => {
         console.warn(`${label} Storing the org preference failed:`, error);
       },
     );
   }
+
+  // Best-effort: a serialization failure never blocks the navigation.
+  const hintHeader = publishHint
+    ? await activeOrgHintHeader(requestOrganization).catch(() => undefined)
+    : undefined;
 
   const idTokenPayload = isTokenFresherThan(
     updatedSessionData.authTokens.accessToken,
@@ -416,17 +430,26 @@ export const authMiddleware: MiddlewareFunction = async (
     ? await verifyIdToken(updatedSessionData.authTokens.idToken)
     : null;
 
+  const withHint = (response: unknown): unknown => {
+    if (hintHeader && response instanceof Response) {
+      response.headers.append("Set-Cookie", hintHeader);
+    }
+    return response;
+  };
+
   if (idTokenPayload) {
-    return proceedAuthenticated(
-      { context, session, next },
-      updatedSessionData,
-      requestOrganization!,
-      async (credentials) => {
-        if (credentials !== sessionData.credentials) {
-          session.set("credentials", credentials);
-          await sessionStorage.commitSession(session);
-        }
-      },
+    return withHint(
+      await proceedAuthenticated(
+        { context, session, next },
+        updatedSessionData,
+        requestOrganization!,
+        async (credentials) => {
+          if (credentials !== sessionData.credentials) {
+            session.set("credentials", credentials);
+            await sessionStorage.commitSession(session);
+          }
+        },
+      ),
     );
   }
 
@@ -442,7 +465,7 @@ export const authMiddleware: MiddlewareFunction = async (
       refreshedSessionData.user.organizations?.[requestOrganization] !== undefined;
     const refreshedRequestOrg = stillMember
       ? requestOrganization
-      : await defaultOrganization(refreshedSessionData.user);
+      : await defaultOrganization(refreshedSessionData.user, request.headers.get("cookie"));
     if (!refreshedRequestOrg) {
       return noOrganizationResponse(request, url.pathname);
     }

@@ -1,8 +1,9 @@
 import { LoaderFunctionArgs, redirect } from "react-router";
 
+import { readActiveOrgHint, resolveLoginActiveOrg } from "~/.server/auth/activeOrgHint";
 import { exchangeAuthCode } from "~/.server/auth/exchangeAuthCode";
 import { getSession } from "~/.server/auth/getSession";
-import { profileFromAccessToken, resolveActiveOrganization } from "~/.server/auth/getUserInfo";
+import { profileFromAccessToken } from "~/.server/auth/getUserInfo";
 import { validateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
 import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { applyPendingGroupAssignments } from "~/.server/auth/pendingGroupAssignments";
@@ -110,21 +111,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
     session.set("notification", notification);
 
-    // The default org for the landing redirect: the persisted preference,
-    // validated against the token's memberships, else the first alias.
-    // Nothing org-flavored is stored on the session; the last-used-org
-    // preference follows the org a later document navigation actually uses.
+    // The default org for the landing redirect: the cross-app hint, else the
+    // persisted preference, membership-validated, else the first alias.
     const userSub = idTokenPayload.sub;
-    const preferredOrg =
+    const persistedOrg =
       typeof userSub === "string"
         ? await getPreferredOrg(userSub).catch((error: unknown) => {
             console.warn(`${label} Org preference lookup failed:`, error);
             return null;
           })
         : null;
-    const defaultOrganization = resolveActiveOrganization(
+    const hintedOrg = await readActiveOrgHint(request.headers.get("cookie"));
+    const defaultOrganization = await resolveLoginActiveOrg(
+      hintedOrg,
       user.organizations,
-      preferredOrg ?? undefined,
+      persistedOrg,
     );
 
     // Un-prefixed targets land in the default org rather than the 404 fallback.
