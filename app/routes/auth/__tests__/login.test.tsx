@@ -28,8 +28,9 @@ vi.mock("~/.server/auth/sessionStorage", () => ({
   },
 }));
 
-vi.mock("~/config", () => ({
+vi.mock("~/config", async (importOriginal) => ({
   cytarioConfig: {
+    ...(await importOriginal<typeof import("~/config")>()).cytarioConfig,
     endpoints: { webapp: "https://app.example.com" },
     auth: {
       clientId: "test-client-id",

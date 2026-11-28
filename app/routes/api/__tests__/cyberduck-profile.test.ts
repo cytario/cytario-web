@@ -17,8 +17,9 @@ vi.mock("~/.server/providers/providerCatalog.server", async () => {
 vi.mock("~/routes/connections/connections.server", () => ({
   getConnection: vi.fn(),
 }));
-vi.mock("~/config", () => ({
+vi.mock("~/config", async (importOriginal) => ({
   cytarioConfig: {
+    ...(await importOriginal<typeof import("~/config")>()).cytarioConfig,
     auth: {
       baseUrl: "http://localhost:8080/realms/master",
       cyberduckClientId: "cyberduck-client",
