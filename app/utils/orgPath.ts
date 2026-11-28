@@ -77,6 +77,55 @@ export function stripOrgPath(pathname: string): string {
   return match?.[2] ?? "/";
 }
 
+/**
+ * Org-scoped sub-paths that are routes of their own: the second path segment
+ * there is never a connection id.
+ */
+const STATIC_ORG_SUBPATH_ROOTS = new Set([
+  "/recent",
+  "/favorites",
+  "/config",
+  "/plugin",
+  "/local",
+  "/agent",
+  "/admin",
+]);
+
+/**
+ * The connection id an `/:org/:id/*` pathname names, `undefined` for the org
+ * root and for every org-scoped route that is not a connection. The org
+ * segment is read with the same machinery as `stripOrgPath`, so the
+ * single-fetch suffix and the reserved roots behave identically here.
+ */
+export function connectionIdFromOrgPath(pathname: string): string | undefined {
+  // A reserved root (or an org-less API path) names no organization, so its
+  // first segment is a route, never a connection id.
+  if (organizationFromPath(pathname) === undefined) return undefined;
+  const firstSegment = stripOrgPath(pathname).split("/").filter(Boolean)[0];
+  if (!firstSegment || STATIC_ORG_SUBPATH_ROOTS.has(`/${firstSegment}`)) return undefined;
+  try {
+    return decodeURIComponent(firstSegment);
+  } catch {
+    return firstSegment;
+  }
+}
+
+/**
+ * The connection id an `/api/v1/{org}/cyberduck-profile/{id}` pathname names —
+ * that route's `$id` IS the connection id (its loader reads the connection row
+ * by it). `undefined` for any other API path.
+ */
+export function connectionIdFromCyberduckProfilePath(pathname: string): string | undefined {
+  const match = /^\/api\/v1\/[^/]+\/cyberduck-profile\/([^/]+)\/?$/.exec(pathname);
+  const segment = match?.[1];
+  if (!segment) return undefined;
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 const ORG_AGNOSTIC_ROOT_SET = new Set<string>([
   "/recent",
   "/favorites",

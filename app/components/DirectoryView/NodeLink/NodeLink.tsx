@@ -6,7 +6,10 @@ import { twMerge } from "tailwind-merge";
 import { useNodeContextMenu } from "./NodeContextMenu/useNodeContextMenu";
 import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
+import { LockedConnectionPill } from "~/components/Pills/LockedConnectionPill";
 import { useActiveOrg } from "~/hooks/useOrgPath";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -79,7 +82,11 @@ export function NodeLink({
   const activeOrg = useActiveOrg();
   const to = buildConnectionPath(node.connectionId, node.pathName, activeOrg);
   const isCurrent = Boolean(useMatch({ path: to, end: true }));
-  const clickable = isClickable(node) && !isCurrent;
+  // A locked node stays in the tree (and keeps its context menu — deleting it is
+  // allowed) but never navigates: the gate refuses the browsing requests.
+  const locked = node.isLocked === true;
+  const lockedConnection = useConnectionsStore(select.lockedConnection(node.connectionId));
+  const clickable = !locked && isClickable(node) && !isCurrent;
   const ctx = useNodeContextMenu({ node, isCurrent, extraItems: contextMenuItems });
 
   // Lift right-click handler to parent's ref (no state round-trip).
@@ -117,11 +124,15 @@ export function NodeLink({
           </TruncatedText>
         </NavLink>
       ) : (
-        <div className={twMerge(ROW_CX, isCurrent && ACTIVE_CX)} {...targetProps}>
+        <div
+          className={twMerge(ROW_CX, isCurrent && ACTIVE_CX, locked && "opacity-60")}
+          {...targetProps}
+        >
           <NodeIndicator node={node} />
           <TruncatedText>
             <HighlightedName name={node.name} query={highlightQuery} />
           </TruncatedText>
+          {locked && <LockedConnectionPill locked={lockedConnection} />}
         </div>
       )}
 

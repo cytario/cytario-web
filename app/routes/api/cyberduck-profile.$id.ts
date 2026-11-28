@@ -15,18 +15,24 @@ import { getS3ProviderConfig } from "~/utils/s3Provider";
 export const middleware = [requestDurationMiddleware, authMiddleware];
 
 export const loader = async ({ params, context }: ActionFunctionArgs) => {
-  const { user } = context.get(authContext);
+  const { user, requestOrganization, lockedConnections } = context.get(authContext);
   const { id: connectionId } = params;
 
   if (!connectionId) {
     return new Response("Connection id is required", { status: 400 });
   }
 
-  const connectionConfig = await getConnection(
-    user,
-    context.get(authContext).requestOrganization,
-    connectionId,
-  );
+  // The profile embeds a role ARN and an STS endpoint — the two inputs a client
+  // mints its own credentials with. A gate-locked connection has no profile.
+  const locked = lockedConnections.find((candidate) => candidate.id === connectionId);
+  if (locked) {
+    return new Response(JSON.stringify({ error: locked.message }), {
+      status: 402,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const connectionConfig = await getConnection(user, requestOrganization, connectionId);
   if (!connectionConfig) {
     return new Response("Connection configuration not found", { status: 404 });
   }

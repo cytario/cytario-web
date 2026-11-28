@@ -49,6 +49,26 @@ describe("auth / gates / slots surface", () => {
     expect(req.method).toBe("POST");
   });
 
+  test("GateRequest.resource is an optional host-resolved fact", () => {
+    type ResourceFacts = NonNullable<GateRequest["resource"]>;
+    const bare: GateRequest = {
+      url: "/",
+      method: "GET",
+      identity: { sub: "test-user", organizationAttributes: {}, groups: [], adminScopes: [] },
+    };
+    expect(bare.resource).toBeUndefined();
+
+    const facts: ResourceFacts = { connectionId: "conn-1", isPublic: true };
+    const withFacts: GateRequest = { ...bare, resource: facts };
+    expect(withFacts.resource?.connectionId).toBe("conn-1");
+    expect(withFacts.resource?.isPublic).toBe(true);
+
+    // Both members are independently absent-capable: the host states what it
+    // knows and nothing more, so a create request carries only `isPublic`.
+    const providerOnly: ResourceFacts = { isPublic: false };
+    expect(providerOnly.connectionId).toBeUndefined();
+  });
+
   test("SessionGate may return a sync or async outcome", async () => {
     const sync: SessionGate = () => ({ kind: "continue" });
     const async: SessionGate = async () => ({ kind: "redirect", url: "/onboarding" });
@@ -70,6 +90,8 @@ describe("auth / gates / slots surface", () => {
           return `redirect:${outcome.url}`;
         case "deny":
           return `deny:${outcome.status ?? 403}:${outcome.message ?? ""}`;
+        case "lock":
+          return `lock:${outcome.connectionIds.join(",")}:${outcome.message ?? ""}`;
         default: {
           const unreachable: never = outcome;
           return unreachable;
@@ -80,6 +102,29 @@ describe("auth / gates / slots surface", () => {
     expect(render({ kind: "redirect", url: "/x" })).toBe("redirect:/x");
     expect(render({ kind: "deny" })).toBe("deny:403:");
     expect(render({ kind: "deny", status: 401, message: "nope" })).toBe("deny:401:nope");
+    expect(render({ kind: "lock", connectionIds: ["a", "b"] })).toBe("lock:a,b:");
+    expect(render({ kind: "lock", connectionIds: [] })).toBe("lock::");
+  });
+
+  test("a lock outcome carries the same optional CTA fields as deny", () => {
+    // The bare shape stays valid: a host with no copy to offer locks silently.
+    const bare: GateOutcome = { kind: "lock", connectionIds: ["a"] };
+    expect(bare.kind === "lock" && bare.message).toBeUndefined();
+
+    const withCta: GateOutcome = {
+      kind: "lock",
+      connectionIds: ["conn-1"],
+      message: "Upgrade plan to browse private data.",
+      resolveUrl: "https://admin.cytario.com/billing",
+      resolveLabel: "Upgrade plan",
+    };
+    expect(withCta.kind === "lock" && withCta.message).toBe("Upgrade plan to browse private data.");
+    expect(withCta.kind === "lock" && withCta.resolveUrl).toBe("https://admin.cytario.com/billing");
+    expect(withCta.kind === "lock" && withCta.resolveLabel).toBe("Upgrade plan");
+
+    // Every CTA member is independently absent-capable.
+    const messageOnly: GateOutcome = { kind: "lock", connectionIds: ["a"], message: "locked" };
+    expect(messageOnly.kind === "lock" && messageOnly.resolveUrl).toBeUndefined();
   });
 
   test("a GateRegistry accepts a SessionGate", () => {

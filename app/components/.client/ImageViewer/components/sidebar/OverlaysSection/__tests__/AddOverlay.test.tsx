@@ -13,7 +13,7 @@ vi.mock("~/utils/db/getOverlaySchema", () => ({
 
 vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
   useConnectionsStore: Object.assign(vi.fn(), {
-    getState: vi.fn(() => ({ connections: storeState })),
+    getState: vi.fn(() => ({ connections: storeState, lockedConnections: lockedStore })),
   }),
 }));
 
@@ -24,9 +24,25 @@ const storeState: Record<string, { id: string; provider?: { accessLevel: string 
   "my-conn": { id: "my-conn", provider: { accessLevel: "annotate" } },
 };
 
-vi.mock("~/utils/connectionsStore/selectors", () => ({
-  select: { connections: () => ({ "my-conn": { id: "my-conn" } }) },
-}));
+type Locked = Array<{ id: string }>;
+const lockedStore: { connections: Locked } = { connections: [] };
+
+const listedConnections: { connections: Record<string, { id: string }> } = {
+  connections: { "my-conn": { id: "my-conn" } },
+};
+
+vi.mock("~/utils/connectionsStore/selectors", async () => {
+  const actual = await vi.importActual<typeof import("~/utils/connectionsStore/selectors")>(
+    "~/utils/connectionsStore/selectors",
+  );
+  return {
+    ...actual,
+    select: {
+      connections: () => listedConnections.connections,
+      lockedConnections: () => lockedStore.connections,
+    },
+  };
+});
 
 vi.mock("~/utils/db/convertCsvToParquet", () => ({
   convertCsvToParquet: vi.fn(),
@@ -37,8 +53,16 @@ vi.mock("~/components/ConnectionTree/ConnectionSwitcherChip", () => ({
 }));
 
 vi.mock("~/components/ConnectionTree/ConnectionTree", () => ({
-  ConnectionTree: ({ nodeLinkProps }: { nodeLinkProps: { onClick: (node: unknown) => void } }) => (
+  ConnectionTree: ({
+    nodeLinkProps,
+    selectedConnection,
+  }: {
+    nodeLinkProps: { onClick: (node: unknown) => void };
+    selectedConnection: string;
+  }) => (
     <button
+      data-testid="tree"
+      data-selected={selectedConnection}
       onClick={() =>
         nodeLinkProps.onClick({
           type: "file",
@@ -156,6 +180,39 @@ describe("AddOverlay parquet introspection", () => {
         message: expect.stringContaining("network down"),
       }),
     );
+  });
+});
+
+describe("AddOverlay default connection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    lockedStore.connections = [];
+    listedConnections.connections = {
+      "conn-locked": { id: "conn-locked" },
+      "conn-2": { id: "conn-2" },
+    };
+  });
+
+  test("defaults to the first browsable connection, never a locked one", () => {
+    lockedStore.connections = [{ id: "conn-locked" }];
+
+    renderAddOverlay();
+
+    // The picker reuses ConnectionTree, so the default pick is what decides
+    // whether a locked bucket can be listed at all.
+    expect(screen.getByTestId("tree")).toHaveAttribute("data-selected", "conn-2");
+  });
+
+  test("falls back to the first connection when every row is locked", () => {
+    lockedStore.connections = [{ id: "conn-locked" }, { id: "conn-2" }];
+
+    renderAddOverlay();
+
+    expect(screen.getByTestId("tree")).toHaveAttribute("data-selected", "conn-locked");
+  });
+
+  afterEach(() => {
+    listedConnections.connections = { "my-conn": { id: "my-conn" } };
   });
 });
 

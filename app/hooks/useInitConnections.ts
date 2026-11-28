@@ -7,6 +7,7 @@ import {
   type ConnectionProviderClient,
   useConnectionsStore,
 } from "~/utils/connectionsStore/useConnectionsStore";
+import type { LockedConnection } from "~/utils/lockedConnection";
 
 /** Effect, not render-time mutation: subscribed descendants would otherwise
  * trip React's "cannot update during render" warning. */
@@ -21,4 +22,11 @@ export function useInitConnections(
   useEffect(() => {
     setConnections(connectionConfigs, credentials, credentialErrors, connectionProviders);
   }, [connectionConfigs, credentials, credentialErrors, connectionProviders, setConnections]);
+}
+
+/** Seeds the gate's visible-locked set; every listing reads it from the store. */
+export function useInitLockedConnections(lockedConnections: LockedConnection[]) {
+  useEffect(() => {
+    useConnectionsStore.getState().setLockedConnections(lockedConnections);
+  }, [lockedConnections]);
 }

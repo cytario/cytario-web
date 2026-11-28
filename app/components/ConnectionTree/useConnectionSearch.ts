@@ -31,11 +31,15 @@ export function useConnectionSearch(
   filters?: TreeFilters,
 ): ConnectionSearch {
   // Public connections are credential-less by design; only a non-public
-  // connection without credentials is broken.
+  // connection without credentials is broken. A gate-locked connection is
+  // neither: the host holds no credential for it (by design) and must not read
+  // its bucket at all, so the search refuses instead of reporting a break.
   const canSearch = useConnectionsStore(
-    (s) =>
+    (state) =>
+      !state.lockedConnections.some((locked) => locked.id === connectionId) &&
       !!(
-        s.connections[connectionId]?.credentials || s.connections[connectionId]?.provider?.isPublic
+        state.connections[connectionId]?.credentials ||
+        state.connections[connectionId]?.provider?.isPublic
       ),
   );
   const hasExtensions = !!filters?.extensions?.length;
@@ -74,7 +78,8 @@ export function useConnectionSearch(
   const matched = active && result.key === key;
   return {
     nodes: matched ? result.nodes : [],
-    // No credentials on a non-public connection → immediate error, not a spinner.
+    // No credentials on a non-public connection — or a locked one — is an
+    // immediate error, not a spinner.
     isSearching: active && canSearch && !matched,
     error: active && (!canSearch || (matched && result.error)),
     corsBlocked: matched && result.corsBlocked,

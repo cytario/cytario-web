@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { type SessionData } from "~/.server/auth/sessionStorage";
 import mock from "~/utils/__tests__/__mocks__";
+import type { LockedConnection } from "~/utils/lockedConnection";
 
 vi.mock("~/.server/auth/authMiddleware", () => ({
   authContext: createContext<Partial<SessionData>>(),
@@ -22,7 +23,12 @@ const { loader } = await import("~/routes/layouts/protected.layout");
 const { loadRecentlyViewed } = await import("~/routes/recent/recent.loader");
 const { loadFavorites } = await import("~/routes/favorites/favorites.loader");
 
-const buildContext = (user = mock.user()) => ({
+interface ContextOverrides {
+  lockedConnections?: LockedConnection[];
+  credentials?: Record<string, unknown>;
+}
+
+const buildContext = (user = mock.user(), overrides: ContextOverrides = {}) => ({
   get: vi.fn((ctx) => {
     if (ctx === authContext) {
       return {
@@ -31,19 +37,21 @@ const buildContext = (user = mock.user()) => ({
           ? "testcorp"
           : Object.keys(user.organizations)[0],
         connectionConfigs: [],
-        credentials: { "test-conn": mock.credentials() },
+        credentials: overrides.credentials ?? { "test-conn": mock.credentials() },
+        connectionProviders: {},
+        lockedConnections: overrides.lockedConnections ?? [],
       };
     }
     return undefined;
   }),
 });
 
-const runLoader = (user = mock.user()) => {
+const runLoader = (user = mock.user(), overrides: ContextOverrides = {}) => {
   const request = new Request("http://localhost/");
   return loader({
     request,
     params: {},
-    context: buildContext(user) as never,
+    context: buildContext(user, overrides) as never,
     pattern: "",
     url: new URL(request.url),
   });
@@ -96,6 +104,33 @@ describe("protected layout loader", () => {
     expect(data.identity).not.toHaveProperty("policy");
     expect(data).not.toHaveProperty("user");
     expect(data).not.toHaveProperty("authTokens");
+  });
+
+  test("carries the gate's locked connections to the client, call to action included", async () => {
+    const locked = [
+      {
+        id: "conn-locked",
+        message: "Upgrade plan to browse private data.",
+        resolveUrl: "https://admin.cytario.com/billing",
+        resolveLabel: "Upgrade plan",
+      },
+    ];
+
+    const data = await runLoader(mock.user(), { lockedConnections: locked });
+
+    expect(data.lockedConnections).toEqual(locked);
+  });
+
+  test("never ships a credential for a locked connection", async () => {
+    // The payload is what reaches the browser: a key here is a key anyone can
+    // read from `.data` or devtools and sign S3 requests with.
+    const data = await runLoader(mock.user(), {
+      credentials: { "conn-open": mock.credentials(), "conn-locked": mock.credentials() },
+      lockedConnections: [{ id: "conn-locked" }],
+    });
+
+    expect(Object.keys(data.credentials)).toEqual(["conn-open"]);
+    expect(data.credentials).not.toHaveProperty("conn-locked");
   });
 
   test("degrades to empty recents/favorites when a query rejects", async () => {

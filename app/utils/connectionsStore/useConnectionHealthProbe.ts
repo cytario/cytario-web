@@ -6,6 +6,15 @@ import { probeConnection } from "~/utils/probeConnection";
 
 const PROBE_CONCURRENCY = 4;
 
+/** A connection the host may probe: credentialed, or public (probes unsigned). */
+const isProbeable = (
+  connection: { credentials: unknown; provider?: { isPublic: boolean } },
+  lockedConnectionIds: readonly string[],
+  connectionId: string,
+): boolean =>
+  !!(connection.credentials || connection.provider?.isPublic) &&
+  !lockedConnectionIds.includes(connectionId);
+
 /**
  * Mounted once at the protected layout so the store's `status` reflects real
  * reachability on every surface, not only after a visit to `/connections`.
@@ -15,11 +24,18 @@ export function useConnectionHealthProbe() {
   // Stable primitive key: re-probe only when the loaded connection set changes.
   // A public (credential-less) connection probes unsigned, so it stays in the
   // set; a connection with neither credentials nor a public provider keeps its
-  // seeded "error".
+  // seeded "error". A gate-locked connection is not browsable at all, so it is
+  // never probed.
   const probeKey = useConnectionsStore((s) =>
-    Object.values(s.connections)
-      .filter((c) => c.credentials || c.provider?.isPublic)
-      .map((c) => c.connectionConfig.id)
+    Object.entries(s.connections)
+      .filter(([id, connection]) =>
+        isProbeable(
+          connection,
+          s.lockedConnections.map((locked) => locked.id),
+          id,
+        ),
+      )
+      .map(([id]) => id)
       .sort()
       .join("|"),
   );
@@ -29,11 +45,13 @@ export function useConnectionHealthProbe() {
     const controller = new AbortController();
     let cancelled = false;
 
-    const targets = Object.values(useConnectionsStore.getState().connections).filter(
-      (c) => c.credentials || c.provider?.isPublic,
+    const { connections, lockedConnections } = useConnectionsStore.getState();
+    const lockedConnectionIds = lockedConnections.map((locked) => locked.id);
+    const targets = Object.entries(connections).filter(([id, connection]) =>
+      isProbeable(connection, lockedConnectionIds, id),
     );
 
-    void mapWithConcurrency(targets, PROBE_CONCURRENCY, async (connection) => {
+    void mapWithConcurrency(targets, PROBE_CONCURRENCY, async ([id, connection]) => {
       const result = await probeConnection(
         connection.connectionConfig,
         connection.credentials,
@@ -42,7 +60,7 @@ export function useConnectionHealthProbe() {
       );
       if (cancelled) return;
       setConnectionStatuses({
-        [connection.connectionConfig.id]: {
+        [id]: {
           status: result.status,
           statusMessage: result.errorMessage,
         },

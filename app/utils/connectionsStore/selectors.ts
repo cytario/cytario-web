@@ -21,6 +21,22 @@ export interface ResolvedResource {
   httpsUrl: string;
 }
 
+/**
+ * The connection a listing opens on by default: the first browsable one, so a
+ * gate-locked row never becomes the initial view. When every connection is
+ * locked the first is still returned — the row renders locked rather than the
+ * listing pretending the org has no connections.
+ */
+export function firstSelectableConnectionId(
+  connectionIds: readonly string[],
+  lockedConnectionIds: readonly string[],
+): string | undefined {
+  return (
+    connectionIds.find((connectionId) => !lockedConnectionIds.includes(connectionId)) ??
+    connectionIds[0]
+  );
+}
+
 /** Live, non-reactive credentials getter — a fresh store read per call, so
  * retries after an STS rotation pick up the new credentials. */
 export const liveCredentials = (connectionId: string) => (): Credentials | null =>
@@ -38,6 +54,11 @@ export const select = {
     state.connections[connectionId]?.status ?? "loading",
   connectionStatusMessage: (connectionId: string) => (state: ConnectionsStore) =>
     state.connections[connectionId]?.statusMessage,
+  /** The gate's lock verdict for a connection, `undefined` when it is browsable. */
+  lockedConnection: (connectionId: string) => (state: ConnectionsStore) =>
+    state.lockedConnections.find((locked) => locked.id === connectionId),
+  /** The raw locked set — stable by reference, unlike a derived id array. */
+  lockedConnections: (state: ConnectionsStore) => state.lockedConnections,
   setConnections: (state: ConnectionsStore) => state.setConnections,
 };
 

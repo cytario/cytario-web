@@ -9,27 +9,34 @@ vi.mock("~/utils/searchConnection", () => ({
   searchConnection: searchMock,
 }));
 
-vi.mock("~/utils/connectionsStore/useConnectionsStore", () => {
-  const state = {
-    connections: {
-      c1: {
-        connectionConfig: { id: "c1", name: "conn" },
-        credentials: {},
-        provider: {},
-      },
-      public: {
-        connectionConfig: { id: "public", name: "public-conn" },
-        credentials: null,
-        provider: { isPublic: true },
-      },
+const storeState = vi.hoisted(() => ({
+  connections: {
+    c1: {
+      connectionConfig: { id: "c1", name: "conn" },
+      credentials: {},
+      provider: {},
     },
+    public: {
+      connectionConfig: { id: "public", name: "public-conn" },
+      credentials: null,
+      provider: { isPublic: true },
+    },
+    locked: {
+      connectionConfig: { id: "locked", name: "locked-conn" },
+      credentials: null,
+      provider: { isPublic: false },
+    },
+  } as Record<string, unknown>,
+  lockedConnections: [] as Array<{ id: string }>,
+}));
+
+vi.mock("~/utils/connectionsStore/useConnectionsStore", () => {
+  const useConnectionsStore = ((selector: (s: typeof storeState) => unknown) =>
+    selector(storeState)) as unknown as {
+    getState: () => typeof storeState;
+    (selector: (s: typeof storeState) => unknown): unknown;
   };
-  const useConnectionsStore = ((selector: (s: typeof state) => unknown) =>
-    selector(state)) as unknown as {
-    getState: () => typeof state;
-    (selector: (s: typeof state) => unknown): unknown;
-  };
-  useConnectionsStore.getState = () => state;
+  useConnectionsStore.getState = () => storeState;
   return { useConnectionsStore };
 });
 
@@ -40,6 +47,7 @@ function scanResult(children: unknown[], isCapped = false) {
 describe("useConnectionSearch", () => {
   beforeEach(() => {
     searchMock.mockReset();
+    storeState.lockedConnections = [];
   });
 
   test("runs the scan when only the extension filter is set (empty query)", async () => {
@@ -81,5 +89,19 @@ describe("useConnectionSearch", () => {
     expect(searchMock).toHaveBeenCalledTimes(1);
     expect(result.current.nodes).toEqual([{ id: "n1" }]);
     expect(result.current.error).toBe(false);
+  });
+
+  test("refuses a gate-locked connection without issuing a scan", async () => {
+    // The bucket is private and the host holds no credential for it by design;
+    // reaching S3 anyway would be the leak the lock exists to prevent.
+    storeState.lockedConnections = [{ id: "locked" }];
+
+    const { result } = renderHook(() => useConnectionSearch("locked", "query"));
+
+    await waitFor(() => expect(result.current.error).toBe(true));
+
+    expect(searchMock).not.toHaveBeenCalled();
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.nodes).toEqual([]);
   });
 });

@@ -36,6 +36,9 @@ export interface TreeNode {
   isLeaf?: boolean;
   /** `"idle"` marks a lazy stub awaiting fetch via onExpand. */
   loadState?: "idle";
+  /** The host lists this connection without letting it be browsed — visible,
+   *  deletable, never expanded. Set from the plugin gate's lock verdict. */
+  isLocked?: boolean;
 }
 
 function buildDirectoryTreeRecursive(

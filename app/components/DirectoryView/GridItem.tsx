@@ -5,7 +5,10 @@ import { twMerge } from "tailwind-merge";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { NodeIcon } from "~/components/DirectoryView/NodeLink/NodeIcon";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
+import { LockedConnectionPill } from "~/components/Pills/LockedConnectionPill";
 import { useActiveOrg } from "~/hooks/useOrgPath";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 interface GridItemProps {
@@ -37,12 +40,13 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
     focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
   `;
 
-  return (
-    <Link
-      to={to}
-      className={twMerge(cx, className)}
-      onContextMenu={(e) => contextMenuRef.current?.(e)}
-    >
+  // A locked card is shown but not a link: the gate refuses browsing it, so a
+  // link would only offer a 402. Its context menu (delete included) survives.
+  const locked = node.isLocked === true;
+  const lockedConnection = useConnectionsStore(select.lockedConnection(node.connectionId));
+
+  const body = (
+    <>
       <div ref={previewRef} className="shrink-0 overflow-hidden bg-card aspect-4/3 rounded-t-lg ">
         {preview ?? (
           <div className="flex h-full w-full items-center justify-center">
@@ -65,8 +69,34 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
             contextMenuRef.current = handler;
           }}
         />
-        {children && <div className="flex items-center gap-2">{children}</div>}
+        {(locked || children) && (
+          <div className="flex items-center gap-2">
+            {locked && <LockedConnectionPill locked={lockedConnection} />}
+            {children}
+          </div>
+        )}
       </div>
+    </>
+  );
+
+  if (locked) {
+    return (
+      <div
+        className={twMerge(cx, "opacity-60", className)}
+        onContextMenu={(e) => contextMenuRef.current?.(e)}
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      className={twMerge(cx, className)}
+      onContextMenu={(e) => contextMenuRef.current?.(e)}
+    >
+      {body}
     </Link>
   );
 }

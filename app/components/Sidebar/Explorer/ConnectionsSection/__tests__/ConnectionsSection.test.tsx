@@ -10,8 +10,24 @@ vi.mock("~/routes/favorites/useFavorite", () => ({
   useFavorite: () => ({ isFavorite: false, isPending: false, toggle: vi.fn() }),
 }));
 
+vi.mock("~/components/ConnectionTree/ConnectionTree", () => ({
+  ConnectionTree: ({ selectedConnection }: { selectedConnection: string }) => (
+    <div data-testid="connection-tree" data-selected={selectedConnection} />
+  ),
+}));
+
+vi.mock("~/components/ConnectionTree/ConnectionSwitcherChip", () => ({
+  ConnectionSwitcherChip: () => <div />,
+}));
+
 const testConnection = {
   connectionConfig: { id: "test-conn", name: "Test Connection", grants: [] },
+  credentials: null,
+  status: "connected",
+} as unknown as Connection;
+
+const lockedConnection = {
+  connectionConfig: { id: "locked-conn", name: "Locked Connection", grants: [] },
   credentials: null,
   status: "connected",
 } as unknown as Connection;
@@ -28,7 +44,10 @@ function renderSidebar() {
 describe("ConnectionsSection — show hidden files toggle", () => {
   beforeEach(() => {
     useLayoutStore.setState({ showHiddenFiles: false });
-    useConnectionsStore.setState({ connections: { "test-conn": testConnection } });
+    useConnectionsStore.setState({
+      connections: { "test-conn": testConnection },
+      lockedConnections: [],
+    });
   });
 
   test("renders unpressed with the EyeOff icon by default", () => {
@@ -67,5 +86,35 @@ describe("ConnectionsSection — show hidden files toggle", () => {
     renderSidebar();
 
     expect(screen.getByRole("link", { name: "View all connections" })).toBeInTheDocument();
+  });
+});
+
+describe("ConnectionsSection — default connection", () => {
+  beforeEach(() => {
+    useLayoutStore.setState({ showHiddenFiles: false });
+  });
+
+  test("the default selection skips a gate-locked connection", () => {
+    // The sidebar tree on a locked connection would only offer a 402, and the
+    // route for it was already refused.
+    useConnectionsStore.setState({
+      connections: { "locked-conn": lockedConnection, "test-conn": testConnection },
+      lockedConnections: [{ id: "locked-conn" }],
+    });
+
+    renderSidebar();
+
+    expect(screen.getByTestId("connection-tree")).toHaveAttribute("data-selected", "test-conn");
+  });
+
+  test("an unlocked org selects the first connection as before", () => {
+    useConnectionsStore.setState({
+      connections: { "locked-conn": lockedConnection },
+      lockedConnections: [],
+    });
+
+    renderSidebar();
+
+    expect(screen.getByTestId("connection-tree")).toHaveAttribute("data-selected", "locked-conn");
   });
 });

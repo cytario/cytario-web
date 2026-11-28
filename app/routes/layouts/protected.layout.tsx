@@ -14,7 +14,7 @@ import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
 import { StoragePickerOutlet } from "~/components/StoragePickerOutlet";
 import { cytarioConfig } from "~/config";
 import { useCredentialsKeepAlive } from "~/hooks/useCredentialsKeepAlive";
-import { useInitConnections } from "~/hooks/useInitConnections";
+import { useInitConnections, useInitLockedConnections } from "~/hooks/useInitConnections";
 import { loadFavorites } from "~/routes/favorites/favorites.loader";
 import { loadRecentlyViewed } from "~/routes/recent/recent.loader";
 import { useConnectionHealthProbe } from "~/utils/connectionsStore/useConnectionHealthProbe";
@@ -34,7 +34,14 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     connectionProviders,
     user,
     requestOrganization: org,
+    lockedConnections,
   } = context.get(authContext);
+  // A locked connection is listed, never handed a credential: the request probe
+  // already refused to mint one, and this payload is what the browser gets.
+  const lockedIds = new Set(lockedConnections.map((locked) => locked.id));
+  const browsableCredentials = Object.fromEntries(
+    Object.entries(credentials).filter(([connectionId]) => !lockedIds.has(connectionId)),
+  );
   // No shouldRevalidate gate: the credential keep-alive drives an explicit
   // revalidation to re-mint STS credentials, and RR runs this loader on every
   // navigation — recents/favorites riding along is cheaper than a gate that
@@ -58,9 +65,12 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   // to the client slot props.
   return {
     connectionConfigs,
-    credentials,
+    credentials: browsableCredentials,
     credentialErrors,
     connectionProviders,
+    // Presentation only: the gate already refused the browsable requests, so
+    // the client just renders these connections locked (with the gate's CTA).
+    lockedConnections,
     identity: toIdentity(user, org),
     hostConfig: {
       portalUrl: cytarioConfig.endpoints.portal,
@@ -82,10 +92,12 @@ export default function ProtectedLayout() {
     credentials,
     credentialErrors,
     connectionProviders,
+    lockedConnections,
     identity,
     hostConfig,
   } = useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors, connectionProviders);
+  useInitLockedConnections(lockedConnections);
   useCredentialsKeepAlive();
   useConnectionHealthProbe();
 

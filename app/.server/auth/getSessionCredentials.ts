@@ -18,6 +18,7 @@ import { sanitizeRoleSessionName } from "~/.server/stsSession";
 import { cytarioConfig } from "~/config";
 import { canSee } from "~/utils/authorization";
 import { STS_STALENESS_BUFFER_MS } from "~/utils/credentialsRefresh";
+import type { ConnectionGateFacts, LockedConnection } from "~/utils/lockedConnection";
 import {
   type AccessLevel,
   type ProviderCatalog,
@@ -170,7 +171,19 @@ export interface SessionCredentialsResult {
   // Never a role ARN or credential; absent for a connection whose catalog
   // reference is stale/unavailable.
   providers: Record<string, ClientConnectionProvider>;
+  /** The connections a plugin gate locks, resolved from this request's own
+   * provider map — the single probe per request. */
+  lockedConnections: LockedConnection[];
 }
+
+/**
+ * Asked once, after the provider map resolves and before any mint: a connection
+ * a gate locks never gets a credential. The facts carry the request's own
+ * provider resolution, so the probe costs no extra catalog read.
+ */
+export type LockedConnectionResolver = (
+  facts: ConnectionGateFacts[],
+) => Promise<LockedConnection[]>;
 
 // The session's credential store is per-org; this module works one org's
 // slice at a time. The caller hands in the full map; reads and writes stay
@@ -185,11 +198,17 @@ const orgCredentials = (
 // the affected connection surfaces a per-connection error rather than
 // blocking the others. Keys credentials by connection id so connections
 // sharing a bucket but resolving to different roles each get their own mint.
+//
+// A connection a plugin gate locked never mints and never records an error:
+// the gate refused it on the strength of the plan, not of a broken config, and
+// a minted credential would outlive the lock. A stale credential from before
+// the lock is pruned for the same reason.
 export const getAllSessionCredentials = async (
   sessionData: SessionData,
   connectionConfigs: ConnectionConfigWithGrants[],
   sessionId: string,
   organization: string,
+  resolveLockedConnections?: LockedConnectionResolver,
 ): Promise<SessionCredentialsResult> => {
   if (connectionConfigs.length === 0) {
     // Nothing to mint; the request org's (empty) slice is the answer.
@@ -197,6 +216,7 @@ export const getAllSessionCredentials = async (
       credentials: orgCredentials(sessionData.credentials, organization),
       errors: {},
       providers: {},
+      lockedConnections: [],
     };
   }
 
@@ -283,30 +303,44 @@ export const getAllSessionCredentials = async (
   // A public connection never mints and never records a credential error — its
   // null credential is the healthy state, not a broken one. A stale credential
   // from before the provider turned public is pruned so a mode flip cannot
-  // leave a minted credential behind.
-  const publicConnectionIds = new Set(
+  // leave a minted credential behind. A gate-locked connection is treated the
+  // same way for the opposite reason: it is not browsable at all.
+  const lockedConnections = resolveLockedConnections
+    ? await resolveLockedConnections(
+        connectionConfigs.map((connectionConfig) => ({
+          connectionId: connectionConfig.id,
+          isPublic: providers[connectionConfig.id]?.isPublic,
+        })),
+      )
+    : [];
+
+  const lockedIds = new Set(lockedConnections.map((locked) => locked.id));
+  const nonMintingConnectionIds = new Set(
     connectionConfigs
-      .filter((connectionConfig) => providers[connectionConfig.id]?.isPublic)
+      .filter(
+        (connectionConfig) =>
+          lockedIds.has(connectionConfig.id) || providers[connectionConfig.id]?.isPublic,
+      )
       .map((connectionConfig) => connectionConfig.id),
   );
 
-  const stalePublicCredentialIds = publicConnectionIds.size
-    ? [...publicConnectionIds].filter((id) => id in storedCredentials)
+  const staleNonMintingCredentialIds = nonMintingConnectionIds.size
+    ? [...nonMintingConnectionIds].filter((id) => id in storedCredentials)
     : [];
-  const credentialsWithoutPublic =
-    stalePublicCredentialIds.length > 0 ? { ...storedCredentials } : storedCredentials;
-  for (const connectionId of stalePublicCredentialIds) {
-    delete credentialsWithoutPublic[connectionId];
+  const credentialsWithoutNonMinting =
+    staleNonMintingCredentialIds.length > 0 ? { ...storedCredentials } : storedCredentials;
+  for (const connectionId of staleNonMintingCredentialIds) {
+    delete credentialsWithoutNonMinting[connectionId];
   }
 
   const connectionsNeedingRefresh = connectionConfigs.filter(
     (connectionConfig) =>
-      !publicConnectionIds.has(connectionConfig.id) &&
-      !isValidCredentials(credentialsWithoutPublic[connectionConfig.id]),
+      !nonMintingConnectionIds.has(connectionConfig.id) &&
+      !isValidCredentials(credentialsWithoutNonMinting[connectionConfig.id]),
   );
 
   if (connectionsNeedingRefresh.length === 0) {
-    return { credentials: credentialsWithoutPublic, errors: {}, providers };
+    return { credentials: credentialsWithoutNonMinting, errors: {}, providers, lockedConnections };
   }
 
   console.info(
@@ -369,7 +403,7 @@ export const getAllSessionCredentials = async (
     }),
   );
 
-  const newCredentials = { ...credentialsWithoutPublic };
+  const newCredentials = { ...credentialsWithoutNonMinting };
   const errors: Record<string, string> = {};
   credentialResults.forEach((credentialResult, i) => {
     if (credentialResult.status === "fulfilled") {
@@ -382,5 +416,5 @@ export const getAllSessionCredentials = async (
     }
   });
 
-  return { credentials: newCredentials, errors, providers };
+  return { credentials: newCredentials, errors, providers, lockedConnections };
 };
