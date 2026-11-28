@@ -7,7 +7,7 @@ import { ConnectionSwitcherChip } from "~/components/ConnectionTree/ConnectionSw
 import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { SearchInput } from "~/components/SearchInput";
-import { select } from "~/utils/connectionsStore/selectors";
+import { firstSelectableConnectionId, select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { convertCsvToParquet } from "~/utils/db/convertCsvToParquet";
 import { getOverlaySchema } from "~/utils/db/getOverlaySchema";
@@ -32,7 +32,12 @@ export function AddOverlay({
 }: AddOverlayProps) {
   const { toast } = useToast();
   const connections = useConnectionsStore(select.connections);
+  const lockedConnections = useConnectionsStore(select.lockedConnections);
   const connectionIds = useMemo(() => Object.keys(connections), [connections]);
+  const lockedConnectionIds = useMemo(
+    () => lockedConnections.map((locked) => locked.id),
+    [lockedConnections],
+  );
   const [busy, setBusy] = useState(false);
 
   const { connectionId: sourceConnection, name: sourceName } = useMemo(
@@ -42,7 +47,9 @@ export function AddOverlay({
 
   const [override, setOverride] = useState<string | null>(sourceConnection || null);
   const [searchTerm, setSearchTerm] = useState(sourceName);
-  const selectedConnection = override ?? connectionIds[0] ?? "";
+  // A locked connection cannot be browsed, so it is never the default pick.
+  const selectedConnection =
+    override ?? firstSelectableConnectionId(connectionIds, lockedConnectionIds) ?? "";
   // The tree only lists files of the selected connection, so one gate for it
   // covers every node the user can pick.
   const canWrite = useCanWrite(`${selectedConnection}/`);

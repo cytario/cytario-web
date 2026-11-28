@@ -28,7 +28,13 @@ export function useConnectionHealthProbe() {
   // never probed.
   const probeKey = useConnectionsStore((s) =>
     Object.entries(s.connections)
-      .filter(([id, connection]) => isProbeable(connection, s.lockedConnectionIds, id))
+      .filter(([id, connection]) =>
+        isProbeable(
+          connection,
+          s.lockedConnections.map((locked) => locked.id),
+          id,
+        ),
+      )
       .map(([id]) => id)
       .sort()
       .join("|"),
@@ -39,7 +45,8 @@ export function useConnectionHealthProbe() {
     const controller = new AbortController();
     let cancelled = false;
 
-    const { connections, lockedConnectionIds } = useConnectionsStore.getState();
+    const { connections, lockedConnections } = useConnectionsStore.getState();
+    const lockedConnectionIds = lockedConnections.map((locked) => locked.id);
     const targets = Object.entries(connections).filter(([id, connection]) =>
       isProbeable(connection, lockedConnectionIds, id),
     );

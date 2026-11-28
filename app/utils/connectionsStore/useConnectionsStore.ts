@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import type { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
+import type { LockedConnection } from "~/utils/lockedConnection";
 import type { AccessLevel } from "~/utils/providerCatalog.schema";
 
 /** A connection config with its grants eager-loaded. */
@@ -62,9 +63,10 @@ export interface ConnectionsStore {
   /**
    * Connections a plugin gate listed as visible-locked: rendered, never
    * browsable. Host-side this is presentation only — the gate already refused
-   * the browsable requests.
+   * the browsable requests. Each entry carries the gate's own call-to-action
+   * copy, so a row can offer the upgrade link it was refused with.
    */
-  lockedConnectionIds: string[];
+  lockedConnections: LockedConnection[];
   /**
    * Replace the whole store in one write; prunes entries removed server-side.
    * Connections without credentials are kept (status `"error"`, or
@@ -81,7 +83,7 @@ export interface ConnectionsStore {
   ) => void;
   /** Patch live health for already-loaded connections. */
   setConnectionStatuses: (updates: Record<string, ConnectionStatusUpdate>) => void;
-  setLockedConnectionIds: (connectionIds: string[]) => void;
+  setLockedConnections: (lockedConnections: LockedConnection[]) => void;
 }
 
 const name = "ConnectionsStore";
@@ -92,7 +94,7 @@ export const useConnectionsStore = create<ConnectionsStore>()(
   devtools(
     immer((set) => ({
       connections: {},
-      lockedConnectionIds: [],
+      lockedConnections: [],
 
       setConnections: (configs, credentials, errors = {}, providers = {}) => {
         set(
@@ -149,13 +151,13 @@ export const useConnectionsStore = create<ConnectionsStore>()(
         );
       },
 
-      setLockedConnectionIds: (connectionIds) => {
+      setLockedConnections: (lockedConnections) => {
         set(
           (state) => {
-            state.lockedConnectionIds = connectionIds;
+            state.lockedConnections = lockedConnections;
           },
           false,
-          "setLockedConnectionIds",
+          "setLockedConnections",
         );
       },
     })),

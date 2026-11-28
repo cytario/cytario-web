@@ -7,6 +7,8 @@ import { NodeIcon } from "~/components/DirectoryView/NodeLink/NodeIcon";
 import { NodeLink } from "~/components/DirectoryView/NodeLink/NodeLink";
 import { LockedConnectionPill } from "~/components/Pills/LockedConnectionPill";
 import { useActiveOrg } from "~/hooks/useOrgPath";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 interface GridItemProps {
@@ -41,6 +43,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
   // A locked card is shown but not a link: the gate refuses browsing it, so a
   // link would only offer a 402. Its context menu (delete included) survives.
   const locked = node.isLocked === true;
+  const lockedConnection = useConnectionsStore(select.lockedConnection(node.connectionId));
 
   const body = (
     <>
@@ -68,7 +71,7 @@ export function GridItem({ node, preview, children, className }: GridItemProps) 
         />
         {(locked || children) && (
           <div className="flex items-center gap-2">
-            {locked && <LockedConnectionPill />}
+            {locked && <LockedConnectionPill locked={lockedConnection} />}
             {children}
           </div>
         )}

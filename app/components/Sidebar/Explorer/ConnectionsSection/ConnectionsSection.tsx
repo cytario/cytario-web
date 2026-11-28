@@ -8,15 +8,21 @@ import { ConnectionTree } from "~/components/ConnectionTree/ConnectionTree";
 import { SearchInput } from "~/components/SearchInput";
 import { Section } from "~/components/Section/Section";
 import { useOrgPath } from "~/hooks/useOrgPath";
-import { select } from "~/utils/connectionsStore/selectors";
+import { firstSelectableConnectionId, select } from "~/utils/connectionsStore/selectors";
 import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 
 export function ConnectionsSection() {
   const connections = useConnectionsStore(select.connections);
+  // A locked connection is not browsable, so it never becomes the default view.
+  const lockedConnections = useConnectionsStore(select.lockedConnections);
   const orgPath = useOrgPath();
   const params = useParams();
   const routeId = params.id;
   const connectionIds = useMemo(() => Object.keys(connections), [connections]);
+  const lockedConnectionIds = useMemo(
+    () => lockedConnections.map((locked) => locked.id),
+    [lockedConnections],
+  );
 
   const [override, setOverride] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -29,7 +35,10 @@ export function ConnectionsSection() {
   }
 
   const selectedConnection =
-    override ?? (routeId && connectionIds.includes(routeId) ? routeId : connectionIds[0]);
+    override ??
+    (routeId && connectionIds.includes(routeId)
+      ? routeId
+      : firstSelectableConnectionId(connectionIds, lockedConnectionIds));
 
   // Reveal the active resource only on the route's own connection, not a manual switch.
   const activePathName = selectedConnection === routeId ? params["*"] : undefined;

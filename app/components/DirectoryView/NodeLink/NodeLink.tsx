@@ -8,6 +8,8 @@ import { NodeIndicator } from "./NodeIndicator";
 import { type TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import { LockedConnectionPill } from "~/components/Pills/LockedConnectionPill";
 import { useActiveOrg } from "~/hooks/useOrgPath";
+import { select } from "~/utils/connectionsStore/selectors";
+import { useConnectionsStore } from "~/utils/connectionsStore/useConnectionsStore";
 import { buildConnectionPath } from "~/utils/resourceId";
 
 export interface NodeLinkProps {
@@ -83,6 +85,7 @@ export function NodeLink({
   // A locked node stays in the tree (and keeps its context menu — deleting it is
   // allowed) but never navigates: the gate refuses the browsing requests.
   const locked = node.isLocked === true;
+  const lockedConnection = useConnectionsStore(select.lockedConnection(node.connectionId));
   const clickable = !locked && isClickable(node) && !isCurrent;
   const ctx = useNodeContextMenu({ node, isCurrent, extraItems: contextMenuItems });
 
@@ -129,7 +132,7 @@ export function NodeLink({
           <TruncatedText>
             <HighlightedName name={node.name} query={highlightQuery} />
           </TruncatedText>
-          {locked && <LockedConnectionPill />}
+          {locked && <LockedConnectionPill locked={lockedConnection} />}
         </div>
       )}
 
