@@ -139,10 +139,67 @@ describe("me.connections loader — SRS-CY-419101/419102", () => {
     };
 
     expect(response.status).toBe(200);
-    // Row shape unchanged apart from the flag: the CLI still sees the row.
+    // Row shape unchanged apart from the flag and the withheld grant: the CLI
+    // still sees the row.
     expect(body.connections).toHaveLength(1);
     expect(body.connections[0]?.id).toBe("conn-uuid-1");
     expect(body.connections[0]?.locked).toBe(true);
+  });
+
+  test("a locked row withholds the role ARN, access level and STS endpoint", async () => {
+    // /api/me/connections sits outside /api/v1/:org, so a Keycloak token alone
+    // reaches it. A role ARN here is enough for a client to AssumeRole on its
+    // own and read the private bucket the lock refuses.
+    hasGatesMock.mockReturnValue(true);
+    runGatesMock.mockResolvedValue({ kind: "lock", connectionIds: ["conn-uuid-1"] });
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as {
+      connections: Array<{
+        id: string;
+        locked: boolean;
+        roleArn: string | null;
+        accessLevel: string | null;
+        stsEndpoint: string | null;
+        region: string;
+        s3Endpoint: string;
+        bucketName: string;
+      }>;
+    };
+
+    expect(body.connections[0]).toMatchObject({
+      id: "conn-uuid-1",
+      locked: true,
+      roleArn: null,
+      accessLevel: null,
+      stsEndpoint: null,
+    });
+    // The non-secret addressing fields stay, so the CLI can still show the row.
+    expect(body.connections[0]?.bucketName).toBeTruthy();
+    expect(body.connections[0]?.region).toBeTruthy();
+    expect(body.connections[0]?.s3Endpoint).toBeTruthy();
+  });
+
+  test("an unlocked row keeps its role ARN in the same response", async () => {
+    hasGatesMock.mockReturnValue(true);
+    runGatesMock.mockResolvedValue({ kind: "continue" });
+    vi.mocked(verifyCliToken).mockResolvedValue(cliToken() as never);
+    vi.mocked(listConnections).mockResolvedValue([sharedConnection()]);
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    vi.mocked(getBucketCatalog).mockResolvedValue(mock.bucketCatalog());
+
+    const response = (await loader(buildArgs("token"))) as Response;
+    const body = (await response.json()) as {
+      connections: Array<{ locked: boolean; roleArn: string | null; stsEndpoint: string | null }>;
+    };
+
+    expect(body.connections[0]?.locked).toBe(false);
+    expect(body.connections[0]?.roleArn).toBe(ADMIN_ARN);
+    expect(body.connections[0]?.stsEndpoint).toBeTruthy();
   });
 
   test("a deny on the connection's browse request also marks the row locked", async () => {

@@ -25,14 +25,19 @@ vi.mock("~/utils/listObjects/listObjectsClient", () => ({
 const { authContext } = await import("~/.server/auth/authMiddleware");
 const { getConnection } = await import("~/routes/connections/connections.server");
 
-const buildContext = (providers: Record<string, unknown> = {}) => ({
+const buildContext = (
+  providers: Record<string, unknown> = {},
+  lockedConnections: Array<{ id: string; message?: string }> = [],
+) => ({
   get: vi.fn((ctx) => {
     if (ctx === authContext) {
       return {
         user: mock.user(),
+        requestOrganization: "org1",
         credentials: { "test-conn": mock.credentials() },
         credentialErrors: {},
         connectionProviders: providers,
+        lockedConnections,
       };
     }
     return undefined;
@@ -64,6 +69,22 @@ describe("objects loader (C-193)", () => {
     expect(result.isSingleFile).toBe(true);
     expect(result.nodes).toEqual([]);
     expect(result.pendingClientLoad).toBe(true);
+  });
+
+  test("a gate-locked connection answers 402 instead of shipping a credential", async () => {
+    const request = new Request("http://localhost/connections/test-conn");
+
+    await expect(
+      loader({
+        request,
+        params: { id: "test-conn", "*": "" },
+        context: buildContext({}, [
+          { id: "test-conn", message: "Upgrade plan to browse private data." },
+        ]) as never,
+        pattern: "",
+        url: new URL(request.url),
+      }),
+    ).rejects.toMatchObject({ status: 402 });
   });
 
   test("server loader returns the connection's provider projection from the auth context", async () => {

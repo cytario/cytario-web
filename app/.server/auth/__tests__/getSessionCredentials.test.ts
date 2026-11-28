@@ -280,6 +280,95 @@ describe("getAllSessionCredentials", () => {
     });
   });
 
+  test("a gate-locked connection never mints and prunes its cached credential", async () => {
+    const sessionData = {
+      ...mockSessionData,
+      credentials: { org1: { "locked-conn": mock.credentials({ AccessKeyId: "stale" }) } },
+    };
+
+    const result = await getAllSessionCredentials(
+      sessionData,
+      [
+        mock.connectionConfig({ id: "locked-conn", name: "locked-conn" }),
+        mock.connectionConfig({ id: "private-conn", name: "private-conn" }),
+      ],
+      SESSION_ID,
+      "org1",
+      async () => [{ id: "locked-conn" }],
+    );
+
+    // Only the browsable sibling minted.
+    expect(mockSend).toHaveBeenCalledTimes(1);
+    expect(result.credentials["locked-conn"]).toBeUndefined();
+    // A lock is not a broken connection: no mint error, no error dot.
+    expect(result.errors["locked-conn"]).toBeUndefined();
+    expect(result.credentials["private-conn"]).toEqual(mockCredentials);
+    expect(result.lockedConnections).toEqual([{ id: "locked-conn" }]);
+  });
+
+  test("an all-locked org mints nothing at all", async () => {
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "locked-conn", name: "locked-conn" })],
+      SESSION_ID,
+      "org1",
+      async () => [{ id: "locked-conn" }],
+    );
+
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(result.credentials).toEqual({});
+  });
+
+  test("the lock probe is asked once, with this pass's own provider facts", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({ id: "pc-private", isPublic: false }),
+          mock.providerConnection({ id: "pc-public", isPublic: true }),
+        ],
+      }),
+    );
+    const probe = vi.fn(async () => []);
+
+    await getAllSessionCredentials(
+      mockSessionData,
+      [
+        mock.connectionConfig({
+          id: "conn-private",
+          name: "conn-private",
+          providerConnectionId: "pc-private",
+        }),
+        mock.connectionConfig({
+          id: "conn-public",
+          name: "conn-public",
+          providerConnectionId: "pc-public",
+          grants: [mock.connectionGrant({ accessLevel: "read-only" })],
+        }),
+      ],
+      SESSION_ID,
+      "org1",
+      probe,
+    );
+
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(probe).toHaveBeenCalledWith([
+      { connectionId: "conn-private", isPublic: false },
+      { connectionId: "conn-public", isPublic: true },
+    ]);
+  });
+
+  test("no probe means no locks — callers that do not gate are unchanged", async () => {
+    const result = await getAllSessionCredentials(
+      mockSessionData,
+      [mock.connectionConfig({ id: "new-conn", name: "new-conn" })],
+      SESSION_ID,
+      "org1",
+    );
+
+    expect(result.lockedConnections).toEqual([]);
+    expect(result.credentials["new-conn"]).toEqual(mockCredentials);
+  });
+
   test("a public connection's discovered region outranks the provider's default", async () => {
     vi.mocked(getProviderCatalog).mockResolvedValue(
       mock.providerCatalog({

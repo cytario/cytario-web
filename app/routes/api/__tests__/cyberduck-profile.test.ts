@@ -55,9 +55,18 @@ function sharedConnection() {
   });
 }
 
-function buildArgs(user: ReturnType<typeof mock.user>, connectionId = "conn-uuid-1") {
+function buildArgs(
+  user: ReturnType<typeof mock.user>,
+  connectionId = "conn-uuid-1",
+  lockedConnections: Array<{ id: string; message?: string }> = [],
+) {
   const ctx = new Map<unknown, unknown>();
-  ctx.set(authContext, { user, authTokens: { accessToken: "t", idToken: "t" } });
+  ctx.set(authContext, {
+    user,
+    authTokens: { accessToken: "t", idToken: "t" },
+    requestOrganization: "org1",
+    lockedConnections,
+  });
   return {
     request: new Request(`http://localhost/api/v1/org1/cyberduck-profile/${connectionId}`),
     params: { id: connectionId },
@@ -73,6 +82,41 @@ function rolearnOf(profileXml: string): string | undefined {
 }
 
 describe("cyberduck-profile loader — SRS-CY-43111", () => {
+  test("a gate-locked connection yields no profile at all", async () => {
+    // The profile embeds the role ARN and STS endpoint — the two inputs a
+    // client mints its own credentials with, which is what the lock refuses.
+    vi.mocked(getConnection).mockResolvedValue(sharedConnection());
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/internal"], attributes: {} } },
+    });
+
+    const response = (await loader(
+      buildArgs(user, "conn-uuid-1", [
+        { id: "conn-uuid-1", message: "Upgrade plan to browse private data." },
+      ]),
+    )) as Response;
+
+    expect(response.status).toBe(402);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toBe("Upgrade plan to browse private data.");
+  });
+
+  test("a lock on a different connection leaves this profile intact", async () => {
+    vi.mocked(getConnection).mockResolvedValue(sharedConnection());
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    const user = mock.user({
+      organizations: { org1: { groups: ["org1/internal"], attributes: {} } },
+    });
+
+    const response = (await loader(
+      buildArgs(user, "conn-uuid-1", [{ id: "conn-elsewhere" }]),
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(rolearnOf(await response.text())).toBe(ADMIN_ARN);
+  });
+
   test("C-435 regression: member of the admin-granted group gets the admin role, not grants[0]", async () => {
     vi.mocked(getConnection).mockResolvedValue(sharedConnection());
     vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());

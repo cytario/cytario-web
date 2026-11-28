@@ -8,7 +8,7 @@ import { refreshAccessTokenWithLock } from "../refreshAuthTokens";
 import { sessionContext } from "../sessionMiddleware";
 import { sessionStorage, type SessionData } from "../sessionStorage";
 import { verifyIdToken } from "../verifyIdToken";
-import { resolveGateResource } from "~/.server/gateResourceFacts.server";
+import { lockedConnections, resolveGateResource } from "~/.server/gateResourceFacts.server";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
 import mock from "~/utils/__tests__/__mocks__";
@@ -63,6 +63,7 @@ vi.mock("~/.server/pluginGates", () => ({
 
 vi.mock("~/.server/gateResourceFacts.server", () => ({
   resolveGateResource: vi.fn(),
+  lockedConnections: vi.fn(),
 }));
 
 vi.mock("react-router", async (importOriginal) => {
@@ -165,12 +166,16 @@ describe("authMiddleware", () => {
     vi.mocked(listConnections).mockResolvedValue(mockConnectionConfigs);
     // By default the request org's slice is returned unchanged (no mint =
     // no change = no session commit). The mock honors the slice contract:
-    // result.credentials is the ORG SLICE of the passed session data.
+    // result.credentials is the ORG SLICE of the passed session data, and the
+    // lock probe runs inside the pass it was handed to.
     vi.mocked(getAllSessionCredentials).mockImplementation(
-      async (sessionData, _connectionConfigs, _sessionId, organization) => ({
+      async (sessionData, connectionConfigs, _sessionId, organization, resolveLocked) => ({
         credentials: sessionData.credentials[organization] ?? {},
         errors: {},
         providers: {},
+        lockedConnections: resolveLocked
+          ? await resolveLocked(connectionConfigs.map((config) => ({ connectionId: config.id })))
+          : [],
       }),
     );
     vi.mocked(refreshAccessTokenWithLock).mockResolvedValue({
@@ -181,6 +186,7 @@ describe("authMiddleware", () => {
     // No plugin loaded by default → gates short-circuit to continue.
     vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
     vi.mocked(resolveGateResource).mockResolvedValue(undefined);
+    vi.mocked(lockedConnections).mockResolvedValue([]);
     vi.mocked(getPreferredOrg).mockResolvedValue(null);
     vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
     vi.mocked(readActiveOrgHint).mockResolvedValue(undefined);
@@ -243,6 +249,9 @@ describe("authMiddleware", () => {
         mockConnectionConfigs,
         mockSession.id,
         "org1",
+        // The single per-request lock probe, handed to the credential pass so a
+        // locked connection never mints.
+        expect.any(Function),
       );
     });
 
@@ -269,6 +278,7 @@ describe("authMiddleware", () => {
         credentials: newCredentials,
         errors: {},
         providers: {},
+        lockedConnections: [],
       });
 
       const args = createMiddlewareArgs();
@@ -751,6 +761,7 @@ describe("authMiddleware", () => {
         mockConnectionConfigs,
         mockSession.id,
         "org1",
+        expect.any(Function),
       );
     });
 
@@ -1119,8 +1130,14 @@ describe("authMiddleware", () => {
       expect(resolveGateResource).not.toHaveBeenCalled();
     });
 
-    test("a lock outcome proceeds and carries the locked ids into authContext", async () => {
-      vi.mocked(runGates).mockResolvedValue({ kind: "lock", connectionIds: ["conn-locked"] });
+    test("a lock outcome proceeds and carries the locked connections into authContext", async () => {
+      vi.mocked(runGates).mockResolvedValue({
+        kind: "lock",
+        connectionIds: ["conn-locked"],
+        message: "Upgrade plan to browse private data.",
+        resolveUrl: "https://admin.cytario.com/billing",
+        resolveLabel: "Upgrade plan",
+      });
 
       const args = createMiddlewareArgs();
 
@@ -1135,7 +1152,48 @@ describe("authMiddleware", () => {
       expect(mockNext).toHaveBeenCalled();
       expect(args.context.set).toHaveBeenCalledWith(
         authContext,
-        expect.objectContaining({ lockedConnectionIds: ["conn-locked"] }),
+        expect.objectContaining({
+          lockedConnections: [
+            {
+              id: "conn-locked",
+              message: "Upgrade plan to browse private data.",
+              resolveUrl: "https://admin.cytario.com/billing",
+              resolveLabel: "Upgrade plan",
+            },
+          ],
+        }),
+      );
+    });
+
+    test("the per-connection probe supplies the lock's call to action for the listing", async () => {
+      vi.mocked(lockedConnections).mockResolvedValue([
+        {
+          id: "conn-probed",
+          message: "Upgrade plan to browse private data.",
+          resolveUrl: "https://admin.cytario.com/billing",
+          resolveLabel: "Upgrade plan",
+        },
+      ]);
+
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      // Probed inside the credential pass, once, from this request's own
+      // provider resolution — no second catalog read.
+      expect(lockedConnections).toHaveBeenCalledWith(mockSessionData.user, "org1", [
+        { connectionId: mockConnectionConfigs[0]?.id },
+      ]);
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({
+          lockedConnections: [
+            expect.objectContaining({
+              id: "conn-probed",
+              resolveUrl: "https://admin.cytario.com/billing",
+            }),
+          ],
+        }),
       );
     });
 
@@ -1278,9 +1336,48 @@ describe("authMiddleware", () => {
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(mockNext).toHaveBeenCalled();
+      // The gate named it, the probe did not reach it: it stays listed locked.
       expect(args.context.set).toHaveBeenCalledWith(
         authContext,
-        expect.objectContaining({ lockedConnectionIds: ["conn-locked"] }),
+        expect.objectContaining({
+          lockedConnections: [
+            { id: "conn-locked", message: "Upgrade plan to browse private data." },
+          ],
+        }),
+      );
+    });
+
+    test("a probe verdict outranks the request gate's copy for the same connection", async () => {
+      const probe = vi.fn().mockResolvedValue([
+        {
+          id: "conn-locked",
+          message: "probed message",
+          resolveUrl: "https://admin.cytario.com/billing",
+          resolveLabel: "Upgrade plan",
+        },
+      ]);
+      vi.mocked(lockedConnections).mockImplementation(probe);
+      vi.mocked(runGates).mockResolvedValue({
+        kind: "lock",
+        connectionIds: ["conn-locked"],
+        message: "gate message",
+      });
+      const args = createMiddlewareArgs();
+
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({
+          lockedConnections: [
+            {
+              id: "conn-locked",
+              message: "probed message",
+              resolveUrl: "https://admin.cytario.com/billing",
+              resolveLabel: "Upgrade plan",
+            },
+          ],
+        }),
       );
     });
 
@@ -1291,7 +1388,7 @@ describe("authMiddleware", () => {
 
       expect(args.context.set).toHaveBeenCalledWith(
         authContext,
-        expect.objectContaining({ lockedConnectionIds: [] }),
+        expect.objectContaining({ lockedConnections: [] }),
       );
     });
   });

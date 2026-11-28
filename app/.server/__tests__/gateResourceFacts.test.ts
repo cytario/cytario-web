@@ -24,7 +24,7 @@ vi.mock("~/routes/connections/connections.server", () => ({
   getConnection: vi.fn(),
 }));
 
-const { lockedConnectionIds } = await import("../gateResourceFacts.server");
+const { lockedConnections } = await import("../gateResourceFacts.server");
 
 const user = mock.user();
 const authTokens = { accessToken: "access", refreshToken: "refresh", idToken: "id" };
@@ -208,6 +208,134 @@ describe("resolveGateResource", () => {
     expect(getProviderCatalog).not.toHaveBeenCalled();
   });
 
+  test("a `_intent=reapply` naming a private target yields the private fact", async () => {
+    // A crafted submit could name a public provider beside a private target;
+    // trusting it would let the write through on the public fact.
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({ id: "pc-private", isPublic: false }),
+          mock.providerConnection({ id: "pc-public", isPublic: true }),
+        ],
+      }),
+    );
+    vi.mocked(getConnection).mockResolvedValue(
+      mock.connectionConfig({ id: "conn-private", providerConnectionId: "pc-private" }),
+    );
+
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/org1", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          _intent: "reapply",
+          connectionId: "conn-private",
+          providerConnectionId: "pc-public",
+        }),
+      }),
+      url: new URL("http://localhost/org1"),
+    });
+
+    expect(facts).toEqual({ connectionId: "conn-private", isPublic: false });
+    expect(getConnection).toHaveBeenCalledWith(user, "org1", "conn-private");
+  });
+
+  test("an unknown target connection contributes only its id, never the submitted provider", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: "pc-public", isPublic: true })],
+      }),
+    );
+    vi.mocked(getConnection).mockResolvedValue(null);
+
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/org1", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          _intent: "reapply",
+          connectionId: "conn-elsewhere",
+          providerConnectionId: "pc-public",
+        }),
+      }),
+      url: new URL("http://localhost/org1"),
+    });
+
+    // An unknown fact is left absent, never guessed — the plugin then decides.
+    expect(facts).toEqual({ connectionId: "conn-elsewhere" });
+  });
+
+  test("a `_intent=share` create still resolves the provider it builds from", async () => {
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: "pc-public", isPublic: true })],
+      }),
+    );
+
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/org1", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          _intent: "share",
+          providerConnectionId: "pc-public",
+          bucketName: "bucket",
+        }),
+      }),
+      url: new URL("http://localhost/org1"),
+    });
+
+    expect(facts).toEqual({ isPublic: true });
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
+  test("a form PATCH to the org root resolves the updated connection's facts", async () => {
+    // The edit form patches the org root; without facts the gate refused every
+    // edit on a free org, including on a public connection the same org created.
+    vi.mocked(getProviderCatalog).mockResolvedValue(
+      mock.providerCatalog({
+        providerConnections: [mock.providerConnection({ id: "pc-public", isPublic: true })],
+      }),
+    );
+    vi.mocked(getConnection).mockResolvedValue(
+      mock.connectionConfig({ id: "conn-public", providerConnectionId: "pc-public" }),
+    );
+
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/org1?modal=edit-connection", {
+        method: "PATCH",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          connectionId: "conn-public",
+          providerConnectionId: "pc-public",
+        }),
+      }),
+      url: new URL("http://localhost/org1?modal=edit-connection"),
+    });
+
+    expect(facts).toEqual({ connectionId: "conn-public", isPublic: true });
+    expect(getConnection).toHaveBeenCalledWith(user, "org1", "conn-public");
+  });
+
+  test("a form PATCH naming no connection resolves nothing", async () => {
+    const facts = await resolveGateResource({
+      ...base,
+      request: request("http://localhost/org1", {
+        method: "PATCH",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ providerConnectionId: "pc-mock" }),
+      }),
+      url: new URL("http://localhost/org1"),
+    });
+
+    expect(facts).toBeUndefined();
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
   test("a POST to a connection path resolves that connection, not a provider reference", async () => {
     const facts = await resolveGateResource({
       ...base,
@@ -223,7 +351,7 @@ describe("resolveGateResource", () => {
   });
 });
 
-describe("lockedConnectionIds", () => {
+describe("lockedConnections", () => {
   const listed = [
     { connectionId: "conn-private", isPublic: false },
     { connectionId: "conn-public", isPublic: true },
@@ -236,7 +364,9 @@ describe("lockedConnectionIds", () => {
         : { kind: "continue" },
     );
 
-    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual(["conn-private"]);
+    await expect(lockedConnections(user, "org1", listed)).resolves.toEqual([
+      { id: "conn-private" },
+    ]);
 
     // One question per connection, naming that connection — never the org root.
     expect(runGatesMock).toHaveBeenCalledTimes(2);
@@ -254,17 +384,52 @@ describe("lockedConnectionIds", () => {
     });
   });
 
-  test("a deny verdict also marks the row locked", async () => {
-    runGatesMock.mockResolvedValue({ kind: "deny", status: 402 });
+  test("the lock's call to action travels with the row, so the pill can render it", async () => {
+    runGatesMock.mockResolvedValue({
+      kind: "lock",
+      connectionIds: ["conn-private"],
+      message: "Upgrade plan to browse private data.",
+      resolveUrl: "https://admin.cytario.com/billing",
+      resolveLabel: "Upgrade plan",
+    });
 
-    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual([
-      "conn-private",
-      "conn-public",
+    await expect(lockedConnections(user, "org1", [listed[0]])).resolves.toEqual([
+      {
+        id: "conn-private",
+        message: "Upgrade plan to browse private data.",
+        resolveUrl: "https://admin.cytario.com/billing",
+        resolveLabel: "Upgrade plan",
+      },
+    ]);
+  });
+
+  test("a deny verdict also marks the row locked, carrying its call to action", async () => {
+    runGatesMock.mockResolvedValue({
+      kind: "deny",
+      status: 402,
+      message: "Upgrade plan",
+      resolveUrl: "https://admin.cytario.com/billing",
+      resolveLabel: "Upgrade plan",
+    });
+
+    await expect(lockedConnections(user, "org1", listed)).resolves.toEqual([
+      {
+        id: "conn-private",
+        message: "Upgrade plan",
+        resolveUrl: "https://admin.cytario.com/billing",
+        resolveLabel: "Upgrade plan",
+      },
+      {
+        id: "conn-public",
+        message: "Upgrade plan",
+        resolveUrl: "https://admin.cytario.com/billing",
+        resolveLabel: "Upgrade plan",
+      },
     ]);
   });
 
   test("an unknown publicness is left absent rather than guessed", async () => {
-    await lockedConnectionIds(user, "org1", [{ connectionId: "conn-1" }]);
+    await lockedConnections(user, "org1", [{ connectionId: "conn-1" }]);
 
     expect(runGatesMock).toHaveBeenCalledWith({
       url: "/org1/conn-1",
@@ -275,18 +440,18 @@ describe("lockedConnectionIds", () => {
   });
 
   test("continue locks nothing", async () => {
-    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual([]);
+    await expect(lockedConnections(user, "org1", listed)).resolves.toEqual([]);
   });
 
   test("no connections to probe asks the gate nothing", async () => {
-    await expect(lockedConnectionIds(user, "org1", [])).resolves.toEqual([]);
+    await expect(lockedConnections(user, "org1", [])).resolves.toEqual([]);
     expect(runGatesMock).not.toHaveBeenCalled();
   });
 
   test("no gate in this build locks nothing", async () => {
     hasGatesMock.mockReturnValue(false);
 
-    await expect(lockedConnectionIds(user, "org1", listed)).resolves.toEqual([]);
+    await expect(lockedConnections(user, "org1", listed)).resolves.toEqual([]);
     expect(runGatesMock).not.toHaveBeenCalled();
   });
 });
