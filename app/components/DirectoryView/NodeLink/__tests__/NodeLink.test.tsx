@@ -32,7 +32,7 @@ const renderNode = (node: TreeNode) => {
         status: "connected",
       },
     },
-    lockedConnectionIds: node.isLocked ? ["conn-a"] : [],
+    lockedConnections: node.isLocked ? [{ id: "conn-a" }] : [],
   });
 
   const Stub = createRoutesStub([{ path: "/:org?/*", Component: () => <NodeLink node={node} /> }]);

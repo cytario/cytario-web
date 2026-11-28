@@ -39,7 +39,7 @@ const connections = {
 };
 
 vi.mock("~/utils/connectionsStore/useConnectionsStore", () => ({
-  useConnectionsStore: vi.fn((selector) => selector({ connections })),
+  useConnectionsStore: vi.fn((selector) => selector({ connections, lockedConnections: [] })),
 }));
 
 vi.mock("~/utils/connectionsStore/selectors", () => ({
@@ -56,6 +56,8 @@ vi.mock("~/utils/connectionsStore/selectors", () => ({
     connectionStatusMessage:
       (name: string) => (state: { connections: Record<string, { statusMessage?: string }> }) =>
         state.connections[name]?.statusMessage,
+    lockedConnection: (name: string) => (state: { lockedConnections: Array<{ id: string }> }) =>
+      state.lockedConnections.find((locked) => locked.id === name),
   },
 }));
 

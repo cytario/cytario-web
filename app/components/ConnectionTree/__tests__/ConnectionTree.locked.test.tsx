@@ -38,7 +38,7 @@ describe("ConnectionTree — gate-locked connection", () => {
           status: "connected",
         },
       },
-      lockedConnectionIds: [],
+      lockedConnections: [],
     });
   });
 
@@ -53,7 +53,7 @@ describe("ConnectionTree — gate-locked connection", () => {
   });
 
   test("a locked connection root is neither a link nor expandable", async () => {
-    useConnectionsStore.setState({ lockedConnectionIds: ["conn-a"] });
+    useConnectionsStore.setState({ lockedConnections: [{ id: "conn-a" }] });
 
     renderTree();
 

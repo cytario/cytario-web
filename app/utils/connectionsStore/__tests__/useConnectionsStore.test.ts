@@ -1,6 +1,11 @@
 import { Credentials } from "@aws-sdk/client-sts";
 
-import { resolveResourceId, select, selectHttpsUrl } from "../selectors";
+import {
+  firstSelectableConnectionId,
+  resolveResourceId,
+  select,
+  selectHttpsUrl,
+} from "../selectors";
 import { useConnectionsStore } from "../useConnectionsStore";
 import mock from "~/utils/__tests__/__mocks__";
 
@@ -45,7 +50,7 @@ describe("useConnectionsStore", () => {
   };
 
   beforeEach(() => {
-    useConnectionsStore.setState({ connections: {}, lockedConnectionIds: [] });
+    useConnectionsStore.setState({ connections: {}, lockedConnections: [] });
   });
 
   describe("setConnections", () => {
@@ -141,27 +146,61 @@ describe("useConnectionsStore", () => {
     });
   });
 
-  describe("setLockedConnectionIds", () => {
+  describe("setLockedConnections", () => {
     test("defaults to an empty set", () => {
-      expect(useConnectionsStore.getState().lockedConnectionIds).toEqual([]);
+      expect(useConnectionsStore.getState().lockedConnections).toEqual([]);
     });
 
-    test("replaces the locked set", () => {
+    test("replaces the locked set, carrying the gate's call to action", () => {
       seed();
-      useConnectionsStore.getState().setLockedConnectionIds(["test-conn"]);
-      expect(useConnectionsStore.getState().lockedConnectionIds).toEqual(["test-conn"]);
+      const locked = [
+        {
+          id: "test-conn",
+          message: "Upgrade plan to browse private data.",
+          resolveUrl: "https://admin.cytario.com/billing",
+          resolveLabel: "Upgrade plan",
+        },
+      ];
+      useConnectionsStore.getState().setLockedConnections(locked);
+      expect(useConnectionsStore.getState().lockedConnections).toEqual(locked);
 
-      useConnectionsStore.getState().setLockedConnectionIds([]);
-      expect(useConnectionsStore.getState().lockedConnectionIds).toEqual([]);
+      useConnectionsStore.getState().setLockedConnections([]);
+      expect(useConnectionsStore.getState().lockedConnections).toEqual([]);
     });
 
-    test("a locked connection keeps its config and credentials — only presentation changes", () => {
-      seed();
-      useConnectionsStore.getState().setLockedConnectionIds(["test-conn"]);
+    test("a locked connection keeps its config but never a credential", () => {
+      // The lock is enforced server-side: a locked row's credential is never
+      // minted and never shipped, so the store must hold none — anything else
+      // means a browser (or devtools) can sign its own S3 requests.
+      useConnectionsStore.getState().setConnections([connectionConfig], {});
+      useConnectionsStore.getState().setLockedConnections([{ id: "test-conn" }]);
 
       const connection = useConnectionsStore.getState().connections["test-conn"];
       expect(connection?.connectionConfig).toEqual(connectionConfig);
-      expect(connection?.credentials).toEqual(credentials);
+      expect(connection?.credentials).toBeNull();
+    });
+  });
+
+  describe("lockedConnection selectors", () => {
+    test("select.lockedConnection exposes the gate's entry for a locked row", () => {
+      seed();
+      expect(select.lockedConnection("test-conn")(useConnectionsStore.getState())).toBeUndefined();
+
+      const locked = { id: "test-conn", resolveUrl: "https://admin.cytario.com/billing" };
+      useConnectionsStore.getState().setLockedConnections([locked]);
+
+      expect(select.lockedConnection("test-conn")(useConnectionsStore.getState())).toEqual(locked);
+      expect(select.lockedConnections(useConnectionsStore.getState())).toEqual([locked]);
+    });
+
+    test("firstSelectableConnectionId skips a locked connection", () => {
+      expect(firstSelectableConnectionId(["conn-locked", "conn-open"], ["conn-locked"])).toBe(
+        "conn-open",
+      );
+      // Every row locked: the first is still named, so the listing shows the
+      // locked row rather than pretending the org has no connections.
+      expect(firstSelectableConnectionId(["conn-locked"], ["conn-locked"])).toBe("conn-locked");
+      expect(firstSelectableConnectionId([], [])).toBeUndefined();
     });
   });
 
