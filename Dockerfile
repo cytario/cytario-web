@@ -8,7 +8,7 @@
 #
 # -- deps stage: install npm dependencies -------
 #
-FROM node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 AS deps
+FROM node:24-bookworm-slim@sha256:873f586f3794f52281bd039bf02c048a0be08fde619338f9941bad1eb6b34530 AS deps
 ENV HUSKY=0
 
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 #
 # -- build stage: compile the app ---------------
 #
-FROM node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 AS build
+FROM node:24-bookworm-slim@sha256:873f586f3794f52281bd039bf02c048a0be08fde619338f9941bad1eb6b34530 AS build
 ENV HUSKY=0
 
 WORKDIR /app
@@ -43,7 +43,7 @@ RUN npm run build:server
 # Prisma schema engine binary for migrate deploy) is installed here and
 # copied in.
 #
-FROM node:24-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205 AS prod-deps
+FROM node:24-bookworm-slim@sha256:873f586f3794f52281bd039bf02c048a0be08fde619338f9941bad1eb6b34530 AS prod-deps
 ENV HUSKY=0
 
 WORKDIR /app
