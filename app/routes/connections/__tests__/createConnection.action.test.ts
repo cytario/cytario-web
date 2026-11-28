@@ -44,8 +44,9 @@ vi.mock("~/.server/storage/bucketPolicyApply.server", () => ({
   applyBucketPolicy: vi.fn(async () => ({ status: "applied" })),
 }));
 
-vi.mock("~/config", () => ({
+vi.mock("~/config", async (importOriginal) => ({
   cytarioConfig: {
+    ...(await importOriginal<typeof import("~/config")>()).cytarioConfig,
     endpoints: { webapp: "https://app.cytar.io" },
     providers: { source: "oss" },
   },

@@ -20,6 +20,18 @@ vi.mock("../getSessionCredentials", () => ({
   getAllSessionCredentials: vi.fn(),
 }));
 
+// happy-dom strips the `cookie` header from Requests — mock the seam.
+const { readActiveOrgHint, activeOrgHintHeader } = vi.hoisted(() => ({
+  readActiveOrgHint: vi.fn(),
+  activeOrgHintHeader: vi.fn(),
+}));
+
+vi.mock("../activeOrgHint", async (importOriginal) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const actual: any = await (importOriginal as () => Promise<any>)();
+  return { ...actual, readActiveOrgHint, activeOrgHintHeader };
+});
+
 vi.mock("../orgPreference.server", () => ({
   getPreferredOrg: vi.fn(),
   setPreferredOrg: vi.fn(),
@@ -165,6 +177,8 @@ describe("authMiddleware", () => {
     vi.mocked(runGates).mockResolvedValue({ kind: "continue" });
     vi.mocked(getPreferredOrg).mockResolvedValue(null);
     vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
+    vi.mocked(readActiveOrgHint).mockResolvedValue(undefined);
+    vi.mocked(activeOrgHintHeader).mockResolvedValue("cyt-active-org=mock");
   });
 
   describe("Session Context", () => {
@@ -303,6 +317,44 @@ describe("authMiddleware", () => {
       );
     });
 
+    test("the cross-app hint wins over the persisted preference when the token carries it", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+      // The portal last left the user in zeta; the web preference says alpha.
+      vi.mocked(readActiveOrgHint).mockResolvedValue("zeta");
+      vi.mocked(getPreferredOrg).mockResolvedValue("alpha");
+
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ requestOrganization: "zeta" }),
+      );
+      // The hint drives the resolution; the preference is only the fallback.
+    });
+
+    test("a hint naming an org the token does not carry is ignored — the preference drives", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+      });
+      vi.mocked(readActiveOrgHint).mockResolvedValue("evil");
+      vi.mocked(getPreferredOrg).mockResolvedValue("alpha");
+
+      const request = new Request("http://localhost/recent");
+      const args = createMiddlewareArgs({}, true, request, new URL(request.url));
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(args.context.set).toHaveBeenCalledWith(
+        authContext,
+        expect.objectContaining({ requestOrganization: "alpha" }),
+      );
+    });
+
     test("falls back to the first alias when there is no preference", async () => {
       vi.mocked(getSessionData).mockResolvedValue({
         ...mockSessionData,
@@ -396,6 +448,46 @@ describe("authMiddleware", () => {
       await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
 
       expect(setPreferredOrg).toHaveBeenCalledWith("mock-user-id", "zeta");
+    });
+
+    test("the same document navigation publishes the cross-app hint on the response", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+        credentials: { alpha: {}, zeta: {} },
+      });
+
+      const url = orgUrl("zeta");
+      const request = new Request(url, { headers: { accept: "text/html" } });
+      const args = createMiddlewareArgs({}, true, request, url);
+      const response = (await authMiddleware(
+        args as unknown as Parameters<typeof authMiddleware>[0],
+        mockNext,
+      )) as Response;
+
+      // The admin portal's login reads this cookie.
+      expect(activeOrgHintHeader).toHaveBeenCalledExactlyOnceWith("zeta");
+      expect(
+        (response.headers as unknown as { getSetCookie: () => string[] }).getSetCookie(),
+      ).toContain("cyt-active-org=mock");
+    });
+
+    test("a background data fetch never publishes the cross-app hint", async () => {
+      vi.mocked(getSessionData).mockResolvedValue({
+        ...mockSessionData,
+        user: multiOrgUser(),
+        credentials: { alpha: {}, zeta: {} },
+      });
+
+      const dataUrl = new URL(
+        `http://localhost/zeta/connections?_routes=layouts%2Fprotected.layout`,
+      );
+      const request = new Request(dataUrl, { headers: { accept: "application/json" } });
+      const args = createMiddlewareArgs({}, true, request, dataUrl);
+      await authMiddleware(args as unknown as Parameters<typeof authMiddleware>[0], mockNext);
+
+      expect(activeOrgHintHeader).not.toHaveBeenCalled();
+      expect(setPreferredOrg).not.toHaveBeenCalledWith("mock-user-id", "zeta");
     });
 
     test("a foreign URL org redirects back to the session's org before credential work", async () => {

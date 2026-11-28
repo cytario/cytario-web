@@ -1,8 +1,8 @@
 import { Description } from "@cytario/design";
 import { LoaderFunctionArgs, redirect, MetaFunction } from "react-router";
 
+import { pickDefaultOrganization, readActiveOrgHint } from "~/.server/auth/activeOrgHint";
 import { getSession } from "~/.server/auth/getSession";
-import { resolveActiveOrganization } from "~/.server/auth/getUserInfo";
 import { generateOAuthState, validateRedirectTo } from "~/.server/auth/oauthState";
 import { getPreferredOrg } from "~/.server/auth/orgPreference.server";
 import { getWellKnownEndpoints } from "~/.server/auth/wellKnownEndpoints";
@@ -30,11 +30,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (user) {
     console.info(`${label} User already authenticated, redirecting`);
-    // The org they were in last: the persisted preference, validated against
-    // the token's memberships, else the first alias — the un-prefixed root
-    // would only redirect once more.
-    const preferredOrg = await getPreferredOrg(user.sub).catch(() => null);
-    const organization = resolveActiveOrganization(user.organizations, preferredOrg ?? undefined);
+    // The org they were in last: the cross-app hint, else the persisted
+    // preference — the un-prefixed root would only redirect once more.
+    const hintedOrg = await readActiveOrgHint(request.headers.get("cookie"));
+    // A valid hint skips the preference read.
+    const organization =
+      hintedOrg !== undefined && hintedOrg in user.organizations
+        ? hintedOrg
+        : pickDefaultOrganization(
+            user.organizations,
+            hintedOrg,
+            await getPreferredOrg(user.sub).catch(() => null),
+          );
     if (!organization) return redirect("/onboarding");
     return redirect(orgPath(organization, "/"));
   }

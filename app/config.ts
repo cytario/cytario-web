@@ -105,6 +105,8 @@ interface CytarioConfig {
   };
   /** Base64-encoded 32-byte AES-256-GCM key for secrets held in Postgres. */
   dbEncryptionKey?: string;
+  /** Domain attribute for the cross-app active-org hint cookie; unset = none. */
+  activeOrgCookieDomain?: string;
   cookie: CookieOptions;
 }
 
@@ -126,6 +128,7 @@ const {
   NODE_ENV,
   WEB_HOST,
   PORTAL_HOST,
+  ACTIVE_ORG_COOKIE_DOMAIN,
   DOCS_URL,
   SUPPORT_EMAIL,
   PORTAL_INTERNAL_URL,
@@ -168,6 +171,21 @@ function parsePublicProviderEndpoint(raw: string | undefined): string | null {
   if (parsed.protocol !== "https:" && !isLoopbackHttpUrl(parsed)) {
     throw new Error(
       `Refusing to start: CYTARIO_PUBLIC_PROVIDER_ENDPOINT "${value}" must be an https:// URL (loopback http://localhost[:port] or http://127.0.0.1[:port] is allowed in development and test) — or "" to disable the built-in public provider.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * The cross-app hint cookie's Domain. Unset/empty = host-only; must be a
+ * registrable domain — an IP literal or localhost is silently dropped by
+ * browsers, so refuse it at boot instead.
+ */
+function parseActiveOrgCookieDomain(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (/^\d+(\.\d+)*$/.test(value) || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(value)) {
+    throw new Error(
+      `ACTIVE_ORG_COOKIE_DOMAIN "${value}" must be a registrable domain (not an IP literal or localhost), or empty`,
     );
   }
   return value;
@@ -220,6 +238,8 @@ export const cytarioConfig: Readonly<CytarioConfig> = {
     },
   },
   dbEncryptionKey: DB_ENCRYPTION_KEY,
+  /** Domain attribute for the cross-app active-org hint cookie; unset = none. */
+  activeOrgCookieDomain: parseActiveOrgCookieDomain(ACTIVE_ORG_COOKIE_DOMAIN),
   cookie: {
     httpOnly: true,
     secure: NODE_ENV !== "development",

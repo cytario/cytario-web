@@ -14,6 +14,16 @@ vi.mock("~/.server/auth/exchangeAuthCode", () => ({
   exchangeAuthCode: vi.fn(),
 }));
 
+// happy-dom strips the `cookie` header from Requests — mock the seam.
+const { readActiveOrgHint } = vi.hoisted(() => ({
+  readActiveOrgHint: vi.fn(),
+}));
+
+vi.mock("~/.server/auth/activeOrgHint", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/.server/auth/activeOrgHint")>();
+  return { ...actual, readActiveOrgHint };
+});
+
 vi.mock("~/.server/auth/getUserInfo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/.server/auth/getUserInfo")>();
   return { ...actual, profileFromAccessToken: vi.fn() };
@@ -47,8 +57,9 @@ vi.mock("~/.server/auth/pendingGroupAssignments", () => ({
   applyPendingGroupAssignments: vi.fn().mockResolvedValue(false),
 }));
 
-vi.mock("~/config", () => ({
+vi.mock("~/config", async (importOriginal) => ({
   cytarioConfig: {
+    ...(await importOriginal<typeof import("~/config")>()).cytarioConfig,
     endpoints: { webapp: "https://app.example.com" },
     auth: { clientId: "test-client" },
   },
@@ -78,6 +89,7 @@ describe("callback loader", () => {
     vi.mocked(profileFromAccessToken).mockReturnValue(mockUser);
     vi.mocked(getPreferredOrg).mockResolvedValue(null);
     vi.mocked(setPreferredOrg).mockResolvedValue(undefined);
+    vi.mocked(readActiveOrgHint).mockResolvedValue(undefined);
     vi.mocked(applyPendingGroupAssignments).mockResolvedValue(false);
   });
 
@@ -119,6 +131,74 @@ describe("callback loader", () => {
     const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
 
     expect(response.headers.get("Location")).toBe("/dashboard");
+  });
+
+  test("a bare / lands in the cross-app hint's org when the token carries it", async () => {
+    // The portal last left the user in org2; the token carries both orgs.
+    vi.mocked(profileFromAccessToken).mockReturnValue(
+      mock.user({
+        organizations: {
+          org1: { groups: ["lab"], attributes: {} },
+          org2: { groups: ["research"], attributes: {} },
+        },
+      }),
+    );
+    vi.mocked(readActiveOrgHint).mockResolvedValue("org2");
+    vi.mocked(validateOAuthState).mockResolvedValue({
+      ...mockStateData,
+      redirectTo: "/",
+    });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/org2");
+  });
+
+  test("a hint naming an org the token does not carry is ignored for the landing default", async () => {
+    vi.mocked(readActiveOrgHint).mockResolvedValue("foreign");
+    vi.mocked(getPreferredOrg).mockResolvedValue("org1");
+    vi.mocked(validateOAuthState).mockResolvedValue({
+      ...mockStateData,
+      redirectTo: "/",
+    });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/org1");
+  });
+
+  test("an org-path return_to wins over a persisted preference for a different org", async () => {
+    // An org-qualified target outranks the default-org resolution; only a
+    // bare / is expanded.
+    vi.mocked(getPreferredOrg).mockResolvedValue("org1");
+    vi.mocked(validateOAuthState).mockResolvedValue({
+      ...mockStateData,
+      redirectTo: "/org2/",
+    });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/org2/");
+  });
+
+  test("only a bare / is rewritten to the default org; other paths pass through", async () => {
+    vi.mocked(getPreferredOrg).mockResolvedValue("org1");
+    vi.mocked(validateOAuthState).mockResolvedValue({
+      ...mockStateData,
+      redirectTo: "/org1/settings",
+    });
+
+    const request = new Request("http://localhost/auth/callback?code=auth-code&state=valid-state");
+
+    const response = (await loader({ request } as LoaderFunctionArgs)) as Response;
+
+    expect(response.headers.get("Location")).toBe("/org1/settings");
   });
 
   test("a zero-org session redirects to the bare root (onboarding funnel)", async () => {
