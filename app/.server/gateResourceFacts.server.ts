@@ -7,6 +7,7 @@ import { findProviderConnection, getProviderCatalog } from "./providers/provider
 import type { GateRequest } from "@cytario/plugin-api";
 import { cytarioConfig } from "~/config";
 import { getConnection } from "~/routes/connections/connections.server";
+import type { ConnectionGateFacts, LockedConnection } from "~/utils/lockedConnection";
 import {
   connectionIdFromCyberduckProfilePath,
   connectionIdFromOrgPath,
@@ -55,22 +56,29 @@ async function portalAccessTokenFor(
   }
 }
 
-/**
- * The `providerConnectionId` a create-connection form submits. Read off a clone
- * so the action still owns the body; validation stays there too — this only
- * feeds the gate's fact.
- */
-async function submittedProviderConnectionId(request: Request): Promise<string | undefined> {
+const formContentType = (request: Request): boolean => {
   const contentType = request.headers.get("content-type") ?? "";
-  if (!FORM_CONTENT_TYPES.some((type) => contentType.includes(type))) return undefined;
+  return FORM_CONTENT_TYPES.some((type) => contentType.includes(type));
+};
+
+/**
+ * The form fields the gate's fact may name. Read off a clone so the action
+ * still owns the body; validation stays there too — this only feeds the fact.
+ */
+async function submittedFields(request: Request): Promise<FormData | undefined> {
+  if (!formContentType(request)) return undefined;
   try {
-    const value = (await request.clone().formData()).get("providerConnectionId");
-    return typeof value === "string" && value !== "" ? value : undefined;
+    return await request.clone().formData();
   } catch (error) {
-    console.warn(`${label} Could not read the create-connection form:`, error);
+    console.warn(`${label} Could not read the submitted form:`, error);
     return undefined;
   }
 }
+
+const stringField = (form: FormData, name: string): string | undefined => {
+  const value = form.get(name);
+  return typeof value === "string" && value !== "" ? value : undefined;
+};
 
 interface GateResourceRequest {
   request: Request;
@@ -82,11 +90,8 @@ interface GateResourceRequest {
 }
 
 /**
- * The resource facts a gate may consult, resolved ahead of credential minting:
- * the connection id a `/:org/:id/*` or `/api/v1/:org/cyberduck-profile/:id` path
- * names and that connection's provider publicness, or — for a create-connection
- * submit to the org root — the submitted provider's. Every fact is best-effort;
- * an unknown one is left absent rather than guessed.
+ * The facts a gate may consult, resolved ahead of credential minting. Every
+ * fact is best-effort; an unknown one is left absent rather than guessed.
  */
 export async function resolveGateResource({
   request,
@@ -100,11 +105,20 @@ export async function resolveGateResource({
   // their input would cost.
   if (!hasGates()) return undefined;
 
-  // The path names the connection, but only the connection row names its
-  // provider — a single org-scoped, canSee-filtered read, never a listing.
-  const connectionId =
-    connectionIdFromOrgPath(url.pathname) ?? connectionIdFromCyberduckProfilePath(url.pathname);
-  if (connectionId) {
+  const publicnessOf = async (providerConnectionId: string): Promise<boolean | undefined> =>
+    providerIsPublic(
+      organization,
+      providerConnectionId,
+      await portalAccessTokenFor(organization, sessionId, authTokens.accessToken),
+    );
+
+  /**
+   * The facts of an existing connection: only the connection row names its
+   * provider, so this is one org-scoped, canSee-filtered read.
+   */
+  const existingConnectionFacts = async (
+    connectionId: string,
+  ): Promise<GateResource | undefined> => {
     const connection = await getConnection(user, organization, connectionId).catch(
       (error: unknown) => {
         console.warn(`${label} Could not read the connection for its gate facts:`, error);
@@ -114,35 +128,49 @@ export async function resolveGateResource({
     if (!connection) return { connectionId };
     return {
       connectionId,
-      isPublic: await providerIsPublic(
-        organization,
-        connection.providerConnectionId,
-        await portalAccessTokenFor(organization, sessionId, authTokens.accessToken),
-      ),
+      isPublic: await publicnessOf(connection.providerConnectionId),
     };
-  }
+  };
 
-  if (request.method !== "POST") return undefined;
-  // The create-connection form posts to the org root; any other org-scoped POST
-  // carries no provider reference to resolve.
+  // The path names the connection.
+  const connectionId =
+    connectionIdFromOrgPath(url.pathname) ?? connectionIdFromCyberduckProfilePath(url.pathname);
+  if (connectionId) return existingConnectionFacts(connectionId);
+
+  // Only the org-root writes carry a connection reference; every other
+  // org-scoped path addresses something else.
+  if (request.method !== "POST" && request.method !== "PATCH") return undefined;
   if (organizationFromPath(url.pathname) === undefined || stripOrgPath(url.pathname) !== "/") {
     return undefined;
   }
 
-  const providerConnectionId = await submittedProviderConnectionId(request);
-  if (!providerConnectionId) return undefined;
-  return {
-    isPublic: await providerIsPublic(
-      organization,
-      providerConnectionId,
-      await portalAccessTokenFor(organization, sessionId, authTokens.accessToken),
-    ),
-  };
-}
+  const form = await submittedFields(request);
+  if (!form) return undefined;
 
-/** A listed connection and the publicness the caller already resolved for it. */
-export interface ListedConnectionFacts extends GateResource {
-  connectionId: string;
+  // A create submit names the provider it will reference — there is no target
+  // row yet, so the submitted reference is the fact. Every other intent acts on
+  // an EXISTING connection, and the fact must describe that target: trusting a
+  // submitted provider reference there would let a write on a private
+  // connection claim a public provider.
+  const isCreateIntent = request.method === "POST" && stringField(form, "_intent") === undefined;
+  if (isCreateIntent) {
+    const providerConnectionId = stringField(form, "providerConnectionId");
+    if (!providerConnectionId) return undefined;
+    return { isPublic: await publicnessOf(providerConnectionId) };
+  }
+
+  const targetConnectionId = stringField(form, "connectionId");
+  if (targetConnectionId) return existingConnectionFacts(targetConnectionId);
+
+  // A share with no target row yet (it is creating one) still names the
+  // provider it builds from; nothing else may claim a provider fact.
+  if (stringField(form, "_intent") === "share") {
+    const providerConnectionId = stringField(form, "providerConnectionId");
+    if (!providerConnectionId) return undefined;
+    return { isPublic: await publicnessOf(providerConnectionId) };
+  }
+
+  return undefined;
 }
 
 /**
@@ -152,25 +180,34 @@ export interface ListedConnectionFacts extends GateResource {
  * way the request for that connection would not proceed. The facts come from
  * the caller's own provider resolution, so no extra catalog read runs here.
  */
-export async function lockedConnectionIds(
+export async function lockedConnections(
   user: UserProfile,
   organization: string,
-  connections: readonly ListedConnectionFacts[],
-): Promise<string[]> {
+  connections: readonly ConnectionGateFacts[],
+): Promise<LockedConnection[]> {
   if (!hasGates()) return [];
 
   const identity = toIdentity(user, organization);
   const verdicts = await Promise.all(
-    connections.map(async ({ connectionId, isPublic }) => {
+    connections.map(async ({ connectionId, isPublic }): Promise<LockedConnection | undefined> => {
       const outcome = await runGates({
         url: orgPath(organization, `/${connectionId}`),
         method: "GET",
         identity,
         resource: { connectionId, ...(isPublic === undefined ? {} : { isPublic }) },
       });
-      return outcome.kind === "lock" || outcome.kind === "deny" ? connectionId : undefined;
+      if (outcome.kind !== "lock" && outcome.kind !== "deny") return undefined;
+      // The first locked connection's copy is the whole set's copy in practice
+      // (one gate, one plan, one call to action); the host carries it verbatim.
+      const { message, resolveUrl, resolveLabel } = outcome;
+      return {
+        id: connectionId,
+        ...(message ? { message } : {}),
+        ...(resolveUrl ? { resolveUrl } : {}),
+        ...(resolveLabel ? { resolveLabel } : {}),
+      };
     }),
   );
 
-  return verdicts.filter((id): id is string => id !== undefined);
+  return verdicts.filter((verdict): verdict is LockedConnection => verdict !== undefined);
 }

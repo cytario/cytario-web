@@ -24,10 +24,11 @@ import {
 import { verifyIdToken } from "./verifyIdToken";
 import { ConnectionConfig, ConnectionGrant } from "~/.generated/client";
 import type { ClientConnectionProvider } from "~/.server/auth/getSessionCredentials";
-import { resolveGateResource } from "~/.server/gateResourceFacts.server";
+import { lockedConnections, resolveGateResource } from "~/.server/gateResourceFacts.server";
 import { createLabel } from "~/.server/logging";
 import { runGates } from "~/.server/pluginGates";
 import { listConnections } from "~/routes/connections/connections.server";
+import type { LockedConnection } from "~/utils/lockedConnection";
 import type { NotificationInput } from "~/utils/notifications";
 import {
   isOrgAgnosticPath,
@@ -54,8 +55,9 @@ export interface AuthContextData extends Omit<SessionData, "credentials"> {
    * orgs' credentials never enter the request context. */
   credentials: ConnectionsCredentials;
   /** Connections a plugin gate reported visible-locked: listed and deletable,
-   * never browsable. Empty when no gate locked anything. */
-  lockedConnectionIds: string[];
+   * never browsable. Empty when no gate locked anything. Computed once per
+   * request (the single per-connection probe) and read by every loader. */
+  lockedConnections: LockedConnection[];
 }
 
 export const authContext = createContext<AuthContextData>();
@@ -139,14 +141,24 @@ const fetchAllCredentials = async (
   connectionConfigs: ConnectionConfigWithGrants[];
   credentialErrors: Record<string, string>;
   connectionProviders: Record<string, ClientConnectionProvider>;
+  lockedConnections: LockedConnection[];
 }> => {
   const connectionConfigs = await listConnections(sessionData.user, organization);
 
-  const { credentials, errors, providers } = await getAllSessionCredentials(
+  const {
+    credentials,
+    errors,
+    providers,
+    lockedConnections: locked,
+  } = await getAllSessionCredentials(
     sessionData,
     connectionConfigs,
     sessionId,
     organization,
+    // Probed inside the credential pass so the locked set is known before any
+    // mint and costs no second catalog read: the facts come from this
+    // request's own provider resolution.
+    (facts) => lockedConnections(sessionData.user, organization, facts),
   );
 
   return {
@@ -166,6 +178,7 @@ const fetchAllCredentials = async (
     connectionConfigs,
     credentialErrors: errors,
     connectionProviders: providers,
+    lockedConnections: locked,
   };
 };
 
@@ -240,7 +253,7 @@ const applyGates = async (
   sessionData: SessionData,
   session: CytarioSession,
   requestOrganization: string | undefined,
-): Promise<{ response?: Response; lockedConnectionIds: string[] }> => {
+): Promise<{ response?: Response; lockedConnections: LockedConnection[] }> => {
   // Resolved only when a gate exists to read them, and best-effort: an unknown
   // fact is absent, never guessed.
   const resource = requestOrganization
@@ -265,7 +278,7 @@ const applyGates = async (
 
   if (outcome.kind === "redirect") {
     console.info(`${label} Gate redirect to ${outcome.url}`);
-    return { response: redirect(outcome.url), lockedConnectionIds: [] };
+    return { response: redirect(outcome.url), lockedConnections: [] };
   }
 
   if (outcome.kind === "deny") {
@@ -276,7 +289,7 @@ const applyGates = async (
         status,
         headers: { "Content-Type": "application/json" },
       }),
-      lockedConnectionIds: [],
+      lockedConnections: [],
     };
   }
 
@@ -294,7 +307,7 @@ const applyGates = async (
             status: 402,
             headers: { "Content-Type": "application/json" },
           }),
-          lockedConnectionIds: [],
+          lockedConnections: [],
         };
       }
       return {
@@ -303,15 +316,22 @@ const applyGates = async (
           requestOrganization,
           outcome.message ?? "This connection needs a paid plan to browse.",
         ),
-        lockedConnectionIds: [],
+        lockedConnections: [],
       };
     }
     // Nothing this request names: it proceeds, and the ids render locked
     // wherever the host lists them.
-    return { lockedConnectionIds: outcome.connectionIds };
+    return {
+      lockedConnections: outcome.connectionIds.map((id) => ({
+        id,
+        ...(outcome.message ? { message: outcome.message } : {}),
+        ...(outcome.resolveUrl ? { resolveUrl: outcome.resolveUrl } : {}),
+        ...(outcome.resolveLabel ? { resolveLabel: outcome.resolveLabel } : {}),
+      })),
+    };
   }
 
-  return { lockedConnectionIds: [] };
+  return { lockedConnections: [] };
 };
 
 const noOrganizationResponse = (request: Request, pathname: string): Response => {
@@ -378,7 +398,7 @@ const proceedAuthenticated = async (
   { context, session, next }: AuthenticatedRequest,
   sessionData: SessionData,
   requestOrganization: string,
-  lockedConnectionIds: string[],
+  gateLockedConnections: LockedConnection[],
   persistCredentials: (credentials: SessionData["credentials"]) => Promise<void>,
 ): Promise<unknown> => {
   // The request org drives everything below: the derived entitlements
@@ -393,6 +413,7 @@ const proceedAuthenticated = async (
     connectionConfigs,
     credentialErrors,
     connectionProviders,
+    lockedConnections: probedLockedConnections,
   } = await fetchAllCredentials(sessionData, session.id, requestOrganization);
 
   // fetchAllCredentials already merged the refreshed slice into the per-org
@@ -401,6 +422,14 @@ const proceedAuthenticated = async (
   // record for THEIR org and never see another org's credentials.
   await persistCredentials(withCredentials.credentials);
 
+  // The probe answers per connection; the gate that ran on this request may
+  // have named ids without per-connection copy. The probe wins where it knows
+  // the row (it carries the call to action); a gate-named id it did not reach
+  // is kept so the listing still renders it locked.
+  const lockedById = new Map<string, LockedConnection>();
+  for (const locked of gateLockedConnections) lockedById.set(locked.id, locked);
+  for (const locked of probedLockedConnections) lockedById.set(locked.id, locked);
+
   context.set(authContext, {
     ...sessionData,
     entitlements,
@@ -408,7 +437,7 @@ const proceedAuthenticated = async (
     connectionConfigs,
     credentialErrors,
     connectionProviders,
-    lockedConnectionIds,
+    lockedConnections: [...lockedById.values()],
     sessionId: session.id,
     requestOrganization,
   });
@@ -542,7 +571,7 @@ export const authMiddleware: MiddlewareFunction = async (
         { context, session, next },
         updatedSessionData,
         requestOrganization!,
-        gateResult.lockedConnectionIds,
+        gateResult.lockedConnections,
         async (credentials) => {
           if (credentials !== sessionData.credentials) {
             session.set("credentials", credentials);
@@ -575,7 +604,7 @@ export const authMiddleware: MiddlewareFunction = async (
       refreshedRequestOrg,
       // The gate ran in the pre-refresh org; a verdict about another org's
       // connections must never reach this request's listings.
-      refreshedRequestOrg === requestOrganization ? gateResult.lockedConnectionIds : [],
+      refreshedRequestOrg === requestOrganization ? gateResult.lockedConnections : [],
       async (credentials) => {
         session.set("credentials", credentials);
         await sessionStorage.commitSession(session);
