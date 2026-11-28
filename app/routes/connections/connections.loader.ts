@@ -3,9 +3,9 @@ import { type LoaderFunctionArgs } from "react-router";
 
 import type { ConnectionConfigWithGrants } from "~/.server/auth/authMiddleware";
 import { authContext } from "~/.server/auth/authMiddleware";
-import { lockedConnectionIds } from "~/.server/gateResourceFacts.server";
 import { TreeNode } from "~/components/DirectoryView/buildDirectoryTree";
 import type { ConnectionStatusUpdate } from "~/utils/connectionsStore/useConnectionsStore";
+import type { LockedConnection } from "~/utils/lockedConnection";
 
 function buildConnectionNodes(
   configs: ConnectionConfigWithGrants[],
@@ -30,6 +30,8 @@ export interface ServerLoaderData {
   /** Per-connection mint failures; a credential-less connection absent here is public, not broken. */
   credentialErrors: Record<string, string>;
   connectionConfigs: ConnectionConfigWithGrants[];
+  /** The gate's lock verdicts, with the call to action each row renders. */
+  lockedConnections: LockedConnection[];
 }
 
 export interface LoaderData extends ServerLoaderData {
@@ -44,31 +46,23 @@ export interface LoaderData extends ServerLoaderData {
 }
 
 export async function loadConnections({ context }: LoaderFunctionArgs) {
-  const {
-    user,
-    requestOrganization,
-    connectionConfigs,
-    connectionProviders,
-    credentials,
-    credentialErrors,
-  } = context.get(authContext);
+  const { connectionConfigs, credentials, credentialErrors, lockedConnections } =
+    context.get(authContext);
 
-  // Asked once per listed connection — the same question browsing one asks, so
-  // a row's locked state cannot disagree with the request that would follow it.
-  const locked = await lockedConnectionIds(
-    user,
-    requestOrganization,
-    connectionConfigs.map((config) => ({
-      connectionId: config.id,
-      isPublic: connectionProviders[config.id]?.isPublic,
-    })),
+  // A locked connection is listed but never handed a credential: the request
+  // probe already refused to mint one, and this payload is what the browser gets.
+  const lockedConnectionIds = lockedConnections.map((locked) => locked.id);
+  const lockedIds = new Set(lockedConnectionIds);
+  const browsableCredentials = Object.fromEntries(
+    Object.entries(credentials).filter(([connectionId]) => !lockedIds.has(connectionId)),
   );
 
   const payload: ServerLoaderData = {
-    nodes: buildConnectionNodes(connectionConfigs, locked),
-    credentials,
+    nodes: buildConnectionNodes(connectionConfigs, lockedConnectionIds),
+    credentials: browsableCredentials,
     credentialErrors,
     connectionConfigs,
+    lockedConnections,
   };
 
   return payload;

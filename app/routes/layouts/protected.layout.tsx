@@ -8,7 +8,6 @@ import {
 import { ModalOutlet } from "./ModalOutlet";
 import { authContext, authMiddleware } from "~/.server/auth/authMiddleware";
 import { toIdentity } from "~/.server/auth/getUserInfo";
-import { lockedConnectionIds } from "~/.server/gateResourceFacts.server";
 import { createLabel } from "~/.server/logging";
 import { PluginSlots } from "~/components/PluginSlots";
 import { ExplorerSidebar } from "~/components/Sidebar/Explorer/ExplorerSidebar";
@@ -35,19 +34,14 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     connectionProviders,
     user,
     requestOrganization: org,
-    lockedConnectionIds: lockedForThisRequest,
+    lockedConnections,
   } = context.get(authContext);
-  // The sidebar needs the same per-connection verdict the listings ask for:
-  // an org-root lock names nothing per connection, so both signals count.
-  const probedLocked = await lockedConnectionIds(
-    user,
-    org,
-    connectionConfigs.map((config) => ({
-      connectionId: config.id,
-      isPublic: connectionProviders[config.id]?.isPublic,
-    })),
+  // A locked connection is listed, never handed a credential: the request probe
+  // already refused to mint one, and this payload is what the browser gets.
+  const lockedIds = new Set(lockedConnections.map((locked) => locked.id));
+  const browsableCredentials = Object.fromEntries(
+    Object.entries(credentials).filter(([connectionId]) => !lockedIds.has(connectionId)),
   );
-  const locked = [...new Set([...lockedForThisRequest, ...probedLocked])];
   // No shouldRevalidate gate: the credential keep-alive drives an explicit
   // revalidation to re-mint STS credentials, and RR runs this loader on every
   // navigation — recents/favorites riding along is cheaper than a gate that
@@ -71,12 +65,12 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
   // to the client slot props.
   return {
     connectionConfigs,
-    credentials,
+    credentials: browsableCredentials,
     credentialErrors,
     connectionProviders,
     // Presentation only: the gate already refused the browsable requests, so
-    // the client just renders these connections locked.
-    lockedConnectionIds: locked,
+    // the client just renders these connections locked (with the gate's CTA).
+    lockedConnections,
     identity: toIdentity(user, org),
     hostConfig: {
       portalUrl: cytarioConfig.endpoints.portal,
@@ -98,12 +92,12 @@ export default function ProtectedLayout() {
     credentials,
     credentialErrors,
     connectionProviders,
-    lockedConnectionIds,
+    lockedConnections,
     identity,
     hostConfig,
   } = useLoaderData<typeof loader>();
   useInitConnections(connectionConfigs, credentials, credentialErrors, connectionProviders);
-  useInitLockedConnections(lockedConnectionIds);
+  useInitLockedConnections(lockedConnections);
   useCredentialsKeepAlive();
   useConnectionHealthProbe();
 

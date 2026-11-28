@@ -49,10 +49,21 @@ export const loader = async ({ params, context }: LoaderFunctionArgs) => {
     credentials: connectionsCredentials,
     credentialErrors,
     connectionProviders,
+    lockedConnections,
   } = context.get(authContext);
   const { id: connectionId } = params;
 
   if (!connectionId) throw new Error("Connection id is required");
+
+  // The gate already refused this request upstream; the guard keeps a
+  // credential out of the payload even if that ordering ever changes.
+  const locked = lockedConnections.find((candidate) => candidate.id === connectionId);
+  if (locked) {
+    throw new Response(
+      JSON.stringify({ error: locked.message ?? "This connection needs a paid plan to browse." }),
+      { status: 402, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   const connectionConfig = await getConnection(user, requestOrganization, connectionId);
   if (!connectionConfig) {
