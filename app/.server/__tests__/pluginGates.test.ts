@@ -1,5 +1,5 @@
 import { gateRegistry, runGates } from "../pluginGates";
-import type { GateRequest, Identity } from "@cytario/plugin-api";
+import type { GateOutcome, GateRequest, Identity } from "@cytario/plugin-api";
 
 const identity: Identity = {
   sub: "test-user",
@@ -96,18 +96,96 @@ describe("pluginGates", () => {
     );
   });
 
-  test("returns a lock outcome and stops", async () => {
-    const later = vi.fn(() => ({ kind: "continue" }) as const);
+  test("returns a lock outcome once every gate has had its say", async () => {
     gateRegistry
       .scopedFor("test-plugin")
       .register(() => ({ kind: "lock", connectionIds: ["conn-1", "conn-2"] }));
-    gateRegistry.scopedFor("test-plugin").register(later);
 
     expect(await runGates(request())).toEqual({
       kind: "lock",
       connectionIds: ["conn-1", "conn-2"],
     });
-    expect(later).not.toHaveBeenCalled();
+  });
+
+  test("a lock does not short-circuit later gates — their locks are merged", async () => {
+    const later = vi.fn((): GateOutcome => ({ kind: "lock", connectionIds: ["conn-3"] }));
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "lock", connectionIds: ["conn-1", "conn-2"] }));
+    gateRegistry.scopedFor("test-plugin").register(later);
+    gateRegistry.scopedFor("test-plugin").register(() => ({ kind: "continue" }));
+
+    expect(await runGates(request())).toEqual({
+      kind: "lock",
+      connectionIds: ["conn-1", "conn-2", "conn-3"],
+    });
+    expect(later).toHaveBeenCalledTimes(1);
+  });
+
+  test("a lock that names no requested connection cannot shield it from a later deny", async () => {
+    // The failure this guards: the requesting gate locks some OTHER connection,
+    // the run stops, and a gate that would have denied this request never ran.
+    const deny = vi.fn((): GateOutcome => ({ kind: "deny", status: 402, message: "free plan" }));
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "lock", connectionIds: ["conn-other"] }));
+    gateRegistry.scopedFor("test-plugin").register(deny);
+
+    const outcome = await runGates(request({ resource: { connectionId: "conn-1" } }));
+
+    expect(outcome).toEqual({ kind: "deny", status: 402, message: "free plan" });
+    expect(deny).toHaveBeenCalledTimes(1);
+  });
+
+  test("mixed lock and deny across gates: the deny answers, the locks are dropped", async () => {
+    const afterDeny = vi.fn((): GateOutcome => ({ kind: "lock", connectionIds: ["conn-late"] }));
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "lock", connectionIds: ["conn-1"] }));
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "deny", status: 403, message: "no" }));
+    gateRegistry.scopedFor("test-plugin").register(afterDeny);
+
+    expect(await runGates(request())).toEqual({ kind: "deny", status: 403, message: "no" });
+    // A deny answers the request outright — nothing after it changes the verdict.
+    expect(afterDeny).not.toHaveBeenCalled();
+  });
+
+  test("mixed deny then lock: the earlier deny wins and stops the run", async () => {
+    const lockGate = vi.fn((): GateOutcome => ({ kind: "lock", connectionIds: ["conn-1"] }));
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "deny", status: 402, message: "free plan" }));
+    gateRegistry.scopedFor("test-plugin").register(lockGate);
+
+    expect(await runGates(request())).toEqual({
+      kind: "deny",
+      status: 402,
+      message: "free plan",
+    });
+    expect(lockGate).not.toHaveBeenCalled();
+  });
+
+  test("a duplicate id across locks appears once, and the first lock's copy speaks for the set", async () => {
+    gateRegistry.scopedFor("test-plugin").register(() => ({
+      kind: "lock",
+      connectionIds: ["conn-1"],
+      message: "first",
+      resolveUrl: "https://admin.cytario.com/billing",
+      resolveLabel: "Upgrade plan",
+    }));
+    gateRegistry
+      .scopedFor("test-plugin")
+      .register(() => ({ kind: "lock", connectionIds: ["conn-1", "conn-2"], message: "second" }));
+
+    expect(await runGates(request())).toEqual({
+      kind: "lock",
+      connectionIds: ["conn-1", "conn-2"],
+      message: "first",
+      resolveUrl: "https://admin.cytario.com/billing",
+      resolveLabel: "Upgrade plan",
+    });
   });
 
   test("a lock outcome with a malformed id list is contained and treated as continue", async () => {
