@@ -57,7 +57,8 @@ export default function CyberduckModal({ onClose }: { onClose: () => void }) {
             <Link href="https://cyberduck.io/download/" target="_blank" rel="noopener noreferrer">
               Cyberduck
             </Link>{" "}
-            (version 8.7.0 or later)
+            (version 9.5.0 or later — older versions issue S3 calls that S3-compatible endpoints do
+            not serve)
           </li>
           <li>Download the connection profile below</li>
           <li>Double-click the downloaded profile to add it to Cyberduck</li>

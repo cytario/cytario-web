@@ -35,6 +35,8 @@ const READ_ONLY_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/org
 const ADMIN_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/internal-admin";
 const ANNOTATE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-an";
 const READ_WRITE_ARN = "arn:aws:iam::123456789012:role/cytario/provider-roles/lab-rw";
+const RUSTFS_ENDPOINT = "https://rustfs.example.com";
+const RUSTFS_ROLE_PLACEHOLDER = "rustfs:mock:read-only";
 
 /** The DEV-fixture shape from C-435: org-root read-only grant + internal-group admin grant. */
 function sharedCatalog() {
@@ -166,6 +168,101 @@ describe("cyberduck-profile loader — SRS-CY-43111", () => {
     const response = (await loader(buildArgs(mock.user()))) as Response;
 
     expect(response.status).toBe(404);
+  });
+
+  describe("rustfs provider connection", () => {
+    function rustfsCatalog() {
+      return mock.providerCatalog({
+        providerConnections: [
+          mock.providerConnection({
+            providerType: "rustfs",
+            endpoint: RUSTFS_ENDPOINT,
+            region: "us-east-1",
+          }),
+        ],
+        providerRoles: [
+          mock.providerRole({ roleArn: RUSTFS_ROLE_PLACEHOLDER, accessLevel: "read-only" }),
+        ],
+      });
+    }
+
+    test("member gets a RustFS profile with the compatibility properties and no role ARN", async () => {
+      vi.mocked(getConnection).mockResolvedValue(sharedConnection());
+      vi.mocked(getProviderCatalog).mockResolvedValue(rustfsCatalog());
+      const user = mock.user({ organizations: { org1: { groups: [], attributes: {} } } });
+
+      const response = (await loader(buildArgs(user))) as Response;
+
+      expect(response.status).toBe(200);
+      const xml = await response.text();
+      for (const fragment of [
+        "<key>s3.upload.multipart.lookup</key>\n        <string>false</string>",
+        "<key>s3.cloudfront.preload.enable</key>\n        <string>false</string>",
+        "<key>s3.versioning.enable</key>\n        <string>false</string>",
+        "<key>s3.acl.default</key>\n        <string>none</string>",
+        "<key>s3.bucket.virtualhost.disable</key>\n        <true/>",
+      ] as const) {
+        expect(xml).toContain(fragment);
+      }
+      expect(xml).not.toContain("s3.assumerole.rolearn");
+      expect(xml).toContain("OAuth Client ID");
+      expect(xml).toContain("STS Endpoint");
+      // The STS endpoint for a non-AWS provider is the connection endpoint
+      // itself (RustFS serves STS on the S3 host).
+      expect(xml).toContain(RUSTFS_ENDPOINT.replace("https://", ""));
+    });
+
+    test("public RustFS provider keeps the compatibility properties on the anonymous profile", async () => {
+      vi.mocked(getConnection).mockResolvedValue(
+        mock.connectionConfig({
+          grants: [mock.connectionGrant({ scope: "*", accessLevel: "read-only" })],
+        }),
+      );
+      vi.mocked(getProviderCatalog).mockResolvedValue(
+        mock.providerCatalog({
+          providerConnections: [
+            mock.providerConnection({
+              providerType: "rustfs",
+              endpoint: RUSTFS_ENDPOINT,
+              region: "us-east-1",
+              isPublic: true,
+            }),
+          ],
+          providerRoles: [],
+        }),
+      );
+      const user = mock.user({
+        organizations: { org1: { groups: ["org1/internal"], attributes: {} } },
+      });
+
+      const response = (await loader(buildArgs(user))) as Response;
+
+      expect(response.status).toBe(200);
+      const xml = await response.text();
+      // The endpoint cannot serve the disabled calls regardless of auth mode,
+      // so the anonymous profile carries the same properties.
+      expect(xml).toContain(
+        "<key>s3.upload.multipart.lookup</key>\n        <string>false</string>",
+      );
+      expect(xml).toContain("<key>Anonymous Configurable</key>");
+      expect(xml).not.toContain("s3.assumerole.rolearn");
+    });
+  });
+
+  test("AWS profiles stay unchanged: no compatibility properties, role ARN embedded", async () => {
+    vi.mocked(getConnection).mockResolvedValue(sharedConnection());
+    vi.mocked(getProviderCatalog).mockResolvedValue(sharedCatalog());
+    const user = mock.user({ organizations: { org1: { groups: [], attributes: {} } } });
+
+    const response = (await loader(buildArgs(user))) as Response;
+
+    expect(response.status).toBe(200);
+    const xml = await response.text();
+    expect(xml).not.toContain("s3.upload.multipart.lookup");
+    expect(xml).not.toContain("s3.cloudfront.preload.enable");
+    expect(xml).not.toContain("s3.versioning.enable");
+    expect(xml).not.toContain("s3.acl.default");
+    expect(rolearnOf(xml)).toBe(READ_ONLY_ARN);
   });
 
   describe("public provider connection", () => {
